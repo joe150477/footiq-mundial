@@ -1,1 +1,121 @@
-<html><body>FootIQ cargando...</body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>FootIQ · Mundial 2026</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0f1c">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'SF Pro Display', -apple-system, sans-serif; background: #0a0f1c; color: #c8d6e5; min-height: 100vh; }
+        .header { background: linear-gradient(180deg, #1a2740 0%, #0a0f1c 100%); padding: 20px 16px 12px; text-align: center; border-bottom: 1px solid #2a3a5c; }
+        .header h1 { font-size: 1.6em; color: #4fc3f7; text-shadow: 0 0 20px rgba(79,195,247,0.3); }
+        .header .subtitle { font-size: 0.8em; color: #607d8b; margin-top: 4px; }
+        .calendar { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; justify-content: center; }
+        .day { background: #1a2740; border: 1px solid #2a3a5c; color: #78909c; padding: 10px 12px; border-radius: 10px; text-align: center; cursor: pointer; transition: all 0.2s; min-width: 40px; }
+        .day:hover { background: #2a3a5c; color: #fff; }
+        .day.active { background: #4fc3f7; color: #0a0f1c; font-weight: bold; border-color: #4fc3f7; }
+        .day.today { border-color: #ffca28; }
+        .content { padding: 16px; }
+        .card { background: linear-gradient(145deg, #1a2740 0%, #152030 100%); border: 1px solid #2a3a5c; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .grupo { background: #2a3a5c; color: #4fc3f7; padding: 4px 10px; border-radius: 6px; font-size: 0.75em; font-weight: 600; }
+        .hora { color: #607d8b; font-size: 0.75em; }
+        .teams { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; }
+        .team { font-weight: 700; font-size: 1.1em; }
+        .team.home { color: #e0e0e0; }
+        .team.away { color: #b0bec5; text-align: right; }
+        .score { color: #4fc3f7; font-weight: 700; font-size: 0.9em; text-align: center; }
+        .bar { height: 8px; background: #0d1829; border-radius: 4px; margin: 10px 0; display: flex; overflow: hidden; }
+        .bar-local { background: linear-gradient(90deg, #4fc3f7, #29b6f6); }
+        .bar-draw { background: linear-gradient(90deg, #78909c, #90a4ae); }
+        .bar-away { background: linear-gradient(90deg, #ff7043, #ff8a65); }
+        .stats { display: flex; gap: 12px; margin-top: 8px; font-size: 0.75em; }
+        .stat { background: #0d1829; padding: 4px 8px; border-radius: 6px; color: #78909c; }
+        .stat.on { color: #4caf50; border-left: 2px solid #4caf50; }
+        .stat.off { color: #ff5252; border-left: 2px solid #ff5252; }
+        .empty { text-align: center; color: #607d8b; margin-top: 40px; }
+        .empty .icon { font-size: 3em; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌍 FootIQ · Mundial 2026</h1>
+        <div class="subtitle" id="selected-date">Selecciona una fecha</div>
+    </div>
+    <div class="calendar" id="calendar"></div>
+    <div class="content" id="matches"></div>
+
+    <script>
+        const CALENDAR_START = new Date('2026-06-11');
+        const CALENDAR_END = new Date('2026-06-28');
+
+        function fetchData() {
+            return fetch('data.json').then(r => r.json()).catch(e => ({}));
+        }
+
+        function buildCalendar() {
+            const cal = document.getElementById('calendar');
+            const today = new Date();
+            for (let d = new Date(CALENDAR_START); d <= CALENDAR_END; d.setDate(d.getDate() + 1)) {
+                const iso = d.toISOString().split('T')[0];
+                const div = document.createElement('div');
+                div.className = 'day';
+                div.textContent = d.getDate() + '/' + (d.getMonth()+1);
+                div.dataset.date = iso;
+                if (iso === today.toISOString().split('T')[0]) div.classList.add('today');
+                div.onclick = () => showMatches(iso);
+                cal.appendChild(div);
+            }
+        }
+
+        function showMatches(date) {
+            document.getElementById('selected-date').textContent = '📅 ' + date;
+            document.querySelectorAll('.day').forEach(d => d.classList.remove('active'));
+            const activeDay = document.querySelector(`[data-date="${date}"]`);
+            if (activeDay) activeDay.classList.add('active');
+
+            fetchData().then(data => {
+                const container = document.getElementById('matches');
+                const matches = data[date] || [];
+                if (!matches.length) {
+                    container.innerHTML = '<div class="empty"><div class="icon">⚽</div><p>No hay partidos en esta fecha.</p></div>';
+                    return;
+                }
+                container.innerHTML = matches.map(m => `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="grupo">Grupo ${m.grupo}</span>
+                            <span class="hora">${m.hora} (COL)</span>
+                        </div>
+                        <div class="teams">
+                            <span class="team home">${m.local}</span>
+                            <span class="score">vs</span>
+                            <span class="team away">${m.visitante}</span>
+                        </div>
+                        <div class="bar">
+                            <div class="bar-local" style="width:${m.prob_h}%"></div>
+                            <div class="bar-draw" style="width:${m.prob_d}%"></div>
+                            <div class="bar-away" style="width:${m.prob_a}%"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:0.8em;margin-top:4px;">
+                            <span>${m.prob_h}%</span><span>${m.prob_d}%</span><span>${m.prob_a}%</span>
+                        </div>
+                        <div style="text-align:center;margin:8px 0;color:#ffca28;">🎯 Marcador probable: ${m.marcador}</div>
+                        <div class="stats">
+                            <span class="stat ${m.over25 ? 'on' : 'off'}">Over 2.5</span>
+                            <span class="stat ${m.ambos ? 'on' : 'off'}">Ambos marcan</span>
+                        </div>
+                    </div>
+                `).join('');
+            });
+        }
+
+        buildCalendar();
+        const today = new Date().toISOString().split('T')[0];
+        if (today >= '2026-06-11' && today <= '2026-06-28') showMatches(today);
+        else showMatches('2026-06-11');
+    </script>
+</body>
+</html>
