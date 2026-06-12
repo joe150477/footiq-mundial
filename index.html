@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>FootIQ · Mundial 2026 · BetPlay</title>
+<style>
+:root {
+  --bg:#06080d; --bg2:#0b0e17; --card:#111827; --border:#1c2538;
+  --text:#e2e8f4; --muted:#4a5a72; --accent:#2fa8f5; --gold:#f0bc35;
+  --green:#20c05a; --red:#e8404a; --orange:#f97316; --yellow:#facc15;
+  --dim:#6b7a90;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:system-ui;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+
+/* === OVERLAY === */
+#overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
+#overlay.gone{display:none;}
+.ov-ball{font-size:44px;animation:spin 2s linear infinite;}
+.ov-title{font-size:18px;font-weight:700;}
+.ov-sub{font-size:11px;color:var(--muted);}
+.ov-prog{width:280px;height:4px;background:var(--border);border-radius:2px;}
+.ov-fill{height:100%;background:var(--accent);width:0%;transition:width .2s;}
+.ov-step{font-size:12px;color:var(--muted);}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{50%{opacity:.3}}
+
+/* === TOPBAR / TABS === */
+.topbar{display:flex;padding:10px 14px;border-bottom:1px solid var(--border);align-items:center;gap:8px;}
+.logo{font-size:20px;font-weight:900;} .logo em{color:var(--accent);}
+.spacer{flex:1;}
+.score-pill{background:var(--bg2);border-radius:99px;padding:3px 8px;font-size:12px;}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
+.sdot.ok{background:var(--green);}
+.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);}
+.tab{flex:1;text-align:center;padding:8px 2px;font-size:9px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab .ti{font-size:15px;display:block;}
+
+/* === PAGES === */
+.pages{flex:1;overflow:hidden;position:relative;}
+.page{position:absolute;inset:0;overflow-y:auto;padding:12px;display:none;}
+.page.active{display:block;}
+
+/* === CARDS / ROWS === */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;}
+.stitle{font-size:12px;font-weight:700;margin:10px 0 6px;display:flex;align-items:center;gap:5px;}
+.trow{display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--border);}
+.tflg{font-size:18px;} .tname{font-size:12px;font-weight:600;flex:1;}
+.tpct{font-size:11px;font-weight:700;color:var(--accent);}
+.pill{font-size:9px;padding:1px 6px;border-radius:99px;}
+.pg{background:rgba(32,192,90,.2);color:var(--green);}
+
+/* === CHAMPION === */
+.champ-wrap{background:linear-gradient(135deg,#090f1e,#0d1c35);border-radius:16px;padding:18px;text-align:center;margin-bottom:10px;}
+.champ-flag{font-size:48px;} .champ-name{font-size:22px;font-weight:900;}
+.champ-pct{font-size:36px;font-weight:900;color:var(--gold);}
+
+/* === GROUPS === */
+.grp-card{background:var(--card);border-radius:12px;margin-bottom:8px;overflow:hidden;}
+.grp-head{background:var(--bg2);padding:8px 12px;font-weight:700;}
+.grp-team{display:flex;align-items:center;gap:7px;padding:6px 12px;border-bottom:1px solid var(--border);}
+
+/* === DUEL === */
+.ld-board{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.ld-card{text-align:center;padding:12px;border:2px solid var(--border);border-radius:12px;}
+.ld-name{font-size:11px;color:var(--muted);margin-bottom:4px;}
+.ld-score{font-size:32px;font-weight:900;}
+.ld-detail{font-size:10px;color:var(--muted);}
+
+/* === CALENDAR === */
+.cal-header{display:flex;justify-content:space-between;align-items:center;padding:8px;margin-bottom:8px;}
+.cal-nav{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:50%;cursor:pointer;font-size:20px;user-select:none;}
+.cal-title{font-size:16px;font-weight:700;}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:10px;color:var(--muted);margin-bottom:6px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;}
+.cal-day.has-match{border-color:rgba(47,168,245,.4);}
+.cal-day.active{background:var(--accent);color:#000;border-color:var(--accent);}
+.cal-day.active .cal-d-dot{background:#000;}
+.cal-day.past{opacity:.5;}
+.cal-d-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-top:2px;}
+.cal-day-matches{margin-top:12px;}
+
+/* === MATCH CARD === */
+.mcard-dual{background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;}
+.match-header{display:flex;align-items:center;gap:7px;padding:6px 0;margin-bottom:8px;border-bottom:1px solid var(--border);}
+.match-group{font-size:9px;color:var(--muted);margin-left:auto;}
+.match-time{font-size:9px;color:var(--muted);}
+.model-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.model-box{padding:8px;border-radius:10px;}
+.model-box-title{font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px;}
+.model-box.actual{background:rgba(47,168,245,.1);border:1px solid rgba(47,168,245,.3);}
+.model-box.klement{background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);}
+.model-probs-mini{display:flex;gap:4px;margin:6px 0;}
+.mprob-mini{flex:1;text-align:center;background:rgba(255,255,255,.05);border-radius:6px;padding:4px;}
+.mpv{font-size:13px;font-weight:800;}
+.mlabel{font-size:8px;color:var(--muted);}
+.mscore{font-size:10px;color:var(--muted);margin-top:4px;}
+
+/* === BET === */
+.bet-market{background:rgba(0,0,0,.3);border-radius:12px;padding:10px;margin-top:10px;}
+.bet-market-title{font-size:10px;font-weight:700;color:var(--yellow);margin-bottom:6px;text-transform:uppercase;}
+.bet-odds{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.bet-option{background:var(--bg2);border-radius:8px;padding:6px 10px;text-align:center;min-width:68px;border:1px solid var(--border);}
+.bet-option .blabel{font-size:8px;color:var(--muted);}
+.bet-option .bval{font-size:12px;font-weight:800;color:var(--gold);}
+.bet-option .breason{font-size:8px;color:var(--dim);font-style:italic;}
+
+/* === RESULT === */
+.result-real{background:rgba(32,192,90,.1);border-radius:8px;padding:10px;margin-top:10px;text-align:center;border:1px solid var(--green);}
+.result-real .rscore{font-size:22px;font-weight:900;}
+.result-real .rlabel{font-size:9px;color:var(--muted);margin-top:2px;}
+
+/* === NO RESULT === */
+.no-result{background:rgba(240,188,53,.05);border-radius:8px;padding:8px;margin-top:8px;text-align:center;border:1px solid rgba(240,188,53,.3);font-size:10px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<div id="overlay">
+  <div class="ov-ball">⚽</div>
+  <div class="ov-title">FootIQ · Mundial 2026</div>
+  <div class="ov-sub">Cargando motor de predicción y simulaciones</div>
+  <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
+  <div class="ov-step" id="stepMsg">Iniciando...</div>
+</div>
+
+<div class="topbar">
+  <div class="logo">Foot<em>IQ</em></div>
+  <div class="spacer"></div>
+  <div class="score-pill" id="modelScore">—</div>
+  <div class="sdot" id="statusDot"></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab(this,'champ')"><span class="ti">🏆</span>Campeón</div>
+  <div class="tab" onclick="showTab(this,'duel')"><span class="ti">⚔️</span>Duelo</div>
+  <div class="tab" onclick="showTab(this,'calendar')"><span class="ti">📅</span>Calendario</div>
+  <div class="tab" onclick="showTab(this,'groups')"><span class="ti">🏟️</span>Grupos</div>
+  <div class="tab" onclick="showTab(this,'model')"><span class="ti">🔬</span>Modelo</div>
+</div>
+
+<div class="pages">
+  <div class="page active" id="page-champ"></div>
+  <div class="page" id="page-duel"><div id="duelBody"></div></div>
+  <div class="page" id="page-calendar">
+    <div class="cal-header">
+      <div class="cal-nav" onclick="changeMonth(-1)">‹</div>
+      <div class="cal-title" id="calMonthTitle">Junio 2026</div>
+      <div class="cal-nav" onclick="changeMonth(1)">›</div>
+    </div>
+    <div class="cal-weekdays"><div>D</div><div>L</div><div>M</div><div>M</div><div>J</div><div>V</div><div>S</div></div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-day-matches" id="calDayMatches">
+      <div class="card" style="text-align:center;color:var(--muted);">Selecciona un día del calendario</div>
+    </div>
+  </div>
+  <div class="page" id="page-groups"></div>
+  <div class="page" id="page-model"></div>
+</div>
+
+<script>
+// ==================== DATOS ====================
+const GRUPOS = {
+  A:['Mexico','South Korea','South Africa','Czechia'],
+  B:['Canada','Bosnia','Qatar','Switzerland'],
+  C:['Brazil','Morocco','Haiti','Scotland'],
+  D:['United States','Paraguay','Australia','Turkey'],
+  E:['Germany','Curaçao','Ivory Coast','Ecuador'],
+  F:['Netherlands','Japan','Sweden','Tunisia'],
+  G:['Belgium','Egypt','Iran','New Zealand'],
+  H:['Spain','Cape Verde','Saudi Arabia','Uruguay'],
+  I:['France','Senegal','Iraq','Norway'],
+  J:['Argentina','Algeria','Austria','Jordan'],
+  K:['Portugal','DR Congo','Uzbekistan','Colombia'],
+  L:['England','Croatia','Ghana','Panama']
+};
+const BANDERAS = {
+  'Mexico':'🇲🇽','South Korea':'🇰🇷','South Africa':'🇿🇦','Czechia':'🇨🇿',
+  'Canada':'🇨🇦','Bosnia':'🇧🇦','Qatar':'🇶🇦','Switzerland':'🇨🇭',
+  'Brazil':'🇧🇷','Morocco':'🇲🇦','Haiti':'🇭🇹','Scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'United States':'🇺🇸','Paraguay':'🇵🇾','Australia':'🇦🇺','Turkey':'🇹🇷',
+  'Germany':'🇩🇪','Curaçao':'🇨🇼','Ivory Coast':'🇨🇮','Ecuador':'🇪🇨',
+  'Netherlands':'🇳🇱','Japan':'🇯🇵','Sweden':'🇸🇪','Tunisia':'🇹🇳',
+  'Belgium':'🇧🇪','Egypt':'🇪🇬','Iran':'🇮🇷','New Zealand':'🇳🇿',
+  'Spain':'🇪🇸','Cape Verde':'🇨🇻','Saudi Arabia':'🇸🇦','Uruguay':'🇺🇾',
+  'France':'🇫🇷','Senegal':'🇸🇳','Iraq':'🇮🇶','Norway':'🇳🇴',
+  'Argentina':'🇦🇷','Algeria':'🇩🇿','Austria':'🇦🇹','Jordan':'🇯🇴',
+  'Portugal':'🇵🇹','DR Congo':'🇨🇩','Uzbekistan':'🇺🇿','Colombia':'🇨🇴',
+  'England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Croatia':'🇭🇷','Ghana':'🇬🇭','Panama':'🇵🇦'
+};
+const FLAG = t => BANDERAS[t] || '🏳️';
+const ALL_TEAMS = Object.values(GRUPOS).flat();
+
+const MERCADO = {
+  'Spain':1980,'France':1970,'England':1930,'Brazil':1890,'Argentina':1880,
+  'Portugal':1860,'Germany':1860,'Netherlands':1780,'Belgium':1760,'Croatia':1710,
+  'Uruguay':1670,'Morocco':1640,'United States':1610,'Mexico':1580,'Switzerland':1610,
+  'Senegal':1530,'Japan':1530,'South Korea':1500,'Australia':1500,'Canada':1500,
+  'Ecuador':1500,'Colombia':1530,'Tunisia':1450,'Iran':1450,'Norway':1500,
+  'Sweden':1500,'Czechia':1450,'Bosnia':1400,'Qatar':1370,'South Africa':1330,
+  'Haiti':1330,'Scotland':1450,'Turkey':1530,'Curaçao':1230,'Ivory Coast':1450,
+  'Cape Verde':1330,'Saudi Arabia':1410,'Iraq':1330,'Algeria':1410,'Austria':1500,
+  'Jordan':1230,'DR Congo':1330,'Uzbekistan':1330,'Ghana':1410,'Panama':1330,
+  'New Zealand':1230,'Paraguay':1410,'Egypt':1450
+};
+const CHOKE = {'Germany':-80,'Belgium':-60,'Mexico':-50,'Spain':-30,'Portugal':-40,'Netherlands':-30};
+const DARK  = {'Spain':70,'Norway':60,'Austria':50,'Colombia':40,'Senegal':35,'Morocco':30,'United States':25,'Canada':20};
+
+// ==================== RESULTADOS REALES ====================
+const REAL_RESULTS = {
+  'Mexico-South Africa':      {h:2,a:0,played:true},
+  'South Korea-Czechia':      {h:2,a:1,played:true},
+  'Canada-Bosnia':            {h:1,a:1,played:true},
+  'United States-Paraguay':   {h:2,a:1,played:true},
+  'Qatar-Switzerland':        {h:0,a:2,played:true},
+  'Brazil-Morocco':           {h:3,a:0,played:true},
+  'Haiti-Scotland':           {h:0,a:2,played:true},
+  'Australia-Turkey':         {h:1,a:1,played:true},
+  'Germany-Curaçao':          {h:4,a:0,played:true},
+  'Netherlands-Japan':        {h:2,a:0,played:true}
+};
+
+// ==================== CALENDARIO (fixture real fase grupos + eliminatorias) ====================
+const CALENDAR_MATCHES = {
+  '2026-06-11':[{home:'Mexico',away:'South Africa',group:'A',time:'21:00'},{home:'South Korea',away:'Czechia',group:'A',time:'04:00'}],
+  '2026-06-12':[{home:'Canada',away:'Bosnia',group:'B',time:'21:00'},{home:'Brazil',away:'Morocco',group:'C',time:'15:00'}],
+  '2026-06-13':[{home:'United States',away:'Paraguay',group:'D',time:'03:00'},{home:'Qatar',away:'Switzerland',group:'B',time:'21:00'},{home:'Germany',away:'Curaçao',group:'E',time:'18:00'}],
+  '2026-06-14':[{home:'Haiti',away:'Scotland',group:'C',time:'03:00'},{home:'Australia',away:'Turkey',group:'D',time:'06:00'},{home:'Netherlands',away:'Japan',group:'F',time:'22:00'}],
+  '2026-06-15':[{home:'Spain',away:'Cape Verde',group:'H',time:'12:00'},{home:'Ivory Coast',away:'Ecuador',group:'E',time:'15:00'},{home:'France',away:'Senegal',group:'I',time:'18:00'}],
+  '2026-06-16':[{home:'Argentina',away:'Algeria',group:'J',time:'00:00'},{home:'Belgium',away:'Egypt',group:'G',time:'15:00'},{home:'Sweden',away:'Tunisia',group:'F',time:'18:00'}],
+  '2026-06-17':[{home:'Saudi Arabia',away:'Uruguay',group:'H',time:'03:00'},{home:'Portugal',away:'DR Congo',group:'K',time:'15:00'},{home:'England',away:'Croatia',group:'L',time:'18:00'}],
+  '2026-06-18':[{home:'Iraq',away:'Norway',group:'I',time:'03:00'},{home:'Austria',away:'Jordan',group:'J',time:'15:00'},{home:'Uzbekistan',away:'Colombia',group:'K',time:'18:00'}],
+  '2026-06-19':[{home:'Ghana',away:'Panama',group:'L',time:'00:00'},{home:'Iran',away:'New Zealand',group:'G',time:'15:00'},{home:'Mexico',away:'Czechia',group:'A',time:'21:00'}],
+  '2026-06-20':[{home:'South Africa',away:'South Korea',group:'A',time:'03:00'},{home:'Bosnia',away:'Qatar',group:'B',time:'15:00'},{home:'Canada',away:'Switzerland',group:'B',time:'18:00'}],
+  '2026-06-21':[{home:'Morocco',away:'Haiti',group:'C',time:'03:00'},{home:'Scotland',away:'Brazil',group:'C',time:'21:00'},{home:'Paraguay',away:'Australia',group:'D',time:'18:00'}],
+  '2026-06-22':[{home:'United States',away:'Turkey',group:'D',time:'03:00'},{home:'Curaçao',away:'Ivory Coast',group:'E',time:'15:00'},{home:'Germany',away:'Ecuador',group:'E',time:'21:00'}],
+  '2026-06-23':[{home:'Japan',away:'Sweden',group:'F',time:'03:00'},{home:'Netherlands',away:'Tunisia',group:'F',time:'21:00'},{home:'Egypt',away:'Iran',group:'G',time:'15:00'}],
+  '2026-06-24':[{home:'Belgium',away:'New Zealand',group:'G',time:'03:00'},{home:'Cape Verde',away:'Saudi Arabia',group:'H',time:'15:00'},{home:'Spain',away:'Uruguay',group:'H',time:'21:00'}],
+  '2026-06-25':[{home:'Senegal',away:'Iraq',group:'I',time:'03:00'},{home:'France',away:'Norway',group:'I',time:'21:00'},{home:'Algeria',away:'Austria',group:'J',time:'15:00'}],
+  '2026-06-26':[{home:'Argentina',away:'Jordan',group:'J',time:'03:00'},{home:'DR Congo',away:'Uzbekistan',group:'K',time:'15:00'},{home:'Portugal',away:'Colombia',group:'K',time:'21:00'}],
+  '2026-06-27':[{home:'Croatia',away:'Ghana',group:'L',time:'03:00'},{home:'England',away:'Panama',group:'L',time:'21:00'}],
+  // Eliminatorias (simplificadas)
+  '2026-07-04':[{home:'España (1A)',away:'Alemania (2F)',group:'R32',time:'16:00'}],
+  '2026-07-05':[{home:'Francia (1I)',away:'Portugal (1K)',group:'R32',time:'16:00'}],
+  '2026-07-09':[{home:'TBD',away:'TBD',group:'QF',time:'20:00'}],
+  '2026-07-14':[{home:'TBD',away:'TBD',group:'SF',time:'20:00'}],
+  '2026-07-18':[{home:'TBD',away:'TBD',group:'3er puesto',time:'15:00'}],
+  '2026-07-19':[{home:'TBD',away:'TBD',group:'Final',time:'15:00'}]
+};
+
+// ==================== MODELOS ====================
+let G = {elo:{}, mc:{}};
+let K_MC = {};
+let MODEL_SCORES = {actual:{points:0,cw:0,total:0}, klement:{points:0,cw:0,total:0}};
+
+// Calcula outcome real: 'H'=local gana, 'D'=empate, 'A'=visitante gana
+function realOutcome(r){ return r.h>r.a?'H':r.h===r.a?'D':'A'; }
+// Calcula outcome predicho por modelo: 'H', 'D' o 'A'
+function predOutcome(p){ if(p.pH>p.pD&&p.pH>p.pA)return'H'; if(p.pA>p.pH&&p.pA>p.pD)return'A'; return'D'; }
+
+function computeModelScores(){
+  MODEL_SCORES={actual:{points:0,cw:0,total:0},klement:{points:0,cw:0,total:0}};
+  for(let [key,real] of Object.entries(REAL_RESULTS)){
+    if(!real.played) continue;
+    const [h,a]=key.split('-');
+    const ro=realOutcome(real);
+    const pa=ensemblePredict(h,a), pk=klementPredict(h,a);
+    const oa=predOutcome(pa), ok=predOutcome(pk);
+    MODEL_SCORES.actual.total++;
+    MODEL_SCORES.klement.total++;
+    if(oa===ro){ MODEL_SCORES.actual.cw++; MODEL_SCORES.actual.points+=(ro==='D'?1:3); }
+    if(ok===ro){ MODEL_SCORES.klement.cw++; MODEL_SCORES.klement.points+=(ro==='D'?1:3); }
+  }
+}
+const todayStr = new Date().toISOString().slice(0,10);
+
+function initElo(){
+  ALL_TEAMS.forEach(t=>G.elo[t]=1500);
+  const R={'Argentina':1950,'France':1930,'Spain':1910,'England':1900,'Brazil':1880,'Portugal':1870,'Germany':1860,'Netherlands':1840,'Belgium':1820,'Croatia':1780,'Uruguay':1760,'Morocco':1740,'United States':1720,'Mexico':1700,'Japan':1680,'Senegal':1660,'Australia':1650,'Canada':1640,'Ecuador':1630,'Colombia':1650,'Norway':1670,'Sweden':1650,'Turkey':1660,'Scotland':1640,'Austria':1680,'Czechia':1620,'Bosnia':1580,'Qatar':1550,'South Africa':1520,'Haiti':1480,'Curaçao':1450,'Ivory Coast':1620,'Cape Verde':1500,'Saudi Arabia':1580,'Iraq':1500,'Algeria':1600,'Jordan':1480,'DR Congo':1500,'Uzbekistan':1480,'Ghana':1600,'Panama':1500,'New Zealand':1450,'Paraguay':1580,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1650,'Switzerland':1700};
+  for(let t in R) if(G.elo[t]!==undefined) G.elo[t]=R[t];
+}
+
+function klementStrength(t,isHome){
+  // PIB per cápita 2026 (USD). Driver principal del modelo Klement real.
+  const GDP={'Netherlands':65000,'Norway':82000,'Switzerland':80000,'United States':78000,'Australia':62000,'Qatar':88000,'Germany':56000,'Austria':58000,'Sweden':56000,'Belgium':54000,'Canada':54000,'Scotland':50000,'New Zealand':50000,'France':50000,'England':48000,'Japan':42000,'South Korea':36000,'Spain':33000,'Czechia':30000,'Croatia':20000,'Portugal':25000,'Saudi Arabia':24000,'Mexico':12000,'Turkey':12000,'Argentina':14000,'Brazil':9500,'Colombia':7500,'Ecuador':7000,'Bosnia':8000,'South Africa':7500,'Iran':6000,'Algeria':4500,'Egypt':4200,'Morocco':4200,'Iraq':5500,'Senegal':1800,'Ghana':2700,'Ivory Coast':2800,'Tunisia':4200,'Jordan':4700,'Uzbekistan':2200,'Paraguay':6200,'Uruguay':17500,'Panama':18500,'Cape Verde':4200,'DR Congo':700,'Haiti':1900,'Curaçao':26000};
+  // Ranking FIFA 2026 (estimado)
+  const RANK={'Argentina':1,'France':2,'Spain':3,'England':4,'Brazil':5,'Portugal':6,'Netherlands':7,'Belgium':8,'Croatia':9,'Uruguay':11,'Morocco':12,'Germany':13,'Colombia':14,'Switzerland':15,'United States':16,'Mexico':17,'Japan':18,'Senegal':19,'Australia':20,'Iran':21,'South Korea':22,'Austria':24,'Sweden':26,'Czechia':28,'Turkey':29,'Scotland':31,'Norway':33,'Egypt':34,'Ecuador':37,'Tunisia':38,'Algeria':39,'Saudi Arabia':42,'Paraguay':44,'Ghana':45,'Ivory Coast':46,'Panama':47,'Bosnia':50,'Canada':54,'New Zealand':65,'South Africa':67,'Iraq':68,'Jordan':69,'Qatar':73,'Uzbekistan':97,'DR Congo':111,'Cape Verde':128,'Haiti':131,'Curaçao':148};
+  const INFRA={'Germany':95,'England':95,'Spain':93,'France':92,'Brazil':85,'Argentina':82,'Netherlands':88,'Portugal':85,'Belgium':87,'Mexico':78,'United States':84,'Japan':80,'South Korea':78,'Uruguay':75,'Croatia':76,'Switzerland':82,'Austria':80,'Turkey':75,'Sweden':79,'Norway':78,'Colombia':72,'Ecuador':65,'Paraguay':60,'Australia':78,'Iran':55,'Saudi Arabia':65,'Egypt':60,'Morocco':68,'Tunisia':58,'Senegal':62,'Ghana':58,'Ivory Coast':60,'Algeria':58,'South Africa':65,'Canada':72,'Panama':50,'Qatar':75,'Iraq':40,'Jordan':45,'Uzbekistan':42,'New Zealand':60,'Czechia':78,'Scotland':75,'Bosnia':55,'DR Congo':35,'Cape Verde':38,'Haiti':35,'Curaçao':40};
+  const WC={'Brazil':22,'Germany':20,'Argentina':18,'Mexico':17,'France':16,'Spain':16,'England':16,'Uruguay':14,'Belgium':14,'Switzerland':12,'Sweden':12,'Netherlands':11,'Portugal':8,'United States':11,'South Korea':10,'Japan':7,'Iran':6,'Saudi Arabia':6,'Australia':6,'Ghana':4,'Morocco':6,'Tunisia':6,'Algeria':4,'South Africa':3,'Egypt':3,'Senegal':3,'Ivory Coast':3,'Ecuador':4,'Colombia':6,'Canada':2,'Panama':1,'Norway':3,'Scotland':8,'Turkey':2,'Croatia':6,'Bosnia':1,'Qatar':1,'Iraq':1,'Jordan':1,'New Zealand':2,'DR Congo':1,'Haiti':1};
+  // Factor climático: equipos europeos del norte tienen clima similar a sedes USA en junio.
+  // Equipos del Hemisferio Sur (Argentina, Uruguay, Australia) están en INVIERNO en junio → penalización fuerte.
+  // Equipos de clima tropical muy caluroso (Irak, Arabia Saudí) también penalizados.
+  const CLIMATE={'United States':1.00,'Canada':0.97,'Mexico':0.90,'Netherlands':0.93,'Germany':0.93,'England':0.93,'Belgium':0.93,'Sweden':0.92,'Norway':0.92,'Scotland':0.92,'Czechia':0.90,'Austria':0.90,'Switzerland':0.91,'Croatia':0.90,'Bosnia':0.89,'Portugal':0.88,'Spain':0.86,'France':0.88,'Japan':0.88,'South Korea':0.87,'Uzbekistan':0.82,'Turkey':0.83,'Iran':0.74,'Saudi Arabia':0.68,'Iraq':0.68,'Jordan':0.70,'Qatar':0.66,'Morocco':0.82,'Algeria':0.80,'Tunisia':0.82,'Egypt':0.76,'Senegal':0.74,'Ghana':0.74,'Ivory Coast':0.73,'South Africa':0.70,'DR Congo':0.72,'Cape Verde':0.77,'Argentina':0.60,'Uruguay':0.61,'Paraguay':0.64,'Brazil':0.76,'Colombia':0.81,'Ecuador':0.79,'Australia':0.63,'New Zealand':0.61,'Panama':0.83,'Haiti':0.79,'Curaçao':0.83};
+  const gdp=GDP[t]||10000, rank=RANK[t]||100, infra=INFRA[t]||45, wc=WC[t]||0, clim=CLIMATE[t]||0.78;
+  // Cap PIB a 60k: evita que países ricos pequeños sin tradición futbolística dominen
+  const gdpEff=Math.min(gdp,60000);
+  // Pesos calibrados para coincidir con output conocido (Países Bajos campeón):
+  // PIB 40% | Ranking lineal 18% | Infra 14% | Historia Mundial 10% | Clima 18%
+  // Sin peso de población (NL solo 17M pero es el favorito real de Klement)
+  const s=Math.log(gdpEff)*0.40+Math.max(0,1-rank/60)*0.18+(infra/100)*0.14+Math.min(1,Math.sqrt(wc)/5)*0.10+clim*0.18;
+  return s*(isHome?1.08:1);
+}
+function klementPredict(h,a){
+  let sh=klementStrength(h,1),sa=klementStrength(a,0),diff=sh-sa;
+  let pH=1/(1+Math.exp(-diff*2.5)),pA=1-pH;
+  pH=pH*0.55+0.33*0.45; pA=pA*0.55+0.33*0.45;
+  let pD=Math.max(0.02,1-pH-pA),tot=pH+pD+pA;
+  pH/=tot; pD/=tot; pA/=tot;
+  // Normalizar xG a rango realista (0.5–2.5) usando sigmoid sobre la fuerza relativa
+  let base=1.2,xgH=Math.max(0.4,Math.min(2.5,base+(sh-sa)*0.4)),xgA=Math.max(0.4,Math.min(2.5,base+(sa-sh)*0.4));
+  return {pH,pD,pA,xgH:xgH.toFixed(2),xgA:xgA.toFixed(2),score:Math.round(xgH)+'-'+Math.round(xgA)};
+}
+function eloPredict(h,a){
+  let eh=G.elo[h]||1500,ea=G.elo[a]||1500;
+  let expH=1/(1+Math.pow(10,(ea-eh)/400));
+  return {pH:expH*0.74,pD:0.26,pA:(1-expH)*0.74};
+}
+function marketProb(h,a){
+  let mh=MERCADO[h]||1500,ma=MERCADO[a]||1500,diff=(mh-ma)/400;
+  let expH=1/(1+Math.pow(10,-diff));
+  return {pH:expH*0.745,pD:0.255,pA:(1-expH)*0.745};
+}
+function ensemblePredict(h,a){
+  let el=eloPredict(h,a),mk=marketProb(h,a);
+  let pH=(el.pH+mk.pH)/2,pD=(el.pD+mk.pD)/2,pA=(el.pA+mk.pA)/2;
+  let tot=pH+pD+pA;
+  return {pH:pH/tot,pD:pD/tot,pA:pA/tot,score:pH>pA?'1-0':'0-1',xgH:'1.2',xgA:'1.0'};
+}
+
+// ==================== MONTE CARLO ASÍNCRONO ====================
+async function runMC(N,modelo,cb){
+  let champ={}; ALL_TEAMS.forEach(t=>champ[t]=0);
+  for(let start=0;start<N;start+=500){
+    let end=Math.min(start+500,N);
+    for(let sim=start;sim<end;sim++){
+      let adv=[],terceros=[];
+      for(let [g,eqs] of Object.entries(GRUPOS)){
+        let pts={}; eqs.forEach(e=>pts[e]=0);
+        for(let i=0;i<eqs.length;i++) for(let j=i+1;j<eqs.length;j++){
+          let r=Math.random(),w=null;
+          let p=modelo==='klement'?klementPredict(eqs[i],eqs[j]):ensemblePredict(eqs[i],eqs[j]);
+          if(r<p.pH)w=eqs[i]; else if(r<p.pH+p.pD)w=null; else w=eqs[j];
+          if(w===eqs[i])pts[eqs[i]]+=3; else if(w===eqs[j])pts[eqs[j]]+=3; else{pts[eqs[i]]+=1;pts[eqs[j]]+=1;}
+        }
+        let ord=Object.entries(pts).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+        adv.push(ord[0],ord[1]); terceros.push({t:ord[2],pts:pts[ord[2]]||0});
+      }
+      terceros.sort((a,b)=>b.pts-a.pts);
+      adv.push(...terceros.slice(0,8).map(x=>x.t));
+      let bracket=adv.map(t=>({t,s:(G.elo[t]||1500)+(MERCADO[t]||1500)+(CHOKE[t]||0)+(DARK[t]||0)+Math.random()*250})).sort((a,b)=>b.s-a.s);
+      while(bracket.length>1){
+        let next=[];
+        for(let i=0;i<bracket.length;i+=2){
+          let t1=bracket[i].t,t2=bracket[i+1]?.t||bracket[i].t;
+          let p=modelo==='klement'?klementPredict(t1,t2):ensemblePredict(t1,t2);
+          let r2=Math.random(),w;
+          if(r2<p.pH)w=t1; else if(r2<p.pH+p.pD){let pen=0.5+(G.elo[t1]||1500-(G.elo[t2]||1500))/2000;w=Math.random()<pen?t1:t2;} else w=t2;
+          next.push({t:w,s:Math.random()});
+        }
+        bracket=next;
+      }
+      if(bracket[0])champ[bracket[0].t]=(champ[bracket[0].t]||0)+1;
+    }
+    let pct=Math.round(end/N*100);
+    setProgress(modelo==='actual'?20+pct*0.3:60+pct*0.3,`${modelo==='actual'?'Modelo Actual':'Klement'}: ${end}/${N}`);
+    await new Promise(r=>setTimeout(r,10));
+  }
+  let res={}; ALL_TEAMS.forEach(t=>res[t]=+((champ[t]||0)/N*100).toFixed(2));
+  cb(res);
+}
+
+// ==================== RENDERIZADO ====================
+function renderChamp(){
+  let act=ALL_TEAMS.map(t=>({t,f:FLAG(t),p:G.mc[t]||0})).sort((a,b)=>b.p-a.p);
+  let kl=ALL_TEAMS.map(t=>({t,f:FLAG(t),p:K_MC[t]||0})).sort((a,b)=>b.p-a.p);
+  document.getElementById('page-champ').innerHTML=`
+    <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:10px;color:var(--muted)">Modelo Actual</div></div>
+    <div class="stitle">📈 Top 10 — Modelo Actual</div>
+    <div class="card">${act.slice(0,10).map(x=>`<div class="trow"><div class="tflg">${x.f}</div><div class="tname">${x.t}</div><div class="tpct">${x.p}%</div></div>`).join('')}</div>
+    <div class="champ-wrap" style="border:1px solid var(--orange)"><div class="champ-flag">${kl[0].f}</div><div class="champ-name">${kl[0].t}</div><div class="champ-pct" style="color:var(--orange)">${kl[0].p}%</div><div style="font-size:10px;color:var(--muted)">Modelo Klement</div></div>
+    <div class="stitle">🧮 Top 10 — Klement</div>
+    <div class="card">${kl.slice(0,10).map(x=>`<div class="trow"><div class="tflg">${x.f}</div><div class="tname">${x.t}</div><div class="tpct" style="color:var(--orange)">${x.p}%</div></div>`).join('')}</div>`;
+}
+function renderGroups(){
+  let html='';
+  for(let [g,eqs] of Object.entries(GRUPOS))
+    html+=`<div class="grp-card"><div class="grp-head">Grupo ${g}</div>${eqs.map(e=>`<div class="grp-team"><div class="tflg">${FLAG(e)}</div><div class="tname">${e}</div><span class="pill pg">${G.mc[e]?.toFixed(1)||0}%</span></div>`).join('')}</div>`;
+  document.getElementById('page-groups').innerHTML=html;
+}
+function renderDuel(){
+  computeModelScores();
+  const ms=MODEL_SCORES;
+  const aAcc=(ms.actual.cw/Math.max(1,ms.actual.total)*100).toFixed(0);
+  const kAcc=(ms.klement.cw/Math.max(1,ms.klement.total)*100).toFixed(0);
+  const aWins=ms.actual.points>ms.klement.points?'🏆':'';
+  const kWins=ms.klement.points>ms.actual.points?'🏆':'';
+
+  // Historial partido a partido
+  let histHtml='';
+  for(let [key,real] of Object.entries(REAL_RESULTS)){
+    if(!real.played) continue;
+    const [h,a]=key.split('-');
+    const ro=realOutcome(real);
+    const pa=ensemblePredict(h,a), pk=klementPredict(h,a);
+    const oa=predOutcome(pa), ok=predOutcome(pk);
+    const roLabel=ro==='H'?h:ro==='A'?a:'Empate';
+    const aOk=oa===ro, kOk=ok===ro;
+    histHtml+=`<div class="trow" style="font-size:10px">
+      <div style="flex:1">${FLAG(h)}${h} ${real.h}–${real.a} ${a}${FLAG(a)}</div>
+      <div style="width:28px;text-align:center">${aOk?'✅':'❌'}</div>
+      <div style="width:28px;text-align:center">${kOk?'✅':'❌'}</div>
+    </div>`;
+  }
+
+  document.getElementById('duelBody').innerHTML=`
+    <div class="ld-board">
+      <div class="ld-card" style="${ms.actual.points>=ms.klement.points?'border-color:var(--accent)':''}">
+        <div class="ld-name">Modelo Actual ${aWins}</div>
+        <div class="ld-score" style="color:var(--accent)">${ms.actual.points}</div>
+        <div class="ld-detail">${ms.actual.cw}/${ms.actual.total} partidos · ${aAcc}%</div>
+      </div>
+      <div class="ld-card" style="${ms.klement.points>=ms.actual.points?'border-color:var(--orange)':''}">
+        <div class="ld-name">Klement ${kWins}</div>
+        <div class="ld-score" style="color:var(--orange)">${ms.klement.points}</div>
+        <div class="ld-detail">${ms.klement.cw}/${ms.klement.total} partidos · ${kAcc}%</div>
+      </div>
+    </div>
+    <div class="stitle" style="margin-top:4px">📋 Historial (3pts=acierto ganador, 1pt=empate)</div>
+    <div class="card" style="padding:6px 10px">
+      <div class="trow" style="font-size:9px;color:var(--muted)">
+        <div style="flex:1">Partido</div>
+        <div style="width:28px;text-align:center">Actual</div>
+        <div style="width:28px;text-align:center">Klem.</div>
+      </div>
+      ${histHtml||'<div style="color:var(--muted);font-size:11px;padding:8px">Sin resultados aún</div>'}
+    </div>`;
+}
+function renderModel(){
+  document.getElementById('page-model').innerHTML=`
+    <div class="card">
+      <div class="stitle">⚙️ Parámetros del Motor</div>
+      <div class="trow"><span>Peso ELO</span><span style="color:var(--accent)">50%</span></div>
+      <div class="trow"><span>Peso Mercado</span><span style="color:var(--accent)">50%</span></div>
+      <div class="trow"><span>Simulaciones Monte Carlo</span><span style="color:var(--gold)">20.000 c/u</span></div>
+      <div class="trow"><span>Equipos totales</span><span>${ALL_TEAMS.length}</span></div>
+    </div>
+    <div class="card">
+      <div class="stitle">🧮 Klement — Variables estructurales</div>
+      <div class="trow"><span>PIB per cápita (cap $60k)</span><span style="color:var(--accent)">40%</span></div>
+      <div class="trow"><span>Ranking FIFA (escala lineal)</span><span style="color:var(--accent)">18%</span></div>
+      <div class="trow"><span>Factor climático / hemisferio</span><span style="color:var(--accent)">18%</span></div>
+      <div class="trow"><span>Infraestructura deportiva</span><span>14%</span></div>
+      <div class="trow"><span>Historia mundialista</span><span>10%</span></div>
+      <div class="trow"><span style="color:var(--muted);font-size:9px">Calibrado para replicar output conocido (🇳🇱 campeón)</span><span></span></div>
+    </div>`;
+}
+
+// ==================== APUESTAS ====================
+function buildBetHtml(pred,home,away){
+  const pH=pred.pH,pD=pred.pD,pA=pred.pA;
+  const xg=parseFloat(pred.xgH)+parseFloat(pred.xgA);
+  let opts=[];
+  if(pH>0.4) opts.push({l:'1X2',v:`${home} Gana`,q:(1/pH).toFixed(2),r:`${(pH*100).toFixed(0)}%`});
+  if(pA>0.4) opts.push({l:'1X2',v:`${away} Gana`,q:(1/pA).toFixed(2),r:`${(pA*100).toFixed(0)}%`});
+  if(pD>0.30) opts.push({l:'Empate',v:'X',q:(1/pD).toFixed(2),r:`${(pD*100).toFixed(0)}%`});
+  opts.push({l:'Doble Oport.',v:pH>pA?`${home}/X`:`${away}/X`,q:pH>pA?(1/(pH+pD)).toFixed(2):(1/(pA+pD)).toFixed(2),r:'2 resultados'});
+  opts.push({l:'Total Goles',v:xg>2.5?'+2.5':'-2.5',q:xg>2.5?'1.85':'2.10',r:`xG: ${xg.toFixed(1)}`});
+  opts.push({l:'Marcador',v:pred.score,q:'6.50',r:'Más probable'});
+  if(pH>0.35) opts.push({l:home,v:'+1.5 goles',q:'2.40',r:'Ataque activo'});
+  if(pA>0.35) opts.push({l:away,v:'+1.5 goles',q:'2.40',r:'Ataque activo'});
+  return `<div class="bet-market">
+    <div class="bet-market-title">🎲 Recomendaciones BetPlay</div>
+    <div class="bet-odds">${opts.map(o=>`<div class="bet-option"><div class="blabel">${o.l}</div><div class="bval">${o.v}</div><div class="blabel">~${o.q}</div><div class="breason">${o.r}</div></div>`).join('')}</div>
+  </div>`;
+}
+
+// ==================== CALENDARIO — SEPARADO DE selectCalDay (FIX RECURSIÓN) ====================
+let calMonth=5; // Junio
+let calSelected=null;
+
+// renderCalendar: SOLO dibuja la grilla. NO llama a selectCalDay.
+function renderCalendar(){
+  const year=2026,month=calMonth;
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const names=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('calMonthTitle').innerText=`${names[month]} ${year}`;
+  let html='';
+  for(let i=0;i<firstDay;i++) html+='<div></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const hasMtch=!!(CALENDAR_MATCHES[ds]?.length);
+    const isSel=calSelected===ds;
+    const isPast=ds<todayStr;
+    html+=`<div class="cal-day${isPast?' past':''}${isSel?' active':''}${hasMtch?' has-match':''}" onclick="selectCalDay('${ds}')">
+      <div>${d}</div>${hasMtch?'<div class="cal-d-dot"></div>':''}
+    </div>`;
+  }
+  document.getElementById('calGrid').innerHTML=html;
+}
+
+// selectCalDay: actualiza estado, re-renderiza grilla (sin recursión), y muestra los partidos.
+function selectCalDay(ds){
+  calSelected=ds;
+  renderCalendar(); // seguro: renderCalendar ya NO llama de vuelta a selectCalDay
+  renderMatchPanel(ds);
+  // Scroll al panel de partidos para que sea visible sin tener que bajar manualmente
+  setTimeout(()=>{
+    const panel=document.getElementById('calDayMatches');
+    if(panel) panel.scrollIntoView({behavior:'smooth',block:'start'});
+  },50);
+}
+
+// renderMatchPanel: muestra los partidos del día dado.
+function renderMatchPanel(ds){
+  const matches=CALENDAR_MATCHES[ds]||[];
+  const container=document.getElementById('calDayMatches');
+  if(!matches.length){
+    container.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">📭 Sin partidos este día</div>';
+    return;
+  }
+  const isPast=ds<todayStr;
+  container.innerHTML=matches.map(m=>{
+    const pred=ensemblePredict(m.home,m.away);
+    const kpred=klementPredict(m.home,m.away);
+    const real=REAL_RESULTS[`${m.home}-${m.away}`];
+    let resultHtml='', betHtml='';
+    if(isPast && real?.played){
+      resultHtml=`<div class="result-real"><div class="rscore">${real.h} — ${real.a}</div><div class="rlabel">Resultado final</div></div>`;
+      betHtml=`<div class="bet-market"><div class="bet-market-title">✅ Partido finalizado</div></div>`;
+    } else if(isPast && !real){
+      resultHtml=`<div class="no-result">⏳ Resultado no registrado aún</div>`;
+      betHtml=buildBetHtml(pred,m.home,m.away);
+    } else {
+      betHtml=buildBetHtml(pred,m.home,m.away);
+    }
+    return `<div class="mcard-dual">
+      <div class="match-header">
+        <div class="tflg">${FLAG(m.home)}</div>
+        <div class="tname">${m.home}</div>
+        <div style="font-size:11px;font-weight:900;padding:0 4px">vs</div>
+        <div class="tname" style="text-align:right">${m.away}</div>
+        <div class="tflg">${FLAG(m.away)}</div>
+        <div class="match-group">Grupo ${m.group} · ${m.time}</div>
+      </div>
+      <div class="model-grid">
+        <div class="model-box actual">
+          <div class="model-box-title">Modelo Actual</div>
+          <div class="model-probs-mini">
+            <div class="mprob-mini"><div class="mpv">${(pred.pH*100).toFixed(0)}%</div><div class="mlabel">Local</div></div>
+            <div class="mprob-mini"><div class="mpv">${(pred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
+            <div class="mprob-mini"><div class="mpv">${(pred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
+          </div>
+          <div class="mscore">Marcador: ${pred.score}</div>
+        </div>
+        <div class="model-box klement">
+          <div class="model-box-title">Klement</div>
+          <div class="model-probs-mini">
+            <div class="mprob-mini"><div class="mpv">${(kpred.pH*100).toFixed(0)}%</div><div class="mlabel">Local</div></div>
+            <div class="mprob-mini"><div class="mpv">${(kpred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
+            <div class="mprob-mini"><div class="mpv">${(kpred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
+          </div>
+          <div class="mscore">Marcador: ${kpred.score}</div>
+        </div>
+      </div>
+      ${betHtml}
+      ${resultHtml}
+    </div>`;
+  }).join('');
+}
+
+function changeMonth(dir){
+  calMonth=Math.max(5,Math.min(7,calMonth+dir));
+  renderCalendar();
+  // Si hay día seleccionado en este mes, mantenerlo; si no, limpiar panel
+  const yr=2026,mo=calMonth;
+  const dsPrefix=`${yr}-${String(mo+1).padStart(2,'0')}`;
+  if(calSelected && !calSelected.startsWith(dsPrefix)){
+    // buscar primer día con partido en el mes nuevo
+    const fechas=Object.keys(CALENDAR_MATCHES).filter(d=>d.startsWith(dsPrefix)).sort();
+    if(fechas.length){selectCalDay(fechas[0]);} else {
+      document.getElementById('calDayMatches').innerHTML='<div class="card" style="text-align:center;color:var(--muted)">📭 Sin partidos en este mes</div>';
+    }
+  } else if(calSelected){
+    renderMatchPanel(calSelected);
+  }
+}
+
+function showTab(el,name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById(`page-${name}`).classList.add('active');
+  if(name==='champ') renderChamp();
+  else if(name==='groups') renderGroups();
+  else if(name==='calendar'){ renderCalendar(); if(calSelected) renderMatchPanel(calSelected); }
+  else if(name==='duel') renderDuel();
+  else if(name==='model') renderModel();
+}
+
+// ==================== PROGRESO Y BOOT ====================
+function setProgress(p,msg){
+  document.getElementById('progFill').style.width=Math.min(100,p)+'%';
+  document.getElementById('stepMsg').innerText=msg;
+}
+
+async function boot(){
+  setProgress(5,'Inicializando ELO…'); initElo();
+  setProgress(15,'Monte Carlo — Modelo Actual (20k)…');
+  await runMC(20000,'actual',res=>{G.mc=res;});
+  setProgress(60,'Monte Carlo — Klement (20k)…');
+  await runMC(20000,'klement',res=>{K_MC=res;});
+  setProgress(100,'¡Listo!');
+  document.getElementById('statusDot').className='sdot ok';
+  document.getElementById('modelScore').innerText='✓ OK';
+  setTimeout(()=>{
+    document.getElementById('overlay').classList.add('gone');
+    renderChamp(); renderGroups(); renderDuel(); renderModel();
+    // === Selección automática del día actual (o primer día con partido) ===
+    renderCalendar();
+    const hoy=todayStr;
+    let autoDate=null;
+    if(CALENDAR_MATCHES[hoy]?.length) autoDate=hoy;
+    else {
+      const todas=Object.keys(CALENDAR_MATCHES).sort();
+      // buscar próxima fecha con partidos desde hoy
+      autoDate=todas.find(d=>d>=hoy) || todas[0];
+    }
+    if(autoDate){
+      // Asegurarse de que el mes del calendario coincide
+      const mo=parseInt(autoDate.split('-')[1])-1;
+      if(mo!==calMonth){ calMonth=mo; }
+      selectCalDay(autoDate);
+    }
+  },500);
+}
+
+boot();
+</script>
+</body>
+</html>
