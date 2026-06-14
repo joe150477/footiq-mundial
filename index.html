@@ -99,6 +99,28 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;display:flex;f
 .mlabel{font-size:8px;color:var(--muted);}
 .mscore{font-size:10px;color:var(--muted);margin-top:4px;}
 
+/* === API SYNC === */
+.sync-btn{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bg2);cursor:pointer;font-size:14px;border:1px solid var(--border);transition:all .2s;}
+.sync-btn:hover{border-color:var(--accent);}
+.sync-btn.syncing{animation:spin 1s linear infinite;}
+.sync-status{font-size:9px;color:var(--muted);margin-left:4px;}
+.settings-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9998;display:flex;align-items:center;justify-content:center;}
+.settings-modal.gone{display:none;}
+.settings-content{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;width:88%;max-width:340px;}
+.settings-title{font-size:16px;font-weight:800;margin-bottom:4px;}
+.settings-desc{font-size:11px;color:var(--muted);margin-bottom:12px;}
+.settings-desc a{color:var(--accent);}
+.api-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:10px;outline:none;}
+.api-input:focus{border-color:var(--accent);}
+.settings-btns{display:flex;gap:8px;}
+.btn-save{flex:1;background:var(--accent);color:#000;border:none;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-cancel{background:var(--bg2);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;}
+.settings-msg{font-size:11px;margin-top:8px;min-height:16px;}
+.settings-msg.ok{color:var(--green);}
+.settings-msg.err{color:var(--red);}
+.sync-toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:12px;z-index:9997;opacity:0;transition:opacity .3s;pointer-events:none;}
+.sync-toast.show{opacity:1;}
+
 /* === BAJAS === */
 .bajas-section{background:rgba(255,255,255,.03);border:1px solid rgba(255,100,100,.2);border-radius:10px;padding:8px;margin-top:8px;}
 .bajas-title{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px;}
@@ -141,9 +163,27 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;display:flex;f
 <div class="topbar">
   <div class="logo">Foot<em>IQ</em></div>
   <div class="spacer"></div>
+  <span class="sync-status" id="syncStatus"></span>
+  <div class="sync-btn" id="syncBtn" onclick="syncFromAPI()" title="Sincronizar resultados">🔄</div>
+  <div class="sync-btn" onclick="openSettings()" title="Configurar API key">⚙️</div>
   <div class="score-pill" id="modelScore">—</div>
   <div class="sdot" id="statusDot"></div>
 </div>
+
+<!-- Modal configuración API -->
+<div id="settingsModal" class="settings-modal gone">
+  <div class="settings-content">
+    <div class="settings-title">⚙️ Configurar API de datos</div>
+    <div class="settings-desc">Regístrate gratis en <a href="https://www.football-data.org/client/register" target="_blank">football-data.org</a> y pega tu clave aquí. Gratis, sin tarjeta de crédito.</div>
+    <input type="text" id="apiKeyInput" placeholder="Pega tu API key aquí..." class="api-input"/>
+    <div class="settings-btns">
+      <button class="btn-save" onclick="saveSettings()">Guardar y sincronizar</button>
+      <button class="btn-cancel" onclick="closeSettings()">Cancelar</button>
+    </div>
+    <div id="settingsMsg" class="settings-msg"></div>
+  </div>
+</div>
+<div id="syncToast" class="sync-toast"></div>
 
 <div class="tabs">
   <div class="tab active" onclick="showTab(this,'champ')"><span class="ti">🏆</span>Campeón</div>
@@ -303,7 +343,7 @@ const REAL_RESULTS = {
   'Brazil-Morocco':           {h:1,a:1,played:true},   // Jun 12 ✓
   'United States-Paraguay':   {h:4,a:1,played:true},   // Jun 13 ✓
   'Qatar-Switzerland':        {h:1,a:1,played:true},   // Jun 13 ✓
-  'Germany-Curaçao':          {h:4,a:1,played:true},   // Jun 13 ✓
+  'Germany-Curaçao':          {h:7,a:1,played:true},   // Jun 14 ✓
   'Haiti-Scotland':           {h:0,a:1,played:true},   // Jun 14 ✓
   'Australia-Turkey':         {h:2,a:0,played:true},   // Jun 14 ✓
 };
@@ -312,8 +352,8 @@ const REAL_RESULTS = {
 const CALENDAR_MATCHES = {
   '2026-06-11':[{home:'Mexico',away:'South Africa',group:'A',time:'21:00'},{home:'South Korea',away:'Czechia',group:'A',time:'04:00'}],
   '2026-06-12':[{home:'Canada',away:'Bosnia',group:'B',time:'21:00'},{home:'Brazil',away:'Morocco',group:'C',time:'15:00'}],
-  '2026-06-13':[{home:'United States',away:'Paraguay',group:'D',time:'03:00'},{home:'Qatar',away:'Switzerland',group:'B',time:'21:00'},{home:'Germany',away:'Curaçao',group:'E',time:'18:00'}],
-  '2026-06-14':[{home:'Haiti',away:'Scotland',group:'C',time:'03:00'},{home:'Australia',away:'Turkey',group:'D',time:'06:00'},{home:'Netherlands',away:'Japan',group:'F',time:'22:00'}],
+  '2026-06-13':[{home:'United States',away:'Paraguay',group:'D',time:'22:00'},{home:'Qatar',away:'Switzerland',group:'B',time:'16:00'}],
+  '2026-06-14':[{home:'Germany',away:'Curaçao',group:'E',time:'13:00'},{home:'Haiti',away:'Scotland',group:'C',time:'13:00'},{home:'Australia',away:'Turkey',group:'D',time:'16:00'},{home:'Netherlands',away:'Japan',group:'F',time:'15:00'}],
   '2026-06-15':[{home:'Spain',away:'Cape Verde',group:'H',time:'12:00'},{home:'Ivory Coast',away:'Ecuador',group:'E',time:'15:00'},{home:'France',away:'Senegal',group:'I',time:'18:00'}],
   '2026-06-16':[{home:'Argentina',away:'Algeria',group:'J',time:'00:00'},{home:'Belgium',away:'Egypt',group:'G',time:'15:00'},{home:'Sweden',away:'Tunisia',group:'F',time:'18:00'}],
   '2026-06-17':[{home:'Saudi Arabia',away:'Uruguay',group:'H',time:'03:00'},{home:'Portugal',away:'DR Congo',group:'K',time:'15:00'},{home:'England',away:'Croatia',group:'L',time:'18:00'}],
@@ -624,17 +664,18 @@ function renderMatchPanel(ds){
     container.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">📭 Sin partidos este día</div>';
     return;
   }
-  const isPast=ds<todayStr;
+  const isPastDate=ds<todayStr;
   container.innerHTML=matches.map(m=>{
     const pred=ensemblePredict(m.home,m.away);
     const kpred=klementPredict(m.home,m.away);
     const real=REAL_RESULTS[`${m.home}-${m.away}`];
+    const isFinished=real?.played===true; // solo si la API/datos confirmaron el resultado
     let resultHtml='', betHtml='';
-    if(isPast && real?.played){
-      resultHtml=`<div class="result-real"><div class="rscore">${real.h} — ${real.a}</div><div class="rlabel">Resultado final</div></div>`;
+    if(isFinished){
+      resultHtml=`<div class="result-real"><div class="rscore">${real.h} — ${real.a}</div><div class="rlabel">Resultado final ✅</div></div>`;
       betHtml=`<div class="bet-market"><div class="bet-market-title">✅ Partido finalizado</div></div>`;
-    } else if(isPast && !real){
-      resultHtml=`<div class="no-result">⏳ Resultado no registrado aún</div>`;
+    } else if(isPastDate){
+      resultHtml=`<div class="no-result">⏳ Sin resultado confirmado — usa 🔄 Sincronizar</div>`;
       betHtml=buildBetHtml(pred,m.home,m.away);
     } else {
       betHtml=buildBetHtml(pred,m.home,m.away);
@@ -642,7 +683,7 @@ function renderMatchPanel(ds){
     const penH=getLineupPenalty(m.home),penA=getLineupPenalty(m.away);
     const penBadgeH=penH>0?`<span class="pen-badge">−${(penH*100).toFixed(0)}%</span>`:'';
     const penBadgeA=penA>0?`<span class="pen-badge">−${(penA*100).toFixed(0)}%</span>`:'';
-    const bajasHtml=(!isPast||!real?.played)?buildBajasHtml(m.home,m.away):'';
+    const bajasHtml=!isFinished?buildBajasHtml(m.home,m.away):'';
     return `<div class="mcard-dual">
       <div class="match-header">
         <div class="tflg">${FLAG(m.home)}</div>
@@ -743,6 +784,168 @@ async function boot(){
       selectCalDay(autoDate);
     }
   },500);
+}
+
+// ==================== INTEGRACIÓN API FOOTBALL-DATA.ORG ====================
+
+// Mapeo de nombres de equipos: API → nuestros nombres
+const FD_NAME_MAP = {
+  'Korea Republic':'South Korea','United States':'United States',
+  'Côte d\'Ivoire':'Ivory Coast',"Cote d'Ivoire":'Ivory Coast',
+  'Bosnia and Herzegovina':'Bosnia','Bosnia Herzegovina':'Bosnia',
+  'Czechia':'Czechia','Czech Republic':'Czechia',
+  'DR Congo':'DR Congo','Congo DR':'DR Congo','Democratic Republic of Congo':'DR Congo',
+  'Curaçao':'Curaçao','Curacao':'Curaçao',
+  'New Zealand':'New Zealand','Saudi Arabia':'Saudi Arabia',
+  'Cape Verde':'Cape Verde','Scotland':'Scotland',
+  'Panama':'Panama','Paraguay':'Paraguay','Uruguay':'Uruguay',
+  'Morocco':'Morocco','Algeria':'Algeria','Tunisia':'Tunisia',
+  'Senegal':'Senegal','Ghana':'Ghana','Ivory Coast':'Ivory Coast',
+  'South Africa':'South Africa','Egypt':'Egypt','Uzbekistan':'Uzbekistan',
+  'Iran':'Iran','Iraq':'Iraq','Jordan':'Jordan','Qatar':'Qatar',
+};
+function mapFDName(n){ return FD_NAME_MAP[n]||n; }
+
+// Convierte fecha UTC de la API a fecha y hora en Colombia (UTC-5)
+function utcToCol(utcStr){
+  const d=new Date(utcStr);
+  const col=new Date(d.getTime()-5*60*60*1000);
+  const Y=col.getUTCFullYear();
+  const M=String(col.getUTCMonth()+1).padStart(2,'0');
+  const D=String(col.getUTCDate()).padStart(2,'0');
+  const h=String(col.getUTCHours()).padStart(2,'0');
+  const mn=String(col.getUTCMinutes()).padStart(2,'0');
+  return {date:`${Y}-${M}-${D}`,time:`${h}:${mn}`};
+}
+
+function showToast(msg,ok=true){
+  const t=document.getElementById('syncToast');
+  t.textContent=msg; t.className='sync-toast show';
+  t.style.color=ok?'var(--green)':'var(--red)';
+  setTimeout(()=>t.className='sync-toast',3000);
+}
+
+function openSettings(){
+  const key=localStorage.getItem('fd_api_key')||'';
+  document.getElementById('apiKeyInput').value=key;
+  document.getElementById('settingsMsg').textContent='';
+  document.getElementById('settingsModal').classList.remove('gone');
+}
+function closeSettings(){ document.getElementById('settingsModal').classList.add('gone'); }
+function saveSettings(){
+  const key=document.getElementById('apiKeyInput').value.trim();
+  if(!key){ document.getElementById('settingsMsg').textContent='Pega tu API key primero.'; document.getElementById('settingsMsg').className='settings-msg err'; return; }
+  localStorage.setItem('fd_api_key',key);
+  document.getElementById('settingsMsg').textContent='✅ Guardada. Sincronizando...';
+  document.getElementById('settingsMsg').className='settings-msg ok';
+  setTimeout(()=>{ closeSettings(); syncFromAPI(); },800);
+}
+
+async function syncFromAPI(){
+  const key=localStorage.getItem('fd_api_key');
+  if(!key){ openSettings(); return; }
+  const btn=document.getElementById('syncBtn');
+  btn.classList.add('syncing');
+  document.getElementById('syncStatus').textContent='Sincronizando...';
+  try{
+    // Intentar WC 2026 (código "WC")
+    const res=await fetch('https://api.football-data.org/v4/competitions/WC/matches',{
+      headers:{'X-Auth-Token':key}
+    });
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      throw new Error(err.message||`HTTP ${res.status}`);
+    }
+    const data=await res.json();
+    processAPIData(data.matches||[]);
+    const now=new Date();
+    const ts=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    document.getElementById('syncStatus').textContent=`✓ ${ts}`;
+    showToast(`✅ Sincronizado — ${Object.keys(REAL_RESULTS).length} resultados`);
+  }catch(e){
+    document.getElementById('syncStatus').textContent='⚠ Error';
+    showToast('❌ '+e.message, false);
+    console.error('FootIQ sync error:',e);
+  }finally{
+    btn.classList.remove('syncing');
+  }
+}
+
+function processAPIData(matches){
+  // Limpiar solo los resultados (no los fixtures del calendario)
+  // Re-construir REAL_RESULTS desde la API (solo partidos FINISHED)
+  const newResults={};
+  const dateUpdates={};
+
+  for(const m of matches){
+    const h=mapFDName(m.homeTeam?.name||'');
+    const a=mapFDName(m.awayTeam?.name||'');
+    if(!h||!a) continue;
+    const key=`${h}-${a}`;
+    const {date,time}=utcToCol(m.utcDate);
+
+    // Guardar fecha/hora correcta para actualizar el calendario
+    dateUpdates[key]={date,time};
+
+    if(m.status==='FINISHED'&&m.score?.fullTime){
+      newResults[key]={
+        h:m.score.fullTime.home??0,
+        a:m.score.fullTime.away??0,
+        played:true,
+        xgH:m.score.fullTime.home, // futuro: reemplazar con xG real si la API lo da
+        xgA:m.score.fullTime.away
+      };
+    }
+  }
+
+  // Actualizar REAL_RESULTS (solo confirmados)
+  Object.keys(REAL_RESULTS).forEach(k=>delete REAL_RESULTS[k]);
+  Object.assign(REAL_RESULTS,newResults);
+
+  // Actualizar fechas y horas en CALENDAR_MATCHES
+  for(const [key,{date,time}] of Object.entries(dateUpdates)){
+    const [h,a]=key.split('-');
+    // Buscar el partido en todas las fechas del calendario
+    for(const [ds,arr] of Object.entries(CALENDAR_MATCHES)){
+      const idx=arr.findIndex(x=>x.home===h&&x.away===a);
+      if(idx>=0){
+        if(ds!==date){
+          // Mover al día correcto
+          const match=arr.splice(idx,1)[0];
+          match.time=time;
+          if(!CALENDAR_MATCHES[date]) CALENDAR_MATCHES[date]=[];
+          CALENDAR_MATCHES[date].push(match);
+        } else {
+          arr[idx].time=time; // Solo actualizar hora
+        }
+        break;
+      }
+    }
+  }
+
+  // Recalibrar ELO con los resultados reales (en orden cronológico)
+  recalibrateELO();
+
+  // Re-renderizar todo
+  renderCalendar();
+  if(calSelected) renderMatchPanel(calSelected);
+  renderDuel();
+}
+
+function recalibrateELO(){
+  // Resetear al base
+  initElo();
+  // Aplicar resultados en orden (asumimos orden de REAL_RESULTS = cronológico)
+  for(const [key,res] of Object.entries(REAL_RESULTS)){
+    if(!res.played) continue;
+    const [h,a]=key.split('-');
+    const K=30;
+    const eh=G.elo[h]||1500, ea=G.elo[a]||1500;
+    const expH=1/(1+Math.pow(10,(ea-eh)/400));
+    const actualH=res.h>res.a?1:res.h===res.a?0.5:0;
+    G.elo[h]=Math.round(eh+K*(actualH-expH));
+    G.elo[a]=Math.round(ea+K*((1-actualH)-(1-expH)));
+  }
 }
 
 boot();
