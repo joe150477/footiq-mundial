@@ -118,8 +118,21 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;display:flex;f
 .settings-msg{font-size:11px;margin-top:8px;min-height:16px;}
 .settings-msg.ok{color:var(--green);}
 .settings-msg.err{color:var(--red);}
-.sync-toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:12px;z-index:9997;opacity:0;transition:opacity .3s;pointer-events:none;}
+.sync-toast{position:fixed;top:54px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;font-size:12px;z-index:9997;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
 .sync-toast.show{opacity:1;}
+
+/* === PERFIL INTEGRAL === */
+.perfil-section{background:rgba(255,255,255,.03);border:1px solid rgba(100,200,255,.15);border-radius:10px;padding:8px;margin-top:8px;}
+.perfil-title{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px;}
+.perfil-row{display:flex;align-items:center;gap:4px;margin-bottom:4px;font-size:10px;}
+.perfil-dim{width:52px;color:var(--muted);}
+.perfil-bar-wrap{flex:1;height:6px;background:var(--bg2);border-radius:3px;overflow:hidden;}
+.perfil-bar{height:100%;border-radius:3px;transition:width .3s;}
+.perfil-bar.home{background:var(--accent);}
+.perfil-bar.away{background:var(--orange);}
+.perfil-val{width:26px;text-align:right;font-weight:700;}
+.perfil-val.win{color:var(--green);}
+.perfil-total{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;font-weight:700;border-top:1px solid var(--border);padding-top:4px;}
 
 /* === BAJAS === */
 .bajas-section{background:rgba(255,255,255,.03);border:1px solid rgba(255,100,100,.2);border-radius:10px;padding:8px;margin-top:8px;}
@@ -130,6 +143,14 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;display:flex;f
 .baja-pill.absent{background:rgba(232,64,74,.2);border-color:var(--red);color:var(--red);text-decoration:line-through;}
 .baja-pill:not(.absent):hover{border-color:var(--muted);}
 .baja-impact{font-size:9px;color:var(--red);margin-top:2px;}
+.conf-badge{font-size:8px;font-weight:600;padding:1px 5px;border-radius:99px;margin-left:4px;}
+.conf-high{background:rgba(32,192,90,.2);color:var(--green);}
+.conf-med{background:rgba(250,204,21,.15);color:var(--yellow);}
+.conf-low{background:rgba(249,115,22,.2);color:var(--orange);}
+.fjd-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;padding-top:5px;border-top:1px solid var(--border);}
+.fjd-star{font-size:9px;padding:2px 7px;border-radius:99px;background:rgba(240,188,53,.12);border:1px solid rgba(240,188,53,.3);color:var(--gold);}
+.fjd-star.fjd-baja{background:rgba(232,64,74,.12);border-color:var(--red);color:var(--red);text-decoration:line-through;}
+.fjd-star.fjd-aged{background:rgba(107,122,144,.12);border-color:var(--muted);color:var(--dim);}
 .pen-badge{font-size:9px;color:var(--red);margin-left:4px;}
 
 /* === BET === */
@@ -260,6 +281,232 @@ const MERCADO = {
   'Jordan':1230,'DR Congo':1330,'Uzbekistan':1330,'Ghana':1410,'Panama':1330,
   'New Zealand':1230,'Paraguay':1400,'Egypt':1450
 };
+// ==================== PERFIL INTEGRAL (4 DIMENSIONES) ====================
+// Escala 0–100. Basado en análisis histórico, ciencia deportiva y datos conocidos.
+
+// Dimensión 1: Físico-atlético (estatura, potencia, velocidad, duelos)
+const PERFIL_FISICO = {
+  'France':88,'Germany':85,'Netherlands':82,'England':83,'Belgium':84,
+  'United States':88,'Senegal':87,'Morocco':83,'Australia':80,'Canada':78,
+  'Brazil':86,'Argentina':76,'Uruguay':79,'Colombia':82,'Ecuador':77,
+  'Spain':78,'Portugal':79,'Croatia':82,'Switzerland':80,'Austria':81,
+  'Norway':84,'Sweden':83,'Japan':74,'South Korea':74,'Czechia':79,
+  'Turkey':80,'Scotland':79,'Algeria':78,'Ghana':82,'Ivory Coast':83,
+  'Egypt':75,'Tunisia':76,'South Africa':80,'Mexico':76,'Panama':73,
+  'Paraguay':74,'Qatar':70,'Saudi Arabia':73,'Iran':74,'Iraq':72,
+  'Jordan':71,'Uzbekistan':73,'New Zealand':76,'Bosnia':79,
+  'Haiti':74,'Curaçao':72,'Cape Verde':76,'DR Congo':80,
+};
+
+// Dimensión 2: Fortaleza mental / perfil psicológico (resiliencia, presión, remontar)
+const PERFIL_MENTAL = {
+  'Argentina':95,'Germany':88,'Uruguay':90,'South Korea':84,'Morocco':88,
+  'Croatia':86,'France':82,'Spain':82,'Switzerland':80,'Japan':80,
+  'Brazil':72,'Portugal':75,'United States':78,'Colombia':76,'Mexico':70,
+  'Netherlands':68,'Belgium':65,'Scotland':68,'Senegal':78,'Ecuador':70,
+  'Australia':76,'Canada':70,'Norway':74,'Sweden':75,'Austria':74,
+  'Turkey':73,'Czechia':72,'Algeria':70,'Ghana':68,'Ivory Coast':68,
+  'Egypt':65,'Tunisia':66,'South Africa':70,'Bosnia':72,
+  'Paraguay':74,'Qatar':60,'Saudi Arabia':62,'Iran':68,'Iraq':62,
+  'Haiti':65,'Jordan':60,'Uzbekistan':62,'New Zealand':65,
+  'Panama':64,'Cape Verde':68,'DR Congo':66,'England':55,'Curaçao':60,
+};
+
+// Dimensión 3: Garra competitiva (espíritu lucha, intensidad, sacrificio, agresividad deportiva)
+const GARRA = {
+  'Uruguay':96,'Argentina':93,'Colombia':88,'Morocco':87,'South Korea':85,
+  'Croatia':85,'Mexico':80,'Germany':80,'Senegal':82,'Brazil':78,
+  'Ecuador':78,'Paraguay':80,'Japan':78,'Algeria':78,'Ghana':76,
+  'Ivory Coast':75,'South Africa':76,'Iran':74,'Turkey':75,
+  'Scotland':76,'Australia':74,'United States':74,'Portugal':72,
+  'Spain':72,'Netherlands':68,'France':74,'England':62,'Belgium':65,
+  'Switzerland':70,'Canada':70,'Norway':72,'Sweden':72,'Austria':72,
+  'Egypt':70,'Tunisia':70,'Bosnia':74,'Czechia':68,'Haiti':72,
+  'Qatar':60,'Saudi Arabia':63,'Iraq':68,'Jordan':62,'Uzbekistan':66,
+  'New Zealand':65,'Panama':66,'Cape Verde':70,'DR Congo':73,'Curaçao':62,
+};
+
+// Dimensión 4: Cultura futbolística nacional (ADN, tradición, identidad, mística)
+const CULTURA = {
+  'Brazil':98,'Argentina':97,'Germany':95,'Uruguay':92,'Spain':90,
+  'France':88,'England':87,'Netherlands':86,'Mexico':83,'Colombia':82,
+  'Portugal':83,'Croatia':80,'Belgium':78,'Chile':80,'Ecuador':70,
+  'Morocco':74,'South Korea':76,'Japan':74,'Senegal':72,'Ghana':70,
+  'Ivory Coast':68,'Egypt':68,'Algeria':70,'Turkey':70,'Switzerland':72,
+  'Scotland':76,'Norway':68,'Sweden':70,'Austria':72,'Czechia':70,
+  'Paraguay':72,'Australia':65,'Canada':58,'United States':66,
+  'Bosnia':66,'Tunisia':64,'South Africa':66,'Iran':66,'Saudi Arabia':60,
+  'Iraq':62,'Jordan':58,'Uzbekistan':54,'Qatar':52,'Haiti':64,
+  'New Zealand':58,'Panama':62,'Cape Verde':64,'DR Congo':66,'Curaçao':58,
+};
+
+// Pesos: Físico 20% | Mental 30% | Garra 25% | Cultura 25%
+function perfilScore(team){
+  const f=PERFIL_FISICO[team]??70, m=PERFIL_MENTAL[team]??70;
+  const g=GARRA[team]??70, c=CULTURA[team]??70;
+  return (f*0.20 + m*0.30 + g*0.25 + c*0.25);  // 0–100
+}
+// Multiplicador de fuerza: equipo promedio (≈75/100) → ×1.00
+// Top (≈90) → ×1.06  |  Bajo (≈60) → ×0.94
+function perfilMultiplier(team){
+  return 0.82 + (perfilScore(team)/100)*0.24;
+}
+
+// ==================== ICC — ÍNDICE DE CAPACIDAD DE CAMPEONATO (9 dimensiones) ====================
+
+// Dimensión 5: Factor Clutch — rendimiento bajo máxima presión (penales, finales, min85+, eliminación)
+// Datos históricos mundialistas + torneos internacionales
+const CLUTCH = {
+  'Croatia':94,    // 4 victorias en penales en Qatar 2022. Fenómeno histórico.
+  'Germany':90,    // Reyes históricos del penalty. Consistencia en finales.
+  'Argentina':88,  // Messi 2022, comeback Qatar, instinto ganador.
+  'Uruguay':85,    // Siempre compite. Garra como diferencial en eliminación.
+  'Morocco':83,    // Qatar 2022 — eliminó a España y Portugal. Déficit cero en presión.
+  'South Korea':80,// 2002: 4 victorias históricas. ADN clutch activo.
+  'Japan':78,      // 2022: remontó a Alemania y España. Juega mejor en presión.
+  'Spain':76,      // Campeón 2010, colectivo sólido en finales.
+  'France':76,     // 2 mundiales. Pero cedió ventaja 3-2 en final 2022.
+  'Switzerland':74,// Eliminó a Francia en penales (Euro 2020). Underrated.
+  'Colombia':70,
+  'United States':67,
+  'Ecuador':63,
+  'Sweden':68,
+  'Senegal':68,
+  'Australia':66,
+  'Norway':65,
+  'Portugal':62,   // Ronaldo + talento pero se queda sin batería en knockouts.
+  'Netherlands':62,// Rico pasado, pero "depresión naranja" en momentos clave.
+  'Belgium':60,    // "Mejor generación" sin nada de plata. Clutch = bajo.
+  'Mexico':56,     // El quinto partido. Techo de Cristal mundialista.
+  'Brazil':55,     // Penales = tragedia nacional (1998 WC, 2006, Copa América).
+  'England':46,    // Trauma histórico en penales. Mejorando pero aún bajo.
+  'Turkey':62,'Austria':62,'Czechia':65,'Algeria':60,'Ghana':58,
+  'Ivory Coast':55,'Egypt':58,'Tunisia':55,'South Africa':55,'Bosnia':54,
+  'Scotland':55,'Paraguay':63,'Qatar':50,'Saudi Arabia':52,'Iran':56,
+  'Iraq':50,'Jordan':48,'Uzbekistan':50,'New Zealand':55,
+  'Panama':52,'Cape Verde':55,'Haiti':50,'DR Congo':52,'Curaçao':47,
+};
+
+// Dimensión 6: ADN Competitivo Institucional — mística ganadora, sobrerendimiento histórico,
+// equipos que SIEMPRE superan la estadística bruta (tipo Real Madrid, Bayern, Boca Juniors)
+const ADN_COMPETITIVO = {
+  'Germany':96,    // 4 títulos, 8 finales. Siempre ahí. La definición del ADN.
+  'Argentina':93,  // 3 títulos. Nunca bajan de cuartos cuando clasifican.
+  'Uruguay':91,    // 2 títulos con país de 3M. Overperformance total.
+  'Brazil':85,     // 5 títulos pero últimos 20 años hay inconsistencia.
+  'Spain':84,      // 2010 + Euro dominance. Escuela táctica consolidada.
+  'Croatia':87,    // 2018 finalista, 2022 tercero con plantel modesto. Institución.
+  'Morocco':82,    // 2022 mostró ADN real: elimina gigantes, nada que temer.
+  'France':83,     // 2 títulos + final 2022. Consistencia de grande.
+  'South Korea':76,// 2002 semifinal desde cero. ADN de sorpresa activado.
+  'Japan':73,      // Grupo de la muerte 2022. ADN de guerrero silencioso.
+  'Colombia':75,   // 2014 cuartos, era James. Potencial institucional.
+  'Mexico':70,     // Siempre clasifica, pero techo. ADN de "octavos eternos".
+  'Switzerland':71,// Sorpresa silenciosa en cada Mundial. Muy consistente.
+  'Netherlands':72,// Historia rica pero mucha decepción. ADN mixto.
+  'Portugal':65,   // Talento superlativo pero subrendimiento en knockouts.
+  'Belgium':60,    // Generación dorada que no entregó. ADN débil en presión.
+  'United States':66,
+  'Senegal':68,'Australia':63,'Ecuador':60,'Canada':56,
+  'Norway':58,'Sweden':67,'Turkey':60,'Austria':63,'Czechia':64,
+  'Algeria':62,'Ghana':60,'Ivory Coast':58,'Egypt':62,
+  'Tunisia':55,'South Africa':56,'Scotland':61,
+  'Paraguay':65,'Bosnia':52,'Qatar':48,'Saudi Arabia':50,
+  'Iran':58,'Iraq':48,'Jordan':46,'Uzbekistan':48,
+  'New Zealand':50,'Panama':50,'Cape Verde':53,'Haiti':48,'DR Congo':50,'Curaçao':44,
+};
+
+// Dimensión 7 (ICC): Profundidad de banca — calidad de suplentes, rotaciones sin pérdida de nivel
+const BANCA = {
+  'France':93,'Germany':91,'Spain':90,'England':88,'Brazil':86,
+  'Portugal':85,'Netherlands':83,'Belgium':82,'Argentina':82,
+  'United States':78,'Croatia':78,'Switzerland':76,'Colombia':75,
+  'Uruguay':74,'Mexico':74,'Morocco':74,'Japan':72,'South Korea':72,
+  'Australia':70,'Senegal':70,'Norway':72,'Sweden':70,'Austria':70,
+  'Turkey':68,'Ecuador':66,'Canada':65,'Czechia':66,'Scotland':64,
+  'Algeria':62,'Ghana':62,'Ivory Coast':62,'Tunisia':60,'Egypt':60,
+  'South Africa':58,'Paraguay':60,'Bosnia':58,'Iran':58,'Saudi Arabia':56,
+  'Qatar':52,'Iraq':50,'Jordan':50,'Uzbekistan':50,
+  'New Zealand':52,'Panama':50,'Cape Verde':50,'Haiti':46,'DR Congo':50,'Curaçao':45,
+};
+
+// Factor Jugador Determinante
+// fdj = impacto potencial máximo del jugador estrella (en su mejor momento)
+// form = forma actual 2026: 1.00 = pico, 0.50 = muy reducido por edad/lesiones
+// FJD efectivo = fdj × form  (lo que el jugador REALMENTE aporta hoy)
+// Criterio form: edad, lesiones recientes, rendimiento temporada 2024-25
+const SUPERSTAR = {
+  // PICO (22-28 años, plena forma)
+  'Norway':    {n:'Haaland',   fdj:0.16, form:1.00, age:25}, // Goleador mundial, 25 años
+  'France':    {n:'Mbappé',    fdj:0.12, form:1.00, age:27}, // Pico absoluto Real Madrid
+  'Brazil':    {n:'Vinicius Jr.',fdj:0.12,form:0.97, age:25}, // Candidato Balón de Oro
+  'England':   {n:'Bellingham',fdj:0.11, form:1.00, age:22}, // Emergente RM, sin techo
+  'Canada':    {n:'Davies',    fdj:0.11, form:0.95, age:25},
+  'Spain':     {n:'Yamal',     fdj:0.10, form:0.95, age:18}, // 18 años, pero YA es élite
+  'Ecuador':   {n:'Caicedo',   fdj:0.10, form:0.95, age:22},
+  'Germany':   {n:'Wirtz',     fdj:0.09, form:0.98, age:21}, // Mejor joven de la Bundesliga
+  'Uruguay':   {n:'Valverde',  fdj:0.09, form:0.97, age:25},
+  'Japan':     {n:'Mitoma',    fdj:0.09, form:0.93, age:27},
+  'Sweden':    {n:'Isak',      fdj:0.10, form:0.96, age:26},
+
+  // MADUREZ (29-33, plena potencia con experiencia)
+  'Netherlands':{n:'Gakpo',   fdj:0.08, form:0.92, age:25},
+  'United States':{n:'Pulisic',fdj:0.10, form:0.90, age:27},
+  'Turkey':    {n:'Calhanoglu',fdj:0.09, form:0.88, age:31},
+  'Australia': {n:'Leckie',   fdj:0.08, form:0.87, age:33},
+  'Morocco':   {n:'Hakimi',   fdj:0.07, form:0.93, age:25},
+  'Senegal':   {n:'Mané',     fdj:0.13, form:0.82, age:34}, // Lesiones frecuentes 23-25
+
+  // DECLIVE COMPETITIVO (34-36, aún influyen pero ya no al mismo nivel)
+  'Belgium':   {n:'De Bruyne', fdj:0.13, form:0.80, age:34}, // Lesiones constantes
+  'South Korea':{n:'Son',      fdj:0.13, form:0.80, age:33},
+  'Colombia':  {n:'James',     fdj:0.10, form:0.72, age:34}, // Historial lesiones crónico
+  'Switzerland':{n:'Xhaka',   fdj:0.09, form:0.83, age:33},
+  'Portugal':  {n:'Bruno Fernandes',fdj:0.10,form:0.90,age:31},
+  'Scotland':  {n:'McGinn',   fdj:0.10, form:0.87, age:30},
+
+  // VETERANO-LEYENDA (37+, presencia e influencia pero físico muy limitado)
+  // Messi: FJD base 14% × form 0.62 = FJD efectivo ~8.7%
+  // Copa América 2024: lesión en la final, Inter Miami 2024-25 irregular, 38 años en el Mundial
+  'Argentina': {n:'Messi',    fdj:0.14, form:0.62, age:38},
+
+  // Modric: 39 años en 2026. Aún dirige el juego pero no puede con alta intensidad 90'
+  'Croatia':   {n:'Modric',   fdj:0.12, form:0.52, age:39},
+
+  // Alaba: lesión grave de rodilla 2023-24, retorno incierto
+  'Austria':   {n:'Alaba',    fdj:0.09, form:0.60, age:33},
+
+  // México: Ochoa siempre apareció en mundiales pero 38 años
+  'Mexico':    {n:'Ochoa',    fdj:0.07, form:0.70, age:38},
+};
+
+// ICC — Índice de Capacidad de Campeonato (ICC score 0-100)
+// 9 dimensiones: tecnico, fisico, fortaleza, clutch, fjd, exp_int, adn, banca, momento
+function iccScore(team){
+  const eloN=Math.min(100,Math.max(0,((G.elo[team]||1500)-1350)/6));       // ELO → 0-100
+  const mktN=Math.min(100,Math.max(0,((MERCADO[team]||1500)-1350)/7));      // Mercado → 0-100
+  const tecnico=(eloN+mktN)/2;                                              // 15%
+  const fisico=PERFIL_FISICO[team]??70;                                     // 8%
+  const fortaleza=(PERFIL_MENTAL[team]??70)*0.55+(GARRA[team]??70)*0.45;   // 12%
+  const clutch=CLUTCH[team]??65;                                             // 15%
+  const ss=SUPERSTAR[team], kp=KEY_PLAYERS[team];
+  // FJD efectivo = potencial × forma actual (edad, lesiones, rendimiento 2024-25)
+  const fjdRaw=ss?ss.fdj:kp?kp[0].i:0.07;
+  const fjdEff=ss?fjdRaw*(ss.form??1):fjdRaw;
+  const fjd=Math.min(100,fjdEff*625);                                       // 10% — FJD efectivo
+  // Experiencia internacional: usa historia mundialista del array de Klement
+  const wcHist={'Brazil':22,'Germany':20,'Argentina':18,'Mexico':17,'France':16,'Spain':16,'England':16,'Uruguay':14,'Belgium':14,'Switzerland':12,'Sweden':12,'Netherlands':11,'Portugal':8,'United States':11,'South Korea':10,'Japan':7,'Iran':6,'Saudi Arabia':6,'Australia':6,'Ghana':4,'Morocco':6,'Tunisia':6,'Algeria':4,'South Africa':3,'Egypt':3,'Senegal':3,'Ivory Coast':3,'Ecuador':4,'Colombia':6,'Canada':2,'Panama':1,'Norway':3,'Scotland':8,'Turkey':2,'Croatia':6,'Bosnia':1,'Qatar':1,'Iraq':1,'Jordan':1,'New Zealand':2,'DR Congo':1,'Haiti':1,'Paraguay':8,'Czechia':8,'Austria':7};
+  const exp_int=Math.min(100,35+(wcHist[team]||0)*3);                      // 10%
+  const adn=ADN_COMPETITIVO[team]??65;                                      // 15%
+  const banca=BANCA[team]??65;                                              // 8%
+  const cultura=CULTURA[team]??70;
+  const momento=Math.min(100,(tecnico*0.6+cultura*0.4));                   // 7%
+  return (
+    tecnico*0.15 + fisico*0.08 + fortaleza*0.12 + clutch*0.15 +
+    fjd*0.10 + exp_int*0.10 + adn*0.15 + banca*0.08 + momento*0.07
+  );
+}
+
 const CHOKE = {'Germany':-80,'Belgium':-60,'Mexico':-50,'Spain':-30,'Portugal':-40,'Netherlands':-30};
 const DARK  = {'Spain':70,'Norway':60,'Austria':50,'Colombia':40,'Senegal':35,'Morocco':30,'United States':25,'Canada':20};
 
@@ -315,6 +562,60 @@ function toggleAbsent(team,player){
   renderMatchPanel(calSelected);
 }
 
+function buildPerfilHtml(home,away){
+  const dims=[
+    {key:'Físico', icon:'💪', fh:PERFIL_FISICO},
+    {key:'Mental', icon:'🧠', fh:PERFIL_MENTAL},
+    {key:'Garra',  icon:'🔥', fh:GARRA},
+    {key:'Cultura',icon:'⭐', fh:CULTURA},
+    {key:'Clutch', icon:'⚡', fh:CLUTCH},
+    {key:'ADN',    icon:'🧬', fh:ADN_COMPETITIVO},
+  ];
+  const sh=perfilScore(home), sa=perfilScore(away);
+  const ich=iccScore(home), ica=iccScore(away);
+  let rows=dims.map(d=>{
+    const vh=d.fh[home]??70, va=d.fh[away]??70;
+    const winH=vh>va, tie=vh===va;
+    return `<div class="perfil-row">
+      <div class="perfil-dim">${d.icon} ${d.key}</div>
+      <div class="perfil-val${winH?' win':''}">${Math.round(vh)}</div>
+      <div class="perfil-bar-wrap" style="margin:0 3px"><div class="perfil-bar home" style="width:${Math.round(vh)}%"></div></div>
+      <div style="font-size:9px;color:var(--muted);width:8px;text-align:center">${winH?'›':tie?'=':'‹'}</div>
+      <div class="perfil-bar-wrap" style="margin:0 3px"><div class="perfil-bar away" style="width:${Math.round(va)}%"></div></div>
+      <div class="perfil-val${!winH&&!tie?' win':''}">${Math.round(va)}</div>
+    </div>`;
+  }).join('');
+  // FJD display — muestra FJD efectivo (potencial × forma actual)
+  const sH=SUPERSTAR[home], sA=SUPERSTAR[away];
+  const abH=LINEUP_ABSENT[home]||[], abA=LINEUP_ABSENT[away]||[];
+  function fjdLabel(ss,absent){
+    if(!ss) return '';
+    const eff=(ss.fdj*(ss.form??1)*100).toFixed(0);
+    const pot=(ss.fdj*100).toFixed(0);
+    const formPct=Math.round((ss.form??1)*100);
+    const degraded=formPct<85;
+    const badge=absent?` ❌ BAJA`:(degraded?` (${formPct}% forma)`:'✓');
+    return `<span class="fjd-star${absent?' fjd-baja':degraded?' fjd-aged':''}">⭐ ${ss.n}${ss.age?' '+ss.age+'a':''} FJD +${eff}%${absent?'':(degraded?` <span style="font-size:8px;opacity:.6">/${pot}%</span>`:'')}</span>`;
+  }
+  const fjdH=fjdLabel(sH,sH&&abH.includes(sH.n));
+  const fjdA=fjdLabel(sA,sA&&abA.includes(sA.n));
+  const iccWin=ich>ica?`${FLAG(home)} ${home}`:(ica>ich?`${FLAG(away)} ${away}`:'ICC igualado');
+  return `<div class="perfil-section">
+    <div class="perfil-title">🔬 Análisis Integral — aplica solo al Ensemble (6D + ICC)</div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:5px;">
+      <span style="color:var(--accent)">${FLAG(home)} ${home}</span>
+      <span style="color:var(--orange)">${FLAG(away)} ${away}</span>
+    </div>
+    ${rows}
+    <div class="perfil-total">
+      <span style="color:var(--accent)">ICC ${ich.toFixed(1)}</span>
+      <span style="font-size:9px;color:var(--gold)">🏆 ${iccWin}</span>
+      <span style="color:var(--orange)">ICC ${ica.toFixed(1)}</span>
+    </div>
+    ${(fjdH||fjdA)?`<div class="fjd-row">${fjdH}${fjdA}</div>`:''}
+  </div>`;
+}
+
 function buildBajasHtml(home,away){
   const ph=KEY_PLAYERS[home], pa=KEY_PLAYERS[away];
   if(!ph&&!pa) return '';
@@ -346,6 +647,7 @@ const REAL_RESULTS = {
   'Germany-Curaçao':          {h:7,a:1,played:true},   // Jun 14 ✓
   'Haiti-Scotland':           {h:0,a:1,played:true},   // Jun 14 ✓
   'Australia-Turkey':         {h:2,a:0,played:true},   // Jun 14 ✓
+  'Netherlands-Japan':        {h:2,a:2,played:true},   // Jun 14 ✓ (Kamada 88')
 };
 
 // ==================== CALENDARIO (fixture real fase grupos + eliminatorias) ====================
@@ -410,6 +712,7 @@ function initElo(){
     'Morocco':1746,'United States':1729,'Mexico':1708,'Japan':1680,'Senegal':1660,
     'Australia':1665,'Canada':1637,'Ecuador':1630,'Colombia':1650,'Norway':1670,'Sweden':1650,
     'Turkey':1645,'Scotland':1649,'Austria':1680,'Czechia':1606,'Bosnia':1583,
+    'Netherlands':1834,'Japan':1686, // recalibrado post 2-2 (K=30)
     'Qatar':1556,'South Africa':1512,'Haiti':1471,'Curaçao':1447,'Ivory Coast':1620,
     'Cape Verde':1500,'Saudi Arabia':1580,'Iraq':1500,'Algeria':1600,'Jordan':1480,
     'DR Congo':1500,'Uzbekistan':1480,'Ghana':1600,'Panama':1500,'New Zealand':1450,
@@ -437,39 +740,75 @@ function klementStrength(t,isHome){
   const s=Math.log(gdpEff)*0.40+Math.max(0,1-rank/60)*0.18+(infra/100)*0.14+Math.min(1,Math.sqrt(wc)/5)*0.10+clim*0.18;
   return s*(isHome?1.08:1);
 }
+// ==================== MODELO DE POISSON ====================
+// Reemplaza la probabilidad de empate fija (26%). La p(empate) ahora depende
+// de cuántos goles se esperan: partidos reñidos → más empates naturalmente.
+function poissonP(lambda, k){
+  // P(X=k) donde X ~ Poisson(lambda)
+  let p=Math.exp(-lambda);
+  for(let i=1;i<=k;i++) p*=lambda/i;
+  return p;
+}
+function poissonOutcomes(xgH, xgA){
+  // P(local gana), P(empate), P(visitante gana) via distribución Poisson
+  let pH=0, pD=0, pA=0;
+  for(let i=0;i<=8;i++){
+    const pi=poissonP(xgH,i);
+    for(let j=0;j<=8;j++){
+      const p=pi*poissonP(xgA,j);
+      if(i>j) pH+=p; else if(i===j) pD+=p; else pA+=p;
+    }
+  }
+  return {pH,pD,pA};
+}
+function poissonBestScore(xgH, xgA){
+  let best='1-0', bestP=0;
+  for(let i=0;i<=5;i++) for(let j=0;j<=5;j++){
+    const p=poissonP(xgH,i)*poissonP(xgA,j);
+    if(p>bestP){bestP=p; best=`${i}-${j}`;}
+  }
+  return best;
+}
+
 function klementPredict(h,a){
-  const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
-  let sh=klementStrength(h,1)*(1-penH), sa=klementStrength(a,0)*(1-penA);
+  // ⚠️ KLEMENT = modelo estructural puro. NO usa alineaciones, NO se actualiza con resultados.
+  // La fuerza es 100% GDP, ranking FIFA, infraestructura, clima e historia mundialista.
+  // Congelado en valores pre-torneo. Fiel al modelo publicado de Joachim Klement (economista).
+  let sh=klementStrength(h,true), sa=klementStrength(a,false);
   let diff=sh-sa;
-  let pH=1/(1+Math.exp(-diff*2.5)),pA=1-pH;
-  pH=pH*0.55+0.33*0.45; pA=pA*0.55+0.33*0.45;
-  let pD=Math.max(0.02,1-pH-pA),tot=pH+pD+pA;
-  pH/=tot; pD/=tot; pA/=tot;
-  let base=1.2,xgH=Math.max(0.4,Math.min(2.5,base+(sh-sa)*0.4)),xgA=Math.max(0.4,Math.min(2.5,base+(sa-sh)*0.4));
-  return {pH,pD,pA,xgH:xgH.toFixed(2),xgA:xgA.toFixed(2),score:Math.round(xgH)+'-'+Math.round(xgA)};
+  // Regresión logística (método original de Klement, NO Poisson)
+  let rawH=1/(1+Math.exp(-diff*2.8));
+  // Compresión hacia el centro: en Copa del Mundo hay más empates y sorpresas que en ligas
+  let pH=rawH*0.56+0.33*0.44;
+  let pA=(1-rawH)*0.56+0.33*0.44;
+  let pD=Math.max(0.05,1-pH-pA);
+  let tot=pH+pD+pA; pH/=tot; pD/=tot; pA/=tot;
+  // xG derivado de la diferencia estructural
+  let base=1.20;
+  let xgH=Math.max(0.40,Math.min(2.5,base+(sh-sa)*0.35));
+  let xgA=Math.max(0.40,Math.min(2.5,base+(sa-sh)*0.35));
+  return {pH,pD,pA,xgH:xgH.toFixed(2),xgA:xgA.toFixed(2),score:`${Math.round(xgH)}-${Math.round(xgA)}`};
 }
-function eloPredict(h,a){
-  const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
-  let eh=(G.elo[h]||1500)*(1-penH), ea=(G.elo[a]||1500)*(1-penA);
-  let expH=1/(1+Math.pow(10,(ea-eh)/400));
-  return {pH:expH*0.74,pD:0.26,pA:(1-expH)*0.74};
-}
-function marketProb(h,a){
-  const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
-  let mh=(MERCADO[h]||1500)*(1-penH), ma=(MERCADO[a]||1500)*(1-penA);
-  let diff=(mh-ma)/400;
-  let expH=1/(1+Math.pow(10,-diff));
-  return {pH:expH*0.745,pD:0.255,pA:(1-expH)*0.745};
-}
+
 function ensemblePredict(h,a){
-  let el=eloPredict(h,a),mk=marketProb(h,a);
-  let pH=(el.pH+mk.pH)/2,pD=(el.pD+mk.pD)/2,pA=(el.pA+mk.pA)/2;
-  let tot=pH+pD+pA;
-  const penH=getLineupPenalty(h),penA=getLineupPenalty(a);
-  // xG ajustado por bajas
-  let xgH=Math.max(0.4,Math.min(2.5,1.2*(1-penH*0.5)));
-  let xgA=Math.max(0.4,Math.min(2.5,1.0*(1-penA*0.5)));
-  return {pH:pH/tot,pD:pD/tot,pA:pA/tot,score:pH>pA?'1-0':'0-1',xgH:xgH.toFixed(2),xgA:xgA.toFixed(2)};
+  const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
+  // Fuerza ELO + Perfil + Bajas
+  const ehEff=(G.elo[h]||1500)*(1-penH)*perfilMultiplier(h);
+  const eaEff=(G.elo[a]||1500)*(1-penA)*perfilMultiplier(a);
+  // Fuerza MERCADO + Perfil + Bajas
+  const mhEff=(MERCADO[h]||1500)*(1-penH)*perfilMultiplier(h);
+  const maEff=(MERCADO[a]||1500)*(1-penA)*perfilMultiplier(a);
+  // Combinado 50/50 ELO-Mercado
+  const cH=(ehEff+mhEff)/2, cA=(eaEff+maEff)/2;
+  // xG: base copa del mundo ~1.20, ajuste proporcional a diferencia de fuerza
+  // ±0.45 goles por cada 300 puntos de fuerza diferencial
+  const diff=cH-cA;
+  const adj=Math.sign(diff)*Math.min(0.85,Math.abs(diff)/300*0.45);
+  const xgH=Math.max(0.35,Math.min(2.8,1.20+adj));
+  const xgA=Math.max(0.35,Math.min(2.8,1.20-adj));
+  // Distribución Poisson → P(H gana), P(empate), P(A gana)
+  const {pH,pD,pA}=poissonOutcomes(xgH,xgA);
+  return {pH,pD,pA,score:poissonBestScore(xgH,xgA),xgH:xgH.toFixed(2),xgA:xgA.toFixed(2)};
 }
 
 // ==================== MONTE CARLO ASÍNCRONO ====================
@@ -492,21 +831,27 @@ async function runMC(N,modelo,cb){
       }
       terceros.sort((a,b)=>b.pts-a.pts);
       adv.push(...terceros.slice(0,8).map(x=>x.t));
-      // Seeding del bracket: Klement usa su propia fuerza estructural; Ensemble usa ELO+MERCADO
+      // Seeding del bracket: Klement usa fuerza estructural; Ensemble usa ICC (incluye clutch, ADN, FJD)
       let bracket=adv.map(t=>({
         t,
         s: modelo==='klement'
-          ? klementStrength(t,false)*1000 + Math.random()*80   // escala similar a ELO
-          : (G.elo[t]||1500)+(MERCADO[t]||1500)+(CHOKE[t]||0)+(DARK[t]||0)+Math.random()*250
+          ? klementStrength(t,false)*1000 + Math.random()*80
+          : iccScore(t)*25 + (G.elo[t]||1500)*0.35 + (MERCADO[t]||1500)*0.35 + (CHOKE[t]||0)+(DARK[t]||0)+Math.random()*120
       })).sort((a,b)=>b.s-a.s);
       while(bracket.length>1){
         let next=[];
         for(let i=0;i<bracket.length;i+=2){
           let t1=bracket[i].t,t2=bracket[i+1]?.t||bracket[i].t;
           let p=modelo==='klement'?klementPredict(t1,t2):ensemblePredict(t1,t2);
+          // Factor Clutch: en eliminatorias, equipos con mayor clutch tienen ventaja en momentos de igualdad
+          const c1=(CLUTCH[t1]||65)/100, c2=(CLUTCH[t2]||65)/100;
+          const clutchAdj=(c1-c2)*0.05; // ±5% max shift por clutch diferencial
+          let pH2=Math.min(0.85,Math.max(0.05,p.pH+clutchAdj));
+          let pA2=Math.min(0.85,Math.max(0.05,p.pA-clutchAdj));
+          let pD2=Math.max(0.02,1-pH2-pA2);
           let r2=Math.random(),w;
-          if(r2<p.pH)w=t1; else if(r2<p.pH+p.pD){let pen=0.5+(G.elo[t1]||1500-(G.elo[t2]||1500))/2000;w=Math.random()<pen?t1:t2;} else w=t2;
-          next.push({t:w,s:Math.random()});
+          if(r2<pH2)w=t1; else if(r2<pH2+pD2){let pen=0.5+(c1-c2)*0.3;w=Math.random()<(0.5+pen/2)?t1:t2;} else w=t2;
+          next.push({t:w,s:iccScore(w)+Math.random()*15});
         }
         bracket=next;
       }
@@ -587,13 +932,73 @@ function renderDuel(){
     </div>`;
 }
 function renderModel(){
+  const medals=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+  // ICC Top 10
+  const iccRank=ALL_TEAMS.map(t=>({t,v:iccScore(t)})).sort((a,b)=>b.v-a.v).slice(0,10);
+  // Perfil compuesto Top 8
+  const ranked=ALL_TEAMS.map(t=>({t,s:perfilScore(t)})).sort((a,b)=>b.s-a.s).slice(0,8);
+  // Top 5 por cada dimensión
+  const topFisico=ALL_TEAMS.map(t=>({t,v:PERFIL_FISICO[t]??70})).sort((a,b)=>b.v-a.v).slice(0,5);
+  const topMental=ALL_TEAMS.map(t=>({t,v:PERFIL_MENTAL[t]??70})).sort((a,b)=>b.v-a.v).slice(0,5);
+  const topGarra=ALL_TEAMS.map(t=>({t,v:GARRA[t]??70})).sort((a,b)=>b.v-a.v).slice(0,5);
+  const topCultura=ALL_TEAMS.map(t=>({t,v:CULTURA[t]??70})).sort((a,b)=>b.v-a.v).slice(0,5);
+  const topClutch=ALL_TEAMS.map(t=>({t,v:CLUTCH[t]??65})).sort((a,b)=>b.v-a.v).slice(0,5);
+  const topADN=ALL_TEAMS.map(t=>({t,v:ADN_COMPETITIVO[t]??65})).sort((a,b)=>b.v-a.v).slice(0,5);
+  const dimBlock=(title,icon,arr,col)=>`
+    <div style="margin-bottom:8px;">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:4px;">${icon} ${title}</div>
+      ${arr.map((x,i)=>`<div class="trow" style="padding:3px 0">
+        <span style="font-size:10px">${medals[i]} ${FLAG(x.t)} ${x.t}</span>
+        <span style="font-size:11px;font-weight:700;color:${col||'var(--accent)'}">${x.v}</span>
+      </div>`).join('')}
+    </div>`;
   document.getElementById('page-model').innerHTML=`
+    <div class="card" style="border-color:rgba(240,188,53,.3)">
+      <div class="stitle" style="color:var(--gold)">🏆 ICC — Índice de Capacidad de Campeonato</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">9 dimensiones · activo en fase eliminatoria</div>
+      ${iccRank.map((x,i)=>{
+        const ss=SUPERSTAR[x.t];
+        const abT=LINEUP_ABSENT[x.t]||[];
+        let fjdStr='';
+        if(ss){
+          const eff=(ss.fdj*(ss.form??1)*100).toFixed(0);
+          const formPct=Math.round((ss.form??1)*100);
+          const col=abT.includes(ss.n)?'var(--red)':formPct<85?'var(--dim)':'var(--gold)';
+          fjdStr=` <span style="color:${col};font-size:8px">${abT.includes(ss.n)?'❌':'⭐'} ${ss.n}${ss.age?' '+ss.age+'a':''} +${eff}%${formPct<85&&!abT.includes(ss.n)?` (${formPct}%)`:''}</span>`;
+        }
+        return `<div class="trow">
+          <span style="font-size:11px">${medals[i]} ${FLAG(x.t)} ${x.t}${fjdStr}</span>
+          <span style="font-size:12px;font-weight:800;color:var(--gold)">${x.v.toFixed(1)}</span>
+        </div>`;
+      }).join('')}
+      <div style="font-size:8px;color:var(--muted);margin-top:6px;line-height:1.5">
+        Técnico 15% · Físico 8% · Fortaleza 12% · Clutch 15% · FJD 10% · Exp.Int 10% · ADN 15% · Banca 8% · Momento 7%
+      </div>
+    </div>
     <div class="card">
-      <div class="stitle">⚙️ Parámetros del Motor</div>
-      <div class="trow"><span>Peso ELO</span><span style="color:var(--accent)">50%</span></div>
-      <div class="trow"><span>Peso Mercado</span><span style="color:var(--accent)">50%</span></div>
-      <div class="trow"><span>Simulaciones Monte Carlo</span><span style="color:var(--gold)">20.000 c/u</span></div>
-      <div class="trow"><span>Equipos totales</span><span>${ALL_TEAMS.length}</span></div>
+      <div class="stitle">⚙️ Motor Ensemble</div>
+      <div class="trow"><span>ELO × Perfil</span><span style="color:var(--accent)">50%</span></div>
+      <div class="trow"><span>Mercado × Perfil</span><span style="color:var(--accent)">50%</span></div>
+      <div class="trow"><span>Monte Carlo</span><span style="color:var(--gold)">20.000 iter.</span></div>
+      <div class="trow"><span>Bracket seeding</span><span style="color:var(--gold)">ICC</span></div>
+      <div class="trow"><span style="color:var(--muted);font-size:9px">ICC + Clutch activos en fase eliminatoria únicamente</span><span></span></div>
+    </div>
+    <div class="card">
+      <div class="stitle">📊 Rankings por Dimensión</div>
+      ${dimBlock('Físico-Atlético','💪',topFisico,'var(--accent)')}
+      ${dimBlock('Fortaleza Mental','🧠',topMental,'var(--accent)')}
+      ${dimBlock('Garra Competitiva','🔥',topGarra,'var(--orange)')}
+      ${dimBlock('Cultura Futbolística','⭐',topCultura,'var(--accent)')}
+      ${dimBlock('Factor Clutch','⚡',topClutch,'var(--yellow)')}
+      ${dimBlock('ADN Competitivo','🧬',topADN,'var(--green)')}
+    </div>
+    <div class="card">
+      <div class="stitle">🔬 Perfil Compuesto (4D) — Top 8</div>
+      ${ranked.map((x,i)=>`<div class="trow">
+        <span>${medals[i]} ${FLAG(x.t)} ${x.t}</span>
+        <span style="color:var(--accent);font-weight:700">${x.s.toFixed(1)}/100</span>
+      </div>`).join('')}
+      <div style="font-size:9px;color:var(--muted);margin-top:6px">Físico 20% · Mental 30% · Garra 25% · Cultura 25%</div>
     </div>
     <div class="card">
       <div class="stitle">🧮 Klement — Variables estructurales</div>
@@ -602,7 +1007,8 @@ function renderModel(){
       <div class="trow"><span>Factor climático / hemisferio</span><span style="color:var(--accent)">18%</span></div>
       <div class="trow"><span>Infraestructura deportiva</span><span>14%</span></div>
       <div class="trow"><span>Historia mundialista</span><span>10%</span></div>
-      <div class="trow"><span style="color:var(--muted);font-size:9px">Calibrado para replicar output conocido (🇳🇱 campeón)</span><span></span></div>
+      <div class="trow"><span style="color:var(--muted);font-size:9px">🔒 Modelo congelado — no cambia con resultados ni bajas</span><span></span></div>
+      <div class="trow"><span style="color:var(--muted);font-size:9px">🇳🇱 Output calibrado al Klement publicado: Países Bajos campeón</span><span></span></div>
     </div>`;
 }
 
@@ -689,6 +1095,7 @@ function renderMatchPanel(ds){
     const penH=getLineupPenalty(m.home),penA=getLineupPenalty(m.away);
     const penBadgeH=penH>0?`<span class="pen-badge">−${(penH*100).toFixed(0)}%</span>`:'';
     const penBadgeA=penA>0?`<span class="pen-badge">−${(penA*100).toFixed(0)}%</span>`:'';
+    const perfilHtml=buildPerfilHtml(m.home,m.away);
     const bajasHtml=!isFinished?buildBajasHtml(m.home,m.away):'';
     return `<div class="mcard-dual">
       <div class="match-header">
@@ -701,24 +1108,25 @@ function renderMatchPanel(ds){
       </div>
       <div class="model-grid">
         <div class="model-box actual">
-          <div class="model-box-title">Modelo Actual</div>
+          ${(()=>{const conf=Math.max(pred.pH,pred.pD,pred.pA);const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';const lbl=conf>=0.60?'Alta confianza':conf>=0.50?'Confianza media':'⚠️ Baja confianza';return `<div class="model-box-title">Modelo Actual <span class="conf-badge ${cl}">${lbl}</span></div>`;})()}
           <div class="model-probs-mini">
             <div class="mprob-mini"><div class="mpv">${(pred.pH*100).toFixed(0)}%</div><div class="mlabel">Local</div></div>
             <div class="mprob-mini"><div class="mpv">${(pred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
             <div class="mprob-mini"><div class="mpv">${(pred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
           </div>
-          <div class="mscore">xG: ${pred.xgH} – ${pred.xgA}</div>
+          <div class="mscore">xG: ${pred.xgH} – ${pred.xgA} · Marcador prob: ${pred.score}</div>
         </div>
         <div class="model-box klement">
-          <div class="model-box-title">Klement</div>
+          ${(()=>{const conf=Math.max(kpred.pH,kpred.pD,kpred.pA);const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';const lbl=conf>=0.60?'Alta':conf>=0.50?'Media':'⚠️ Baja';return `<div class="model-box-title">Klement <span class="conf-badge ${cl}">${lbl}</span> <span style="font-size:7px;color:var(--muted);display:block;margin-top:1px">Estructural · pre-torneo · no se actualiza</span></div>`;})()}
           <div class="model-probs-mini">
             <div class="mprob-mini"><div class="mpv">${(kpred.pH*100).toFixed(0)}%</div><div class="mlabel">Local</div></div>
             <div class="mprob-mini"><div class="mpv">${(kpred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
             <div class="mprob-mini"><div class="mpv">${(kpred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
           </div>
-          <div class="mscore">xG: ${kpred.xgH} – ${kpred.xgA}</div>
+          <div class="mscore">xG: ${kpred.xgH} – ${kpred.xgA} · Marcador prob: ${kpred.score}</div>
         </div>
       </div>
+      ${perfilHtml}
       ${bajasHtml}
       ${betHtml}
       ${resultHtml}
@@ -855,12 +1263,24 @@ async function syncFromAPI(){
   document.getElementById('syncStatus').textContent='Sincronizando...';
   try{
     // Intentar WC 2026 (código "WC")
-    const res=await fetch('https://api.football-data.org/v4/competitions/WC/matches',{
-      headers:{'X-Auth-Token':key}
-    });
+    let res;
+    try{
+      res=await fetch('https://api.football-data.org/v4/competitions/WC/matches',{
+        headers:{'X-Auth-Token':key}
+      });
+    }catch(corsErr){
+      // fetch() rechazado = CORS o sin internet
+      throw new Error('Sin acceso a internet o CORS bloqueado. Abre la app desde un servidor local.');
+    }
+    if(res.status===400||res.status===401||res.status===403){
+      throw new Error('API key inválida. Ve a ⚙️ y verifica la clave de football-data.org');
+    }
+    if(res.status===404){
+      throw new Error('El Mundial 2026 aún no está disponible en esta API. Intenta más tarde.');
+    }
     if(!res.ok){
       const err=await res.json().catch(()=>({}));
-      throw new Error(err.message||`HTTP ${res.status}`);
+      throw new Error(err.message||`Error HTTP ${res.status}`);
     }
     const data=await res.json();
     processAPIData(data.matches||[]);
