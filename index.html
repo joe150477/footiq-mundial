@@ -492,7 +492,13 @@ async function runMC(N,modelo,cb){
       }
       terceros.sort((a,b)=>b.pts-a.pts);
       adv.push(...terceros.slice(0,8).map(x=>x.t));
-      let bracket=adv.map(t=>({t,s:(G.elo[t]||1500)+(MERCADO[t]||1500)+(CHOKE[t]||0)+(DARK[t]||0)+Math.random()*250})).sort((a,b)=>b.s-a.s);
+      // Seeding del bracket: Klement usa su propia fuerza estructural; Ensemble usa ELO+MERCADO
+      let bracket=adv.map(t=>({
+        t,
+        s: modelo==='klement'
+          ? klementStrength(t,false)*1000 + Math.random()*80   // escala similar a ELO
+          : (G.elo[t]||1500)+(MERCADO[t]||1500)+(CHOKE[t]||0)+(DARK[t]||0)+Math.random()*250
+      })).sort((a,b)=>b.s-a.s);
       while(bracket.length>1){
         let next=[];
         for(let i=0;i<bracket.length;i+=2){
