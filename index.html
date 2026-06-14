@@ -99,6 +99,17 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;display:flex;f
 .mlabel{font-size:8px;color:var(--muted);}
 .mscore{font-size:10px;color:var(--muted);margin-top:4px;}
 
+/* === BAJAS === */
+.bajas-section{background:rgba(255,255,255,.03);border:1px solid rgba(255,100,100,.2);border-radius:10px;padding:8px;margin-top:8px;}
+.bajas-title{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:6px;}
+.bajas-team-label{font-size:9px;color:var(--muted);margin-bottom:3px;}
+.bajas-pills{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;}
+.baja-pill{font-size:10px;padding:3px 8px;border-radius:99px;background:var(--bg2);border:1px solid var(--border);cursor:pointer;transition:all .2s;user-select:none;}
+.baja-pill.absent{background:rgba(232,64,74,.2);border-color:var(--red);color:var(--red);text-decoration:line-through;}
+.baja-pill:not(.absent):hover{border-color:var(--muted);}
+.baja-impact{font-size:9px;color:var(--red);margin-top:2px;}
+.pen-badge{font-size:9px;color:var(--red);margin-left:4px;}
+
 /* === BET === */
 .bet-market{background:rgba(0,0,0,.3);border-radius:12px;padding:10px;margin-top:10px;}
 .bet-market-title{font-size:10px;font-weight:700;color:var(--yellow);margin-bottom:6px;text-transform:uppercase;}
@@ -194,33 +205,107 @@ const BANDERAS = {
 const FLAG = t => BANDERAS[t] || '🏳️';
 const ALL_TEAMS = Object.values(GRUPOS).flat();
 
+// MERCADO calibrado post resultados reales Jun 11-14
+// USA↑ (4-1 goleada), Brasil↓ (empató Marruecos), Marruecos↑, Australia↑, Escocia↑
+// Qatar↑ (1-1 Suiza sorpresa), Suiza↓ leve, Turquía↓, Chequia↓
 const MERCADO = {
-  'Spain':1980,'France':1970,'England':1930,'Brazil':1890,'Argentina':1880,
-  'Portugal':1860,'Germany':1860,'Netherlands':1780,'Belgium':1760,'Croatia':1710,
-  'Uruguay':1670,'Morocco':1640,'United States':1610,'Mexico':1580,'Switzerland':1610,
-  'Senegal':1530,'Japan':1530,'South Korea':1500,'Australia':1500,'Canada':1500,
+  'Spain':1980,'France':1970,'England':1930,'Brazil':1840,'Argentina':1880,
+  'Portugal':1860,'Germany':1865,'Netherlands':1780,'Belgium':1760,'Croatia':1710,
+  'Uruguay':1670,'Morocco':1660,'United States':1660,'Mexico':1590,'Switzerland':1595,
+  'Senegal':1530,'Japan':1530,'South Korea':1510,'Australia':1530,'Canada':1500,
   'Ecuador':1500,'Colombia':1530,'Tunisia':1450,'Iran':1450,'Norway':1500,
-  'Sweden':1500,'Czechia':1450,'Bosnia':1400,'Qatar':1370,'South Africa':1330,
-  'Haiti':1330,'Scotland':1450,'Turkey':1530,'Curaçao':1230,'Ivory Coast':1450,
+  'Sweden':1500,'Czechia':1440,'Bosnia':1400,'Qatar':1400,'South Africa':1330,
+  'Haiti':1320,'Scotland':1470,'Turkey':1490,'Curaçao':1230,'Ivory Coast':1450,
   'Cape Verde':1330,'Saudi Arabia':1410,'Iraq':1330,'Algeria':1410,'Austria':1500,
   'Jordan':1230,'DR Congo':1330,'Uzbekistan':1330,'Ghana':1410,'Panama':1330,
-  'New Zealand':1230,'Paraguay':1410,'Egypt':1450
+  'New Zealand':1230,'Paraguay':1400,'Egypt':1450
 };
 const CHOKE = {'Germany':-80,'Belgium':-60,'Mexico':-50,'Spain':-30,'Portugal':-40,'Netherlands':-30};
 const DARK  = {'Spain':70,'Norway':60,'Austria':50,'Colombia':40,'Senegal':35,'Morocco':30,'United States':25,'Canada':20};
 
+// ==================== JUGADORES CLAVE (impacto si están ausentes) ====================
+// impact = fracción de reducción en fuerza del equipo (0.05 = 5%, 0.14 = 14%)
+const KEY_PLAYERS = {
+  'Argentina':   [{n:'Messi',pos:'AT',i:0.14},{n:'Álvarez',pos:'AT',i:0.06},{n:'De Paul',pos:'MC',i:0.06},{n:'Romero',pos:'DF',i:0.05}],
+  'France':      [{n:'Mbappé',pos:'AT',i:0.12},{n:'Griezmann',pos:'MC',i:0.07},{n:'Tchouaméni',pos:'MC',i:0.06},{n:'Upamecano',pos:'DF',i:0.04}],
+  'Spain':       [{n:'Yamal',pos:'AT',i:0.10},{n:'Pedri',pos:'MC',i:0.09},{n:'Morata',pos:'AT',i:0.05},{n:'Rúben',pos:'DF',i:0.04}],
+  'England':     [{n:'Bellingham',pos:'MC',i:0.11},{n:'Kane',pos:'AT',i:0.10},{n:'Saka',pos:'AT',i:0.07},{n:'Pickford',pos:'PT',i:0.05}],
+  'Brazil':      [{n:'Vinicius Jr.',pos:'AT',i:0.12},{n:'Rodrygo',pos:'AT',i:0.06},{n:'Casemiro',pos:'MC',i:0.06},{n:'Militão',pos:'DF',i:0.05}],
+  'Portugal':    [{n:'Bruno Fernandes',pos:'MC',i:0.10},{n:'Cristiano',pos:'AT',i:0.09},{n:'Bernardo Silva',pos:'MC',i:0.07},{n:'Dias',pos:'DF',i:0.05}],
+  'Germany':     [{n:'Wirtz',pos:'MC',i:0.09},{n:'Müller',pos:'AT',i:0.06},{n:'Kimmich',pos:'MC',i:0.07},{n:'Rüdiger',pos:'DF',i:0.05}],
+  'Netherlands': [{n:'Van Dijk',pos:'DF',i:0.07},{n:'Gakpo',pos:'AT',i:0.08},{n:'De Jong',pos:'MC',i:0.07},{n:'Dumfries',pos:'DF',i:0.04}],
+  'Belgium':     [{n:'De Bruyne',pos:'MC',i:0.13},{n:'Lukaku',pos:'AT',i:0.07},{n:'Courtois',pos:'PT',i:0.07},{n:'Tielemans',pos:'MC',i:0.05}],
+  'United States':[{n:'Pulisic',pos:'AT',i:0.10},{n:'McKennie',pos:'MC',i:0.05},{n:'Turner',pos:'PT',i:0.05},{n:'Reyna',pos:'AT',i:0.06}],
+  'Morocco':     [{n:'Ziyech',pos:'AT',i:0.08},{n:'En-Nesyri',pos:'AT',i:0.07},{n:'Hakimi',pos:'DF',i:0.07},{n:'Amrabat',pos:'MC',i:0.06}],
+  'Uruguay':     [{n:'Valverde',pos:'MC',i:0.09},{n:'Nuñez',pos:'AT',i:0.08},{n:'Araujo',pos:'DF',i:0.06},{n:'Bentancur',pos:'MC',i:0.05}],
+  'Japan':       [{n:'Mitoma',pos:'AT',i:0.09},{n:'Doan',pos:'AT',i:0.07},{n:'Endo',pos:'MC',i:0.07},{n:'Tomiyasu',pos:'DF',i:0.05}],
+  'Mexico':      [{n:'Lozano',pos:'AT',i:0.08},{n:'Herrera',pos:'MC',i:0.06},{n:'Ochoa',pos:'PT',i:0.07},{n:'Álvarez',pos:'DF',i:0.04}],
+  'Australia':   [{n:'Leckie',pos:'AT',i:0.08},{n:'Mooy',pos:'MC',i:0.07},{n:'Ryan',pos:'PT',i:0.06},{n:'Irvine',pos:'MC',i:0.05}],
+  'South Korea': [{n:'Son',pos:'AT',i:0.13},{n:'Kim M.',pos:'DF',i:0.06},{n:'Lee J.',pos:'MC',i:0.05}],
+  'Colombia':    [{n:'James',pos:'MC',i:0.10},{n:'Díaz',pos:'AT',i:0.09},{n:'Borja',pos:'AT',i:0.06},{n:'Cuadrado',pos:'AT',i:0.06}],
+  'Switzerland': [{n:'Xhaka',pos:'MC',i:0.09},{n:'Embolo',pos:'AT',i:0.07},{n:'Shaqiri',pos:'AT',i:0.06},{n:'Elvedi',pos:'DF',i:0.05}],
+  'Scotland':    [{n:'McGinn',pos:'MC',i:0.10},{n:'Robertson',pos:'DF',i:0.08},{n:'McTominay',pos:'MC',i:0.07}],
+  'Canada':      [{n:'Davies',pos:'DF',i:0.11},{n:'David',pos:'AT',i:0.10},{n:'Buchanan',pos:'DF',i:0.06}],
+  'Norway':      [{n:'Haaland',pos:'AT',i:0.16},{n:'Ødegaard',pos:'MC',i:0.10},{n:'Ajer',pos:'DF',i:0.04}],
+  'Croatia':     [{n:'Modric',pos:'MC',i:0.12},{n:'Gvardiol',pos:'DF',i:0.07},{n:'Kramarić',pos:'AT',i:0.07}],
+  'Ecuador':     [{n:'Caicedo',pos:'MC',i:0.10},{n:'Valencia',pos:'AT',i:0.08},{n:'Estupiñán',pos:'DF',i:0.06}],
+  'Senegal':     [{n:'Mané',pos:'AT',i:0.13},{n:'Koulibaly',pos:'DF',i:0.07},{n:'Sarr',pos:'AT',i:0.07}],
+  'Turkey':      [{n:'Calhanoglu',pos:'MC',i:0.09},{n:'Yazici',pos:'AT',i:0.07},{n:'Demiral',pos:'DF',i:0.06}],
+  'Austria':     [{n:'Sabitzer',pos:'MC',i:0.08},{n:'Arnautovic',pos:'AT',i:0.07},{n:'Alaba',pos:'DF',i:0.09}],
+  'Sweden':      [{n:'Isak',pos:'AT',i:0.10},{n:'Forsberg',pos:'AT',i:0.07},{n:'Ekdal',pos:'MC',i:0.06}],
+};
+
+// Estado de bajas confirmadas: { 'France': ['Mbappé'], ... }
+const LINEUP_ABSENT = {};
+
+function getLineupPenalty(team){
+  const absent = LINEUP_ABSENT[team]||[];
+  const players = KEY_PLAYERS[team]||[];
+  return absent.reduce((sum,name)=>{
+    const p=players.find(x=>x.n===name);
+    return sum+(p?p.i:0);
+  },0);
+}
+
+function toggleAbsent(team,player){
+  if(!LINEUP_ABSENT[team]) LINEUP_ABSENT[team]=[];
+  const idx=LINEUP_ABSENT[team].indexOf(player);
+  if(idx>=0) LINEUP_ABSENT[team].splice(idx,1);
+  else LINEUP_ABSENT[team].push(player);
+  renderMatchPanel(calSelected);
+}
+
+function buildBajasHtml(home,away){
+  const ph=KEY_PLAYERS[home], pa=KEY_PLAYERS[away];
+  if(!ph&&!pa) return '';
+  const abH=LINEUP_ABSENT[home]||[], abA=LINEUP_ABSENT[away]||[];
+  const penH=getLineupPenalty(home),penA=getLineupPenalty(away);
+  const impactH=penH>0?`<div class="baja-impact">⚠️ Fuerza ${home} −${(penH*100).toFixed(0)}%</div>`:'';
+  const impactA=penA>0?`<div class="baja-impact">⚠️ Fuerza ${away} −${(penA*100).toFixed(0)}%</div>`:'';
+  const pillsH=(ph||[]).map(p=>`<span class="baja-pill${abH.includes(p.n)?' absent':''}" onclick="toggleAbsent('${home}','${p.n}')">${p.n} <small>(${p.pos})</small></span>`).join('');
+  const pillsA=(pa||[]).map(p=>`<span class="baja-pill${abA.includes(p.n)?' absent':''}" onclick="toggleAbsent('${away}','${p.n}')">${p.n} <small>(${p.pos})</small></span>`).join('');
+  return `<div class="bajas-section">
+    <div class="bajas-title">👥 Marcar bajas confirmadas (toca el jugador)</div>
+    <div class="bajas-team-label">${FLAG(home)} ${home}</div>
+    <div class="bajas-pills">${pillsH||'<span style="font-size:10px;color:var(--muted)">Sin datos</span>'}</div>
+    ${impactH}
+    <div class="bajas-team-label" style="margin-top:4px">${FLAG(away)} ${away}</div>
+    <div class="bajas-pills">${pillsA||'<span style="font-size:10px;color:var(--muted)">Sin datos</span>'}</div>
+    ${impactA}
+  </div>`;
+}
+
 // ==================== RESULTADOS REALES ====================
 const REAL_RESULTS = {
-  'Mexico-South Africa':      {h:2,a:0,played:true},
-  'South Korea-Czechia':      {h:2,a:1,played:true},
-  'Canada-Bosnia':            {h:1,a:1,played:true},
-  'United States-Paraguay':   {h:2,a:1,played:true},
-  'Qatar-Switzerland':        {h:0,a:2,played:true},
-  'Brazil-Morocco':           {h:3,a:0,played:true},
-  'Haiti-Scotland':           {h:0,a:2,played:true},
-  'Australia-Turkey':         {h:1,a:1,played:true},
-  'Germany-Curaçao':          {h:4,a:0,played:true},
-  'Netherlands-Japan':        {h:2,a:0,played:true}
+  'Mexico-South Africa':      {h:2,a:0,played:true},   // Jun 11 ✓
+  'South Korea-Czechia':      {h:2,a:1,played:true},   // Jun 11 ✓
+  'Canada-Bosnia':            {h:1,a:1,played:true},   // Jun 12 ✓
+  'Brazil-Morocco':           {h:1,a:1,played:true},   // Jun 12 ✓
+  'United States-Paraguay':   {h:4,a:1,played:true},   // Jun 13 ✓
+  'Qatar-Switzerland':        {h:1,a:1,played:true},   // Jun 13 ✓
+  'Germany-Curaçao':          {h:4,a:1,played:true},   // Jun 13 ✓
+  'Haiti-Scotland':           {h:0,a:1,played:true},   // Jun 14 ✓
+  'Australia-Turkey':         {h:2,a:0,played:true},   // Jun 14 ✓
 };
 
 // ==================== CALENDARIO (fixture real fase grupos + eliminatorias) ====================
@@ -275,11 +360,20 @@ function computeModelScores(){
     if(ok===ro){ MODEL_SCORES.klement.cw++; MODEL_SCORES.klement.points+=(ro==='D'?1:3); }
   }
 }
-const todayStr = new Date().toISOString().slice(0,10);
+const _now = new Date();
+const todayStr = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
 
 function initElo(){
   ALL_TEAMS.forEach(t=>G.elo[t]=1500);
-  const R={'Argentina':1950,'France':1930,'Spain':1910,'England':1900,'Brazil':1880,'Portugal':1870,'Germany':1860,'Netherlands':1840,'Belgium':1820,'Croatia':1780,'Uruguay':1760,'Morocco':1740,'United States':1720,'Mexico':1700,'Japan':1680,'Senegal':1660,'Australia':1650,'Canada':1640,'Ecuador':1630,'Colombia':1650,'Norway':1670,'Sweden':1650,'Turkey':1660,'Scotland':1640,'Austria':1680,'Czechia':1620,'Bosnia':1580,'Qatar':1550,'South Africa':1520,'Haiti':1480,'Curaçao':1450,'Ivory Coast':1620,'Cape Verde':1500,'Saudi Arabia':1580,'Iraq':1500,'Algeria':1600,'Jordan':1480,'DR Congo':1500,'Uzbekistan':1480,'Ghana':1600,'Panama':1500,'New Zealand':1450,'Paraguay':1580,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1650,'Switzerland':1700};
+  // ELO calibrado post resultados reales Jun 11-14 (K=30, fórmula estándar)
+  const R={'Argentina':1950,'France':1930,'Spain':1910,'England':1900,'Brazil':1874,'Portugal':1870,'Germany':1863,'Netherlands':1840,'Belgium':1820,'Croatia':1780,'Uruguay':1760,
+    'Morocco':1746,'United States':1729,'Mexico':1708,'Japan':1680,'Senegal':1660,
+    'Australia':1665,'Canada':1637,'Ecuador':1630,'Colombia':1650,'Norway':1670,'Sweden':1650,
+    'Turkey':1645,'Scotland':1649,'Austria':1680,'Czechia':1606,'Bosnia':1583,
+    'Qatar':1556,'South Africa':1512,'Haiti':1471,'Curaçao':1447,'Ivory Coast':1620,
+    'Cape Verde':1500,'Saudi Arabia':1580,'Iraq':1500,'Algeria':1600,'Jordan':1480,
+    'DR Congo':1500,'Uzbekistan':1480,'Ghana':1600,'Panama':1500,'New Zealand':1450,
+    'Paraguay':1571,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1664,'Switzerland':1694};
   for(let t in R) if(G.elo[t]!==undefined) G.elo[t]=R[t];
 }
 
@@ -304,22 +398,26 @@ function klementStrength(t,isHome){
   return s*(isHome?1.08:1);
 }
 function klementPredict(h,a){
-  let sh=klementStrength(h,1),sa=klementStrength(a,0),diff=sh-sa;
+  const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
+  let sh=klementStrength(h,1)*(1-penH), sa=klementStrength(a,0)*(1-penA);
+  let diff=sh-sa;
   let pH=1/(1+Math.exp(-diff*2.5)),pA=1-pH;
   pH=pH*0.55+0.33*0.45; pA=pA*0.55+0.33*0.45;
   let pD=Math.max(0.02,1-pH-pA),tot=pH+pD+pA;
   pH/=tot; pD/=tot; pA/=tot;
-  // Normalizar xG a rango realista (0.5–2.5) usando sigmoid sobre la fuerza relativa
   let base=1.2,xgH=Math.max(0.4,Math.min(2.5,base+(sh-sa)*0.4)),xgA=Math.max(0.4,Math.min(2.5,base+(sa-sh)*0.4));
   return {pH,pD,pA,xgH:xgH.toFixed(2),xgA:xgA.toFixed(2),score:Math.round(xgH)+'-'+Math.round(xgA)};
 }
 function eloPredict(h,a){
-  let eh=G.elo[h]||1500,ea=G.elo[a]||1500;
+  const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
+  let eh=(G.elo[h]||1500)*(1-penH), ea=(G.elo[a]||1500)*(1-penA);
   let expH=1/(1+Math.pow(10,(ea-eh)/400));
   return {pH:expH*0.74,pD:0.26,pA:(1-expH)*0.74};
 }
 function marketProb(h,a){
-  let mh=MERCADO[h]||1500,ma=MERCADO[a]||1500,diff=(mh-ma)/400;
+  const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
+  let mh=(MERCADO[h]||1500)*(1-penH), ma=(MERCADO[a]||1500)*(1-penA);
+  let diff=(mh-ma)/400;
   let expH=1/(1+Math.pow(10,-diff));
   return {pH:expH*0.745,pD:0.255,pA:(1-expH)*0.745};
 }
@@ -327,7 +425,11 @@ function ensemblePredict(h,a){
   let el=eloPredict(h,a),mk=marketProb(h,a);
   let pH=(el.pH+mk.pH)/2,pD=(el.pD+mk.pD)/2,pA=(el.pA+mk.pA)/2;
   let tot=pH+pD+pA;
-  return {pH:pH/tot,pD:pD/tot,pA:pA/tot,score:pH>pA?'1-0':'0-1',xgH:'1.2',xgA:'1.0'};
+  const penH=getLineupPenalty(h),penA=getLineupPenalty(a);
+  // xG ajustado por bajas
+  let xgH=Math.max(0.4,Math.min(2.5,1.2*(1-penH*0.5)));
+  let xgA=Math.max(0.4,Math.min(2.5,1.0*(1-penA*0.5)));
+  return {pH:pH/tot,pD:pD/tot,pA:pA/tot,score:pH>pA?'1-0':'0-1',xgH:xgH.toFixed(2),xgA:xgA.toFixed(2)};
 }
 
 // ==================== MONTE CARLO ASÍNCRONO ====================
@@ -537,12 +639,16 @@ function renderMatchPanel(ds){
     } else {
       betHtml=buildBetHtml(pred,m.home,m.away);
     }
+    const penH=getLineupPenalty(m.home),penA=getLineupPenalty(m.away);
+    const penBadgeH=penH>0?`<span class="pen-badge">−${(penH*100).toFixed(0)}%</span>`:'';
+    const penBadgeA=penA>0?`<span class="pen-badge">−${(penA*100).toFixed(0)}%</span>`:'';
+    const bajasHtml=(!isPast||!real?.played)?buildBajasHtml(m.home,m.away):'';
     return `<div class="mcard-dual">
       <div class="match-header">
         <div class="tflg">${FLAG(m.home)}</div>
-        <div class="tname">${m.home}</div>
+        <div class="tname">${m.home}${penBadgeH}</div>
         <div style="font-size:11px;font-weight:900;padding:0 4px">vs</div>
-        <div class="tname" style="text-align:right">${m.away}</div>
+        <div class="tname" style="text-align:right">${penBadgeA}${m.away}</div>
         <div class="tflg">${FLAG(m.away)}</div>
         <div class="match-group">Grupo ${m.group} · ${m.time}</div>
       </div>
@@ -554,7 +660,7 @@ function renderMatchPanel(ds){
             <div class="mprob-mini"><div class="mpv">${(pred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
             <div class="mprob-mini"><div class="mpv">${(pred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
           </div>
-          <div class="mscore">Marcador: ${pred.score}</div>
+          <div class="mscore">xG: ${pred.xgH} – ${pred.xgA}</div>
         </div>
         <div class="model-box klement">
           <div class="model-box-title">Klement</div>
@@ -563,9 +669,10 @@ function renderMatchPanel(ds){
             <div class="mprob-mini"><div class="mpv">${(kpred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
             <div class="mprob-mini"><div class="mpv">${(kpred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
           </div>
-          <div class="mscore">Marcador: ${kpred.score}</div>
+          <div class="mscore">xG: ${kpred.xgH} – ${kpred.xgA}</div>
         </div>
       </div>
+      ${bajasHtml}
       ${betHtml}
       ${resultHtml}
     </div>`;
