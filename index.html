@@ -153,6 +153,34 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;display:flex;f
 .fjd-star.fjd-aged{background:rgba(107,122,144,.12);border-color:var(--muted);color:var(--dim);}
 .pen-badge{font-size:9px;color:var(--red);margin-left:4px;}
 
+/* === MOMENTUM / FATIGA / DIÁSPORA === */
+.ctx-strip{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0 4px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:8px;}
+.ctx-col{display:flex;flex-direction:column;gap:2px;}
+.ctx-col-right{text-align:right;}
+.ctx-header{font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.ctx-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;padding:2px 6px;border-radius:99px;margin-top:1px;}
+.ctx-momentum-fire{background:rgba(249,115,22,.18);color:#fb923c;}
+.ctx-momentum-good{background:rgba(32,192,90,.15);color:var(--green);}
+.ctx-momentum-neut{background:rgba(107,122,144,.15);color:var(--muted);}
+.ctx-momentum-cold{background:rgba(99,102,241,.15);color:#818cf8;}
+.ctx-crowd-home{background:rgba(32,192,90,.18);color:var(--green);}
+.ctx-crowd-high{background:rgba(250,204,21,.15);color:var(--yellow);}
+.ctx-crowd-part{background:rgba(249,115,22,.12);color:#fb923c;}
+.ctx-crowd-low{background:rgba(107,122,144,.12);color:var(--muted);}
+.ctx-fatigue{font-size:8px;color:var(--red);margin-top:2px;font-style:italic;}
+
+/* === SORPRESA DEL DÍA === */
+.surprise-bet{margin-top:10px;background:rgba(232,64,74,.12);border:1.5px solid rgba(232,64,74,.5);border-radius:10px;padding:10px 12px;}
+.sb-header{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.sb-icon{font-size:14px;}
+.sb-title{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--red);}
+.sb-score{margin-left:auto;font-size:11px;font-weight:800;color:var(--red);background:rgba(232,64,74,.2);padding:1px 7px;border-radius:99px;}
+.sb-team{font-size:11px;color:#fff;margin-bottom:5px;}
+.sb-prob{font-size:9px;color:var(--muted);}
+.sb-reasons{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;}
+.sb-reason{font-size:9px;color:rgba(255,255,255,.75);padding-left:4px;border-left:2px solid rgba(232,64,74,.5);}
+.sb-disclaimer{font-size:8px;color:var(--muted);font-style:italic;}
+
 /* === BET === */
 .bet-market{background:rgba(0,0,0,.3);border-radius:12px;padding:10px;margin-top:10px;}
 .bet-market-title{font-size:10px;font-weight:700;color:var(--yellow);margin-bottom:6px;text-transform:uppercase;}
@@ -858,23 +886,86 @@ function klementPredict(h,a){
   return {pH,pD,pA,xgH:xgH.toFixed(2),xgA:xgA.toFixed(2),score:`${Math.round(xgH)}-${Math.round(xgA)}`};
 }
 
+// ==================== MOMENTUM (PERRENQUE) ====================
+// Mide confianza y estado anímico basado en resultados REALES del torneo.
+// No es subjetivo: pts ganados + goles marcados = presión positiva acumulada.
+// Rango: 0.97 (sin ganar) → 1.04 (tres victorias holgadas) = máx ±4% efecto.
+function getMomentum(team){
+  let pts=0,gf=0,matches=0;
+  for(const [key,real] of Object.entries(REAL_RESULTS)){
+    if(!real.played) continue;
+    const [h,a]=key.split('-');
+    if(h!==team&&a!==team) continue;
+    const isH=h===team;
+    const tg=isH?real.h:real.a, og=isH?real.a:real.h;
+    gf+=tg; matches++;
+    if(tg>og) pts+=3; else if(tg===og) pts+=1;
+  }
+  if(matches===0) return {mult:1.00,label:'—',pts:0,matches:0};
+  const ptsPer=pts/matches;                        // 0-3
+  const gfPer=gf/matches;                          // goles/partido
+  // Pesos: resultados 65%, goles marcados 35%
+  const score=(ptsPer/3)*0.65+(Math.min(gfPer,3)/3)*0.35; // 0-1
+  const mult=0.97+score*0.07;  // 0.97 → 1.04
+  const label=matches===0?'—':pts===0?'❄️ Sin ganar':ptsPer>=2.5?'🔥 En llamas':ptsPer>=1.5?'📈 En racha':'➡️ Neutro';
+  return {mult,label,pts,matches,gfPer:gfPer.toFixed(1)};
+}
+
+// ==================== FATIGA ACUMULADA ====================
+// Cada prórroga (120 min) cuesta fuerza física. Atenuada por plantilla profunda (BANCA).
+// Se actualiza con resultados reales: agregar team aquí cuando llegue a ET en eliminatorias.
+const EXTRA_TIME={
+  // Ejemplo (fase final): 'Croatia':2, 'Morocco':1
+  // Por ahora vacío — fase de grupos no tiene ET
+};
+function getFatiguePenalty(team){
+  const et=EXTRA_TIME[team]||0;
+  if(et===0) return 0;
+  // Costo por ET: 1.5-3% por partido, reducido por plantilla profunda
+  const bancaNorm=(BANCA[team]||65)/100;
+  const costPer=0.015+(1-bancaNorm)*0.015; // equipos con banca alta pagan menos
+  return Math.min(0.08,et*costPer);
+}
+
+// ==================== DIÁSPORA / AMBIENTE ESTADIO ====================
+// Selecciones con gran comunidad en USA/Canadá llegan con apoyo extra en las gradas.
+// INFORMATIVO: se muestra en tarjetas de partido pero NO modifica Monte Carlo
+// (las sedes de eliminatorias no están determinadas y sería ruido añadirlo).
+const DIASPORA={
+  'United States':0.95,'Canada':0.88,'Mexico':0.90,'Colombia':0.72,
+  'Ecuador':0.55,'Argentina':0.52,'Brazil':0.48,'Portugal':0.42,
+  'Haiti':0.35,'Uruguay':0.22,'Panama':0.20,'Paraguay':0.18,
+  'El Salvador':0.65,'Honduras':0.62,'Jamaica':0.33,'Peru':0.30,
+  'Bolivia':0.25,'Chile':0.28,'Cuba':0.25,'Dominican Republic':0.28
+};
+function getDiaspora(team){return DIASPORA[team]||0.04;}
+function diasporaLabel(team){
+  const d=getDiaspora(team);
+  return d>=0.80?'🏠 Local':d>=0.55?'🟢 Alto apoyo':d>=0.35?'🟡 Apoyo parcial':d>=0.15?'🟠 Poco apoyo':'⚪ Neutral';
+}
+
 function ensemblePredict(h,a){
   const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
-  // Fuerza ELO + Perfil + Bajas
-  const ehEff=(G.elo[h]||1500)*(1-penH)*perfilMultiplier(h);
-  const eaEff=(G.elo[a]||1500)*(1-penA)*perfilMultiplier(a);
-  // Fuerza MERCADO + Perfil + Bajas
-  const mhEff=(MERCADO[h]||1500)*(1-penH)*perfilMultiplier(h);
-  const maEff=(MERCADO[a]||1500)*(1-penA)*perfilMultiplier(a);
+
+  // Momentum (perrenque): racha de resultados reales del torneo
+  const momH=getMomentum(h).mult, momA=getMomentum(a).mult;
+  // Fatiga: penalización si hubo prórrogas en eliminatorias
+  const fatH=1-getFatiguePenalty(h), fatA=1-getFatiguePenalty(a);
+
+  // Fuerza ELO + Perfil + Bajas + Momentum + Fatiga
+  const ehEff=(G.elo[h]||1500)*(1-penH)*perfilMultiplier(h)*momH*fatH;
+  const eaEff=(G.elo[a]||1500)*(1-penA)*perfilMultiplier(a)*momA*fatA;
+  // Fuerza MERCADO + Perfil + Bajas + Momentum + Fatiga
+  const mhEff=(MERCADO[h]||1500)*(1-penH)*perfilMultiplier(h)*momH*fatH;
+  const maEff=(MERCADO[a]||1500)*(1-penA)*perfilMultiplier(a)*momA*fatA;
+
   // Combinado 50/50 ELO-Mercado
   const cH=(ehEff+mhEff)/2, cA=(eaEff+maEff)/2;
-  // xG: base copa del mundo ~1.20, ajuste proporcional a diferencia de fuerza
-  // ±0.45 goles por cada 300 puntos de fuerza diferencial
+  // xG: base ~1.20, ajuste por diferencial de fuerza
   const diff=cH-cA;
   const adj=Math.sign(diff)*Math.min(0.85,Math.abs(diff)/300*0.45);
   const xgH=Math.max(0.35,Math.min(2.8,1.20+adj));
   const xgA=Math.max(0.35,Math.min(2.8,1.20-adj));
-  // Distribución Poisson → P(H gana), P(empate), P(A gana)
   const {pH,pD,pA}=poissonOutcomes(xgH,xgA);
   return {pH,pD,pA,score:poissonBestScore(xgH,xgA),xgH:xgH.toFixed(2),xgA:xgA.toFixed(2)};
 }
@@ -1080,6 +1171,82 @@ function renderModel(){
     </div>`;
 }
 
+// ==================== FACTOR SORPRESA ====================
+// Detecta cuándo el "perdedor anunciado" tiene condiciones reales para dar la campanada.
+// Combina 6 señales independientes: si convergen → el mercado está subestimando al underdog.
+// Solo activa si la puntuación supera 55/100 (señal convergente real, no ruido).
+function calcSurpriseFactor(home,away,pred,kpred){
+  // Identificar underdog (menor probabilidad de ganar en modelo ensemble)
+  const homeIsUD = pred.pH < pred.pA;
+  const ud = homeIsUD ? home : away;     // underdog
+  const fav = homeIsUD ? away : home;    // favorito
+  const udProb  = homeIsUD ? pred.pH : pred.pA;
+  const favProb = homeIsUD ? pred.pA : pred.pH;
+
+  // Activar solo si hay favorito claro Y underdog con chance real
+  if(favProb < 0.44 || udProb > 0.40 || udProb < 0.12) return null;
+
+  let score=0;
+  const reasons=[];
+
+  // 1. Momentum/Perrenque (30 pts máx): underdog con mejor racha que el favorito
+  const momUD=getMomentum(ud).mult, momFav=getMomentum(fav).mult;
+  const momGap=momUD-momFav;
+  if(momGap>0){
+    const s=Math.min(30,momGap*900);
+    score+=s;
+    if(s>8) reasons.push(`⚡ ${ud} llega con más perrenque`);
+  }
+
+  // 2. Clutch diferencial (25 pts máx): el underdog no se rompe bajo presión
+  const clutchUD=CLUTCH[ud]||65, clutchFav=CLUTCH[fav]||65;
+  const clutchGap=clutchUD-clutchFav;
+  if(clutchGap>0){
+    const s=Math.min(25,clutchGap*0.45);
+    score+=s;
+    if(s>7) reasons.push(`🧊 Mayor Clutch: ${ud} ${clutchUD} vs ${fav} ${clutchFav}`);
+  }
+
+  // 3. Desacuerdo entre modelos (20 pts máx): Klement ve al underdog más fuerte que Ensemble
+  const ensUD=homeIsUD?pred.pH:pred.pA;
+  const klUD=homeIsUD?kpred.pH:kpred.pA;
+  const modelGap=klUD-ensUD;
+  if(modelGap>0.025){
+    const s=Math.min(20,modelGap*180);
+    score+=s;
+    if(s>5) reasons.push(`📊 Klement da más chance al underdog (+${(modelGap*100).toFixed(0)}%)`);
+  }
+
+  // 4. Ventaja de ambiente/diáspora (10 pts máx): gradas a favor del underdog
+  const diasGap=getDiaspora(ud)-getDiaspora(fav);
+  if(diasGap>0.12){
+    const s=Math.min(10,diasGap*35);
+    score+=s;
+    if(s>3) reasons.push(`🏟️ Gradas a favor de ${ud}`);
+  }
+
+  // 5. ICC competitivo (15 pts máx): el underdog no está tan lejos estructuralmente
+  const iccUD=iccScore(ud), iccFav=iccScore(fav);
+  const iccGap=iccFav-iccUD;
+  if(iccGap<8){
+    const s=Math.min(15,(8-iccGap)*2);
+    score+=s;
+    if(s>5) reasons.push(`🔬 ICC casi equivalente (${iccUD.toFixed(1)} vs ${iccFav.toFixed(1)})`);
+  }
+
+  // 6. ADN competitivo histórico (5 pts bonus): el underdog tiene más historial de ganar cuando no debe
+  const adnUD=ADN_COMPETITIVO[ud]||65, adnFav=ADN_COMPETITIVO[fav]||65;
+  if(adnUD>adnFav&&adnUD>72){
+    score+=5;
+    reasons.push(`🧬 ADN competitivo superior`);
+  }
+
+  const finalScore=Math.round(Math.min(100,score));
+  if(finalScore<55) return null;
+
+  return {ud, fav, score:finalScore, prob:udProb, reasons};
+}
+
 // ==================== APUESTAS ====================
 function buildBetHtml(pred,home,away){
   const pH=pred.pH,pD=pred.pD,pA=pred.pA;
@@ -1093,9 +1260,24 @@ function buildBetHtml(pred,home,away){
   opts.push({l:'Marcador',v:pred.score,q:'6.50',r:'Más probable'});
   if(pH>0.35) opts.push({l:home,v:'+1.5 goles',q:'2.40',r:'Ataque activo'});
   if(pA>0.35) opts.push({l:away,v:'+1.5 goles',q:'2.40',r:'Ataque activo'});
+  // Factor Sorpresa: calcular usando también el modelo Klement para detectar divergencia
+  const kpred=klementPredict(home,away);
+  const sf=calcSurpriseFactor(home,away,pred,kpred);
+  const surpriseHtml=sf?`
+    <div class="surprise-bet">
+      <div class="sb-header">
+        <span class="sb-icon">🔴</span>
+        <span class="sb-title">SORPRESA DEL DÍA</span>
+        <span class="sb-score">${sf.score}/100</span>
+      </div>
+      <div class="sb-team">Apostar por <strong>${sf.ud}</strong> <span class="sb-prob">(${(sf.prob*100).toFixed(0)}% según modelo — el mercado los subestima)</span></div>
+      <div class="sb-reasons">${sf.reasons.map(r=>`<div class="sb-reason">${r}</div>`).join('')}</div>
+      <div class="sb-disclaimer">⚠️ Alta varianza · Solo si cuota &gt; ${(1/sf.prob*1.15).toFixed(1)} · No es garantía</div>
+    </div>`:'';
   return `<div class="bet-market">
     <div class="bet-market-title">🎲 Recomendaciones BetPlay</div>
     <div class="bet-odds">${opts.map(o=>`<div class="bet-option"><div class="blabel">${o.l}</div><div class="bval">${o.v}</div><div class="blabel">~${o.q}</div><div class="breason">${o.r}</div></div>`).join('')}</div>
+    ${surpriseHtml}
   </div>`;
 }
 
@@ -1194,6 +1376,32 @@ function renderMatchPanel(ds){
           <div class="mscore">xG: ${kpred.xgH} – ${kpred.xgA} · Marcador prob: ${kpred.score}</div>
         </div>
       </div>
+      ${(()=>{
+        const momH=getMomentum(m.home), momA=getMomentum(m.away);
+        const fatHp=getFatiguePenalty(m.home), fatAp=getFatiguePenalty(m.away);
+        const dH=getDiaspora(m.home), dA=getDiaspora(m.away);
+        const momClass=mom=>mom.label.includes('llamas')?'ctx-momentum-fire':mom.label.includes('racha')?'ctx-momentum-good':mom.label.includes('Sin')?'ctx-momentum-cold':'ctx-momentum-neut';
+        const crdClass=d=>d>=0.80?'ctx-crowd-home':d>=0.50?'ctx-crowd-high':d>=0.30?'ctx-crowd-part':'ctx-crowd-low';
+        const momLabelH=momH.matches>0?`${momH.label} · ${momH.pts}pts · ${momH.gfPer}g/p`:(momH.label);
+        const momLabelA=momA.matches>0?`${momA.label} · ${momA.pts}pts · ${momA.gfPer}g/p`:(momA.label);
+        const fatHtml=t=>(EXTRA_TIME[t]||0)>0?`<div class="ctx-fatigue">🥵 Cansancio: ${EXTRA_TIME[t]} prórroga(s) · −${(getFatiguePenalty(t)*100).toFixed(1)}%</div>`:'';
+        return `<div class="ctx-strip">
+          <div class="ctx-col">
+            <div class="ctx-header">Perrenque</div>
+            <span class="ctx-badge ${momClass(momH)}">${momLabelH}</span>
+            <div class="ctx-header" style="margin-top:4px">Ambiente</div>
+            <span class="ctx-badge ${crdClass(dH)}">${diasporaLabel(m.home)}</span>
+            ${fatHtml(m.home)}
+          </div>
+          <div class="ctx-col ctx-col-right">
+            <div class="ctx-header">Perrenque</div>
+            <span class="ctx-badge ${momClass(momA)}">${momLabelA}</span>
+            <div class="ctx-header" style="margin-top:4px">Ambiente</div>
+            <span class="ctx-badge ${crdClass(dA)}">${diasporaLabel(m.away)}</span>
+            ${fatHtml(m.away)}
+          </div>
+        </div>`;
+      })()}
       ${perfilHtml}
       ${bajasHtml}
       ${betHtml}
