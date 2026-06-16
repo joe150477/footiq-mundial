@@ -762,7 +762,7 @@ function realOutcome(r){ return r.h>r.a?'H':r.h===r.a?'D':'A'; }
 // Umbral Dixon-Coles: solo predice ganador si supera al empate por margen claro (>8%).
 // Sin umbral, el modelo casi nunca predice empates aunque tengan 28% de probabilidad.
 function predOutcome(p){
-  const DRAW_MARGIN = 0.08; // el favorito debe superar a pD por al menos 8% para predecir victoria
+  const DRAW_MARGIN = 0.12; // calibrado: WC grupos tiene ~30% empates, umbral conservador
   if(p.pH > p.pA){
     return (p.pH - p.pD) > DRAW_MARGIN ? 'H' : 'D';
   } else if(p.pA > p.pH){
@@ -925,7 +925,9 @@ function poissonOutcomes(xgH, xgA){
       if(i>j) pH+=p; else if(i===j) pD+=p; else pA+=p;
     }
   }
-  // Renormalizar (la corrección DC puede sacar la suma de 1 ligeramente)
+  // Calibración fase grupos WC 2026: tasa real de empates ~30% (histórico WC ~26%)
+  // Boost +15% a pD corrige la subestimación sistémica del Poisson en torneos neutrales
+  pD *= 1.15;
   const tot=pH+pD+pA;
   return {pH:pH/tot, pD:pD/tot, pA:pA/tot};
 }
@@ -1292,6 +1294,7 @@ const SOMBRA_EQUIPOS = {
   'Spain':        {nivel:1, hist:'2010: movimientos de apuestas asiáticas antes de semis y final no totalmente explicados. Semifinal con Nigeria, árbitro cuestionado. Sin evidencia directa.'},
   'United States':{nivel:2, hist:'2026 sede + organización: contratos TV Fox Sports ~$400M. Eliminación temprana de EEUU en grupos sería pérdida de audiencia masiva. Histórico de "fixture favorable" para anfitriones (1994 EEUU llegó a QF, 2002 Corea SF).'},
   'Mexico':       {nivel:1, hist:'2026 co-sede: México juega en el Estadio Azteca (114k). 40M espectadores adicionales en Norteamérica si avanza. Interés comercial FIFA alto.'},
+  'Portugal':     {nivel:2, hist:'CR7 a los 41: última Copa del Mundo del jugador más rentable del planeta (~$1B/año en ingresos comerciales). FIFA/patrocinadores tienen interés directo en que llegue lejos. El modelo Klement original predijo a Portugal en la FINAL — dato que coincide con el escenario de mayor valor comercial. Movimientos de apuestas europeas en Portugal en cuotas anómalas reportados por Sportradar antes del torneo. Sin evidencia de manipulación directa.'},
 };
 
 function calcSombraFactor(home, away){
@@ -1848,9 +1851,19 @@ async function syncFromAPI(){
     if(!newResults||Object.keys(newResults).length===0){
       throw new Error('No se encontraron resultados. ¿El torneo ya tiene partidos terminados?');
     }
-    // Mezclar: resultados del servidor + manuales del usuario (manual tiene prioridad)
+    // FILTRO DE SEGURIDAD: solo aceptar resultados de partidos en fechas <= hoy
+    // Evita que la API marque como finalizados partidos futuros o de torneos equivocados
+    const validKeys=new Set();
+    for(const [date,ms] of Object.entries(CALENDAR_MATCHES)){
+      if(date<=todayStr) for(const m of ms) validKeys.add(`${m.home}-${m.away}`);
+    }
+    const safeResults={};
+    for(const [k,v] of Object.entries(newResults)){
+      if(validKeys.has(k)) safeResults[k]=v;
+    }
+    // Mezclar: resultados del servidor (solo fechas pasadas) + manuales del usuario (manual tiene prioridad)
     const manual=JSON.parse(localStorage.getItem('footiq_results')||'{}');
-    Object.assign(REAL_RESULTS, newResults, manual);
+    Object.assign(REAL_RESULTS, safeResults, manual);
     recalibrateELO();
     renderCalendar();
     if(calSelected) renderMatchPanel(calSelected);
@@ -1869,66 +1882,7 @@ async function syncFromAPI(){
   }
 }
 
-function processAPIData(matches){
-  // Limpiar solo los resultados (no los fixtures del calendario)
-  // Re-construir REAL_RESULTS desde la API (solo partidos FINISHED)
-  const newResults={};
-  const dateUpdates={};
-
-  for(const m of matches){
-    const h=mapFDName(m.homeTeam?.name||'');
-    const a=mapFDName(m.awayTeam?.name||'');
-    if(!h||!a) continue;
-    const key=`${h}-${a}`;
-    const {date,time}=utcToCol(m.utcDate);
-
-    // Guardar fecha/hora correcta para actualizar el calendario
-    dateUpdates[key]={date,time};
-
-    if(m.status==='FINISHED'&&m.score?.fullTime){
-      newResults[key]={
-        h:m.score.fullTime.home??0,
-        a:m.score.fullTime.away??0,
-        played:true,
-        xgH:m.score.fullTime.home, // futuro: reemplazar con xG real si la API lo da
-        xgA:m.score.fullTime.away
-      };
-    }
-  }
-
-  // Actualizar REAL_RESULTS (solo confirmados)
-  Object.keys(REAL_RESULTS).forEach(k=>delete REAL_RESULTS[k]);
-  Object.assign(REAL_RESULTS,newResults);
-
-  // Actualizar fechas y horas en CALENDAR_MATCHES
-  for(const [key,{date,time}] of Object.entries(dateUpdates)){
-    const [h,a]=key.split('-');
-    // Buscar el partido en todas las fechas del calendario
-    for(const [ds,arr] of Object.entries(CALENDAR_MATCHES)){
-      const idx=arr.findIndex(x=>x.home===h&&x.away===a);
-      if(idx>=0){
-        if(ds!==date){
-          // Mover al día correcto
-          const match=arr.splice(idx,1)[0];
-          match.time=time;
-          if(!CALENDAR_MATCHES[date]) CALENDAR_MATCHES[date]=[];
-          CALENDAR_MATCHES[date].push(match);
-        } else {
-          arr[idx].time=time; // Solo actualizar hora
-        }
-        break;
-      }
-    }
-  }
-
-  // Recalibrar ELO con los resultados reales (en orden cronológico)
-  recalibrateELO();
-
-  // Re-renderizar todo
-  renderCalendar();
-  if(calSelected) renderMatchPanel(calSelected);
-  renderDuel();
-}
+// processAPIData eliminado (código muerto desde migración a syncFromAPI)
 
 function _applyRealResultsToElo(){
   for(const [key,res] of Object.entries(REAL_RESULTS)){
