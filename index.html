@@ -718,7 +718,9 @@ const REAL_RESULTS = {
   'Australia-Turkey':         {h:2,a:0,played:true},   // Jun 14 ✓
   'Netherlands-Japan':        {h:2,a:2,played:true},   // Jun 14 ✓ (Kamada 88')
   'Spain-Cape Verde':         {h:0,a:0,played:true},   // Jun 15 ✓
-  'Belgium-Egypt':            {h:1,a:1,played:true},   // Jun 15 ✓ (confirmado Google)
+  'Belgium-Egypt':            {h:1,a:1,played:true},   // Jun 15 ✓
+  'Saudi Arabia-Uruguay':     {h:1,a:1,played:true},   // Jun 15 ✓
+  'Iran-New Zealand':         {h:2,a:2,played:true},   // Jun 15 ✓
 };
 
 // ==================== CALENDARIO (fixture real fase grupos + eliminatorias) ====================
@@ -757,7 +759,17 @@ let MODEL_SCORES = {actual:{points:0,cw:0,total:0}, klement:{points:0,cw:0,total
 // Calcula outcome real: 'H'=local gana, 'D'=empate, 'A'=visitante gana
 function realOutcome(r){ return r.h>r.a?'H':r.h===r.a?'D':'A'; }
 // Calcula outcome predicho por modelo: 'H', 'D' o 'A'
-function predOutcome(p){ if(p.pH>p.pD&&p.pH>p.pA)return'H'; if(p.pA>p.pH&&p.pA>p.pD)return'A'; return'D'; }
+// Umbral Dixon-Coles: solo predice ganador si supera al empate por margen claro (>8%).
+// Sin umbral, el modelo casi nunca predice empates aunque tengan 28% de probabilidad.
+function predOutcome(p){
+  const DRAW_MARGIN = 0.08; // el favorito debe superar a pD por al menos 8% para predecir victoria
+  if(p.pH > p.pA){
+    return (p.pH - p.pD) > DRAW_MARGIN ? 'H' : 'D';
+  } else if(p.pA > p.pH){
+    return (p.pA - p.pD) > DRAW_MARGIN ? 'A' : 'D';
+  }
+  return 'D';
+}
 
 function computeModelScores(){
   MODEL_SCORES={actual:{points:0,cw:0,total:0},klement:{points:0,cw:0,total:0}};
@@ -892,17 +904,30 @@ function poissonP(lambda, k){
   for(let i=1;i<=k;i++) p*=lambda/i;
   return p;
 }
+function dixonColesTau(i, j, xgH, xgA, rho){
+  // Corrección Dixon-Coles para marcadores bajos (0-0, 1-0, 0-1, 1-1)
+  // Estos marcadores ocurren con más frecuencia de lo que predice Poisson puro.
+  if(i===0&&j===0) return 1 - xgH*xgA*rho;
+  if(i===1&&j===0) return 1 + xgA*rho;
+  if(i===0&&j===1) return 1 + xgH*rho;
+  if(i===1&&j===1) return 1 - rho;
+  return 1;
+}
 function poissonOutcomes(xgH, xgA){
-  // P(local gana), P(empate), P(visitante gana) via distribución Poisson
+  // P(local gana), P(empate), P(visitante gana) via Poisson + corrección Dixon-Coles
+  // rho=-0.13 es el valor calibrado en torneos internacionales (inflaciona empates y 0-0)
+  const rho = -0.13;
   let pH=0, pD=0, pA=0;
   for(let i=0;i<=8;i++){
     const pi=poissonP(xgH,i);
     for(let j=0;j<=8;j++){
-      const p=pi*poissonP(xgA,j);
+      const p=pi*poissonP(xgA,j)*dixonColesTau(i,j,xgH,xgA,rho);
       if(i>j) pH+=p; else if(i===j) pD+=p; else pA+=p;
     }
   }
-  return {pH,pD,pA};
+  // Renormalizar (la corrección DC puede sacar la suma de 1 ligeramente)
+  const tot=pH+pD+pA;
+  return {pH:pH/tot, pD:pD/tot, pA:pA/tot};
 }
 function poissonBestScore(xgH, xgA){
   let best='1-0', bestP=0;
