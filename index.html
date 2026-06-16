@@ -399,7 +399,7 @@ const GARRA = {
 const CULTURA = {
   'Brazil':98,'Argentina':97,'Germany':95,'Uruguay':92,'Spain':90,
   'France':88,'England':87,'Netherlands':86,'Mexico':83,'Colombia':82,
-  'Portugal':83,'Croatia':80,'Belgium':78,'Chile':80,'Ecuador':70,
+  'Portugal':83,'Croatia':80,'Belgium':78,'Ecuador':70,
   'Morocco':74,'South Korea':76,'Japan':74,'Senegal':72,'Ghana':70,
   'Ivory Coast':68,'Egypt':68,'Algeria':70,'Turkey':70,'Switzerland':72,
   'Scotland':76,'Norway':68,'Sweden':70,'Austria':72,'Czechia':70,
@@ -718,6 +718,7 @@ const REAL_RESULTS = {
   'Australia-Turkey':         {h:2,a:0,played:true},   // Jun 14 ✓
   'Netherlands-Japan':        {h:2,a:2,played:true},   // Jun 14 ✓ (Kamada 88')
   'Spain-Cape Verde':         {h:0,a:0,played:true},   // Jun 15 ✓
+  'Belgium-Egypt':            {h:1,a:1,played:true},   // Jun 15 ✓ (confirmado Google)
 };
 
 // ==================== CALENDARIO (fixture real fase grupos + eliminatorias) ====================
@@ -726,11 +727,11 @@ const CALENDAR_MATCHES = {
   '2026-06-12':[{home:'Canada',away:'Bosnia',group:'B',time:'21:00'},{home:'Brazil',away:'Morocco',group:'C',time:'15:00'}],
   '2026-06-13':[{home:'United States',away:'Paraguay',group:'D',time:'22:00'},{home:'Qatar',away:'Switzerland',group:'B',time:'16:00'}],
   '2026-06-14':[{home:'Germany',away:'Curaçao',group:'E',time:'13:00'},{home:'Haiti',away:'Scotland',group:'C',time:'13:00'},{home:'Australia',away:'Turkey',group:'D',time:'16:00'},{home:'Netherlands',away:'Japan',group:'F',time:'15:00'}],
-  '2026-06-15':[{home:'Spain',away:'Cape Verde',group:'H',time:'11:00'},{home:'Ivory Coast',away:'Ecuador',group:'E',time:'14:00'},{home:'France',away:'Senegal',group:'I',time:'17:00'}],
-  '2026-06-16':[{home:'Argentina',away:'Algeria',group:'J',time:'00:00'},{home:'Belgium',away:'Egypt',group:'G',time:'15:00'},{home:'Sweden',away:'Tunisia',group:'F',time:'18:00'}],
-  '2026-06-17':[{home:'Saudi Arabia',away:'Uruguay',group:'H',time:'03:00'},{home:'Portugal',away:'DR Congo',group:'K',time:'15:00'},{home:'England',away:'Croatia',group:'L',time:'18:00'}],
+  '2026-06-15':[{home:'Spain',away:'Cape Verde',group:'H',time:'11:00'},{home:'Belgium',away:'Egypt',group:'G',time:'14:00'},{home:'Saudi Arabia',away:'Uruguay',group:'H',time:'17:00'},{home:'Iran',away:'New Zealand',group:'G',time:'20:00'}],
+  '2026-06-16':[{home:'Argentina',away:'Algeria',group:'J',time:'00:00'},{home:'Ivory Coast',away:'Ecuador',group:'E',time:'15:00'},{home:'France',away:'Senegal',group:'I',time:'18:00'}],
+  '2026-06-17':[{home:'Sweden',away:'Tunisia',group:'F',time:'03:00'},{home:'Portugal',away:'DR Congo',group:'K',time:'15:00'},{home:'England',away:'Croatia',group:'L',time:'18:00'}],
   '2026-06-18':[{home:'Iraq',away:'Norway',group:'I',time:'03:00'},{home:'Austria',away:'Jordan',group:'J',time:'15:00'},{home:'Uzbekistan',away:'Colombia',group:'K',time:'18:00'}],
-  '2026-06-19':[{home:'Ghana',away:'Panama',group:'L',time:'00:00'},{home:'Iran',away:'New Zealand',group:'G',time:'15:00'},{home:'Mexico',away:'Czechia',group:'A',time:'21:00'}],
+  '2026-06-19':[{home:'Ghana',away:'Panama',group:'L',time:'00:00'},{home:'Mexico',away:'Czechia',group:'A',time:'15:00'}],
   '2026-06-20':[{home:'South Africa',away:'South Korea',group:'A',time:'03:00'},{home:'Bosnia',away:'Qatar',group:'B',time:'15:00'},{home:'Canada',away:'Switzerland',group:'B',time:'18:00'}],
   '2026-06-21':[{home:'Morocco',away:'Haiti',group:'C',time:'03:00'},{home:'Scotland',away:'Brazil',group:'C',time:'21:00'},{home:'Paraguay',away:'Australia',group:'D',time:'18:00'}],
   '2026-06-22':[{home:'United States',away:'Turkey',group:'D',time:'03:00'},{home:'Curaçao',away:'Ivory Coast',group:'E',time:'15:00'},{home:'Germany',away:'Ecuador',group:'E',time:'21:00'}],
@@ -775,19 +776,23 @@ function computeModelScores(){
 const _now = new Date();
 const todayStr = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
 
+// ELO base PRE-TORNEO (antes del primer partido, 11 jun 2026)
+// recalibrateELO() parte de estos valores y aplica REAL_RESULTS para calcular el ELO actual.
+const ELO_PRE = {'Argentina':1950,'France':1930,'Spain':1900,'England':1900,'Brazil':1880,
+  'Portugal':1870,'Germany':1860,'Netherlands':1840,'Belgium':1820,'Croatia':1780,'Uruguay':1760,
+  'Morocco':1720,'United States':1700,'Mexico':1680,'Japan':1660,'Senegal':1650,
+  'Australia':1640,'Canada':1620,'Ecuador':1610,'Colombia':1640,'Norway':1660,'Sweden':1640,
+  'Turkey':1630,'Scotland':1630,'Austria':1660,'Czechia':1600,'Bosnia':1570,
+  'Qatar':1560,'South Africa':1520,'Haiti':1490,'Curaçao':1470,'Ivory Coast':1620,
+  'Cape Verde':1510,'Saudi Arabia':1590,'Iraq':1510,'Algeria':1610,'Jordan':1490,
+  'DR Congo':1510,'Uzbekistan':1490,'Ghana':1610,'Panama':1510,'New Zealand':1460,
+  'Paraguay':1580,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1660,'Switzerland':1690,
+  'Sweden':1640,'New Zealand':1460,'Iraq':1510,'Jordan':1490,'Senegal':1650,'Ghana':1610};
+
 function initElo(){
-  ALL_TEAMS.forEach(t=>G.elo[t]=1500);
-  // ELO calibrado post resultados reales Jun 11-14 (K=30, fórmula estándar)
-  const R={'Argentina':1950,'France':1930,'Spain':1910,'England':1900,'Brazil':1874,'Portugal':1870,'Germany':1863,'Netherlands':1840,'Belgium':1820,'Croatia':1780,'Uruguay':1760,
-    'Morocco':1746,'United States':1729,'Mexico':1708,'Japan':1680,'Senegal':1660,
-    'Australia':1665,'Canada':1637,'Ecuador':1630,'Colombia':1650,'Norway':1670,'Sweden':1650,
-    'Turkey':1645,'Scotland':1649,'Austria':1680,'Czechia':1606,'Bosnia':1583,
-    'Netherlands':1834,'Japan':1686, // recalibrado post 2-2 (K=30)
-    'Qatar':1556,'South Africa':1512,'Haiti':1471,'Curaçao':1447,'Ivory Coast':1620,
-    'Cape Verde':1500,'Saudi Arabia':1580,'Iraq':1500,'Algeria':1600,'Jordan':1480,
-    'DR Congo':1500,'Uzbekistan':1480,'Ghana':1600,'Panama':1500,'New Zealand':1450,
-    'Paraguay':1571,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1664,'Switzerland':1694};
-  for(let t in R) if(G.elo[t]!==undefined) G.elo[t]=R[t];
+  ALL_TEAMS.forEach(t=>G.elo[t]=ELO_PRE[t]||1500);
+  // Al arrancar aplicamos también los resultados ya conocidos para tener ELO actual
+  _applyRealResultsToElo();
 }
 
 function klementStrength(t,isHome){
@@ -1070,6 +1075,7 @@ async function runMC(N,modelo,cb){
 function renderChamp(){
   let act=ALL_TEAMS.map(t=>({t,f:FLAG(t),p:G.mc[t]||0})).sort((a,b)=>b.p-a.p);
   let kl=ALL_TEAMS.map(t=>({t,f:FLAG(t),p:K_MC[t]||0})).sort((a,b)=>b.p-a.p);
+  if(!act.length||!act[0]) return;
   document.getElementById('page-champ').innerHTML=`
     <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:14px;color:var(--muted)">Modelo Actual</div></div>
     <div class="stitle">📈 Top 10 — Modelo Actual</div>
@@ -1239,7 +1245,7 @@ function renderModel(){
       <div class="trow"><span>PIB per cápita (cap $60k)</span><span style="color:var(--accent)">40%</span></div>
       <div class="trow"><span>Ranking FIFA (escala lineal)</span><span style="color:var(--accent)">18%</span></div>
       <div class="trow"><span>Factor climático / hemisferio</span><span style="color:var(--accent)">18%</span></div>
-      <div class="trow"><span>Infraestructura deportiva</span><span>14%</span></div>
+      <div class="trow"><span>Infraestructura deportiva</span><span>12%</span></div>
       <div class="trow"><span>Historia mundialista</span><span>10%</span></div>
       <div class="trow"><span style="color:var(--muted);font-size:16px">🔒 Modelo congelado — no cambia con resultados ni bajas</span><span></span></div>
       <div class="trow"><span style="color:var(--muted);font-size:16px">🇳🇱 Output calibrado al Klement publicado: Países Bajos campeón</span><span></span></div>
@@ -1443,15 +1449,14 @@ function renderMatchPanel(ds){
     const real=REAL_RESULTS[`${m.home}-${m.away}`];
     const isFinished=real?.played===true; // solo si la API/datos confirmaron el resultado
     let resultHtml='', betHtml='';
-    const enterBtn=`<button class="enter-result-btn" onclick="openResultModal('${m.home}','${m.away}','${ds}')">✏️ ${isFinished?'Corregir resultado':'Ingresar resultado'}</button>`;
     if(isFinished){
-      resultHtml=`<div class="result-real"><div class="rscore">${real.h} — ${real.a}</div><div class="rlabel">Resultado final ✅ &nbsp; ${enterBtn}</div></div>`;
+      resultHtml=`<div class="result-real"><div class="rscore">${real.h} — ${real.a}</div><div class="rlabel">Resultado final ✅</div></div>`;
       betHtml=`<div class="bet-market"><div class="bet-market-title">✅ Partido finalizado</div></div>`;
     } else if(isPastDate){
+      const enterBtn=`<button class="enter-result-btn" onclick="openResultModal('${m.home}','${m.away}','${ds}')">✏️ Ingresar resultado</button>`;
       resultHtml=`<div class="no-result">⏳ Sin resultado — ${enterBtn}</div>`;
       betHtml=buildBetHtml(pred,m.home,m.away);
     } else {
-      resultHtml=`<div style="text-align:center;margin-top:4px">${enterBtn}</div>`;
       betHtml=buildBetHtml(pred,m.home,m.away);
     }
     const penH=getLineupPenalty(m.home),penA=getLineupPenalty(m.away);
@@ -1490,7 +1495,7 @@ function renderMatchPanel(ds){
           <div class="mscore">xG: ${pred.xgH} – ${pred.xgA} · Marcador prob: ${pred.score}</div>
         </div>
         <div class="model-box klement">
-          ${(()=>{const conf=Math.max(kpred.pH,kpred.pD,kpred.pA);const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';const lbl=conf>=0.60?'Alta':conf>=0.50?'Media':'⚠️ Baja';return `<div class="model-box-title">Klement <span class="conf-badge ${cl}">${lbl}</span> <span style="font-size:13px;color:var(--muted);display:block;margin-top:2px">Estructural · pre-torneo · no se actualiza</span></div>`;})()}
+          ${(()=>{const conf=Math.max(kpred.pH,kpred.pD,kpred.pA);const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';const lbl=conf>=0.60?'Alta':conf>=0.50?'Media':'⚠️ Baja';return `<div class="model-box-title">Klement <span class="conf-badge ${cl}">${lbl}</span> <span style="font-size:14px;color:var(--muted);display:block;margin-top:2px">Estructural · pre-torneo · no se actualiza</span></div>`;})()}
           <div class="model-probs-mini">
             <div class="mprob-mini"><div class="mpv">${(kpred.pH*100).toFixed(0)}%</div><div class="mlabel">Local</div></div>
             <div class="mprob-mini"><div class="mpv">${(kpred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
@@ -1794,7 +1799,7 @@ async function syncFromAPI(){
     let newResults=null;
     for(const slug of espnSlugs){
       try{
-        const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?limit=200`;
+        const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=20260611-20261219&limit=500`;
         const data=await fetchWithProxies(url);
         const parsed=parseESPNEvents(data.events||[]);
         if(Object.keys(parsed).length>0){ newResults=parsed; break; }
@@ -1802,7 +1807,7 @@ async function syncFromAPI(){
     }
     // TheSportsDB como respaldo (clave pública "3", sin auth)
     if(!newResults){
-      const url='https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4328&s=2025-2026';
+      const url='https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4328&s=2026';
       const data=await fetchWithProxies(url);
       const events=(data.events||[]).map(e=>({
         competitions:[{
@@ -1900,10 +1905,7 @@ function processAPIData(matches){
   renderDuel();
 }
 
-function recalibrateELO(){
-  // Resetear al base
-  initElo();
-  // Aplicar resultados en orden (asumimos orden de REAL_RESULTS = cronológico)
+function _applyRealResultsToElo(){
   for(const [key,res] of Object.entries(REAL_RESULTS)){
     if(!res.played) continue;
     const [h,a]=key.split('-');
@@ -1914,6 +1916,12 @@ function recalibrateELO(){
     G.elo[h]=Math.round(eh+K*(actualH-expH));
     G.elo[a]=Math.round(ea+K*((1-actualH)-(1-expH)));
   }
+}
+function recalibrateELO(){
+  // Partir siempre de ELO pre-torneo y aplicar resultados reales en orden cronológico.
+  // Evita el doble conteo de partidos ya incorporados en initElo().
+  ALL_TEAMS.forEach(t=>G.elo[t]=ELO_PRE[t]||1500);
+  _applyRealResultsToElo();
 }
 
 boot();
