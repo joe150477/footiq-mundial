@@ -98,7 +98,9 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 .mprob-mini{flex:1;text-align:center;background:rgba(255,255,255,.05);border-radius:8px;padding:8px 4px;}
 .mpv{font-size:30px;font-weight:900;}
 .mlabel{font-size:15px;color:var(--muted);margin-top:3px;}
-.mscore{font-size:16px;color:var(--muted);margin-top:6px;}
+.mscore{font-size:13px;color:var(--muted);margin-top:4px;}
+.mscore-big{font-size:34px;font-weight:900;letter-spacing:2px;margin-top:6px;color:var(--accent);text-align:center;line-height:1;}
+.mscore-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:center;margin-top:2px;}
 
 /* === API SYNC === */
 .sync-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bg2);cursor:pointer;font-size:16px;border:1px solid var(--border);transition:all .2s;}
@@ -233,7 +235,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em></div>
+  <div class="logo">Foot<em>IQ</em> <span style="font-size:10px;opacity:0.5;font-weight:normal">v17jun</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1752,10 +1754,12 @@ function selectCalDay(ds){
 function renderMatchPanel(ds){
   const matches=CALENDAR_MATCHES[ds]||[];
   const container=document.getElementById('calDayMatches');
+  if(!container){ console.error('calDayMatches no encontrado'); return; }
   if(!matches.length){
     container.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">📭 Sin partidos este día</div>';
     return;
   }
+  try{
   const isPastDate=ds<todayStr;
   container.innerHTML=matches.map(m=>{
     const pred=ensemblePredict(m.home,m.away,m.group||'');
@@ -1806,7 +1810,9 @@ function renderMatchPanel(ds){
             <div class="mprob-mini"><div class="mpv">${(pred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
             <div class="mprob-mini"><div class="mpv">${(pred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
           </div>
-          <div class="mscore">xG: ${pred.xgH} – ${pred.xgA} · Marcador prob: ${pred.score}</div>
+          <div class="mscore-big">${pred.score}</div>
+          <div class="mscore-label">Marcador probable</div>
+          <div class="mscore">xG: ${pred.xgH} – ${pred.xgA}</div>
         </div>
         <div class="model-box klement">
           ${(()=>{const conf=Math.max(kpred.pH,kpred.pD,kpred.pA);const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';const lbl=conf>=0.60?'Alta':conf>=0.50?'Media':'⚠️ Baja';return `<div class="model-box-title">Klement <span class="conf-badge ${cl}">${lbl}</span> <span style="font-size:14px;color:var(--muted);display:block;margin-top:2px">Estructural · pre-torneo · no se actualiza</span></div>`;})()}
@@ -1815,7 +1821,9 @@ function renderMatchPanel(ds){
             <div class="mprob-mini"><div class="mpv">${(kpred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
             <div class="mprob-mini"><div class="mpv">${(kpred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
           </div>
-          <div class="mscore">xG: ${kpred.xgH} – ${kpred.xgA} · Marcador prob: ${kpred.score}</div>
+          <div class="mscore-big">${kpred.score}</div>
+          <div class="mscore-label">Marcador probable</div>
+          <div class="mscore">xG: ${kpred.xgH} – ${kpred.xgA}</div>
         </div>
       </div>
       ${(()=>{
@@ -1851,6 +1859,10 @@ function renderMatchPanel(ds){
       ${resultHtml}
     </div>`;
   }).join('');
+  } catch(err) {
+    container.innerHTML=`<div class="card" style="text-align:center;color:#f44">⚠️ Error al cargar partidos: ${err.message}<br><small>Abre la consola del navegador (F12) y reporta el error.</small></div>`;
+    console.error('renderMatchPanel error:', err);
+  }
 }
 
 function changeMonth(dir){
