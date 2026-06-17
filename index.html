@@ -1882,16 +1882,20 @@ function changeMonth(dir){
   }
 }
 
+const _tabRendered={};
 function showTab(el,name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   if(el) el.classList.add('active');
   document.getElementById(`page-${name}`).classList.add('active');
-  if(name==='champ') renderChamp();
-  else if(name==='groups') renderGroups();
-  else if(name==='calendar'){ renderCalendar(); if(calSelected) renderMatchPanel(calSelected); }
-  else if(name==='duel') renderDuel();
-  else if(name==='model') renderModel();
+  if(name==='champ'){ renderChamp(); }
+  else if(name==='groups'){ if(!_tabRendered.groups) renderGroups(); _tabRendered.groups=true; }
+  else if(name==='calendar'){
+    renderCalendar();
+    if(calSelected) renderMatchPanel(calSelected);
+  }
+  else if(name==='duel'){ if(!_tabRendered.duel) renderDuel(); _tabRendered.duel=true; }
+  else if(name==='model'){ if(!_tabRendered.model) renderModel(); _tabRendered.model=true; }
 }
 
 // ==================== PROGRESO Y BOOT ====================
@@ -1917,35 +1921,33 @@ async function boot(){
   updateColTime();
   loadSavedResults(); // Cargar resultados manuales guardados en localStorage
   setProgress(5,'Inicializando ELO…'); initElo();
-  setProgress(15,'Monte Carlo — Modelo Actual (20k)…');
-  await runMC(20000,'actual',res=>{G.mc=res;});
-  setProgress(60,'Monte Carlo — Klement (20k)…');
-  await runMC(20000,'klement',res=>{K_MC=res;});
+  setProgress(15,'Monte Carlo — Modelo Actual (4k)…');
+  await runMC(4000,'actual',res=>{G.mc=res;});
+  setProgress(60,'Monte Carlo — Klement (4k)…');
+  await runMC(4000,'klement',res=>{K_MC=res;});
   setProgress(100,'¡Listo!');
   document.getElementById('statusDot').className='sdot ok';
   document.getElementById('modelScore').innerText='✓ OK';
   setTimeout(()=>{
     document.getElementById('overlay').classList.add('gone');
-    renderChamp(); renderGroups(); renderDuel(); renderModel();
-    // === Selección automática del día actual (o primer día con partido) ===
-    renderCalendar();
+    // Render lazy: solo la pestaña activa (Campeón) al arrancar
+    renderChamp();
+    // Calendario: seleccionar día actual o próximo con partidos
     const hoy=todayStr;
     let autoDate=null;
     if(CALENDAR_MATCHES[hoy]?.length) autoDate=hoy;
     else {
       const todas=Object.keys(CALENDAR_MATCHES).sort();
-      // buscar próxima fecha con partidos desde hoy
-      autoDate=todas.find(d=>d>=hoy) || todas[0];
+      autoDate=todas.find(d=>d>=hoy)||todas[0];
     }
     if(autoDate){
-      // Asegurarse de que el mes del calendario coincide
       const mo=parseInt(autoDate.split('-')[1])-1;
       if(mo!==calMonth){ calMonth=mo; }
-      selectCalDay(autoDate);
+      calSelected=autoDate; // pre-seleccionar sin renderizar aún
     }
-    // Auto-sync de resultados al arrancar (sin molestar al usuario si falla)
+    // Auto-sync de resultados al arrancar
     setTimeout(()=>syncFromAPI(), 1200);
-  },500);
+  },200);
 }
 
 // ==================== INTEGRACIÓN API FOOTBALL-DATA.ORG ====================
