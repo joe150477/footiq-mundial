@@ -711,49 +711,146 @@ function buildBajasHtml(home,away){
 }
 
 // ==================== RESULTADOS REALES ====================
+// Fuente: FIFA / ESPN oficial. Última actualización: 17 Jun 2026
 const REAL_RESULTS = {
+  // ── Jornada 1 ──
   'Mexico-South Africa':      {h:2,a:0,played:true},   // Jun 11 ✓
   'South Korea-Czechia':      {h:2,a:1,played:true},   // Jun 11 ✓
   'Canada-Bosnia':            {h:1,a:1,played:true},   // Jun 12 ✓
-  'Brazil-Morocco':           {h:1,a:1,played:true},   // Jun 12 ✓
-  'United States-Paraguay':   {h:4,a:1,played:true},   // Jun 13 ✓
+  'United States-Paraguay':   {h:4,a:1,played:true},   // Jun 12 ✓
   'Qatar-Switzerland':        {h:1,a:1,played:true},   // Jun 13 ✓
-  'Germany-Curaçao':          {h:7,a:1,played:true},   // Jun 14 ✓
-  'Haiti-Scotland':           {h:0,a:1,played:true},   // Jun 14 ✓
+  'Brazil-Morocco':           {h:1,a:1,played:true},   // Jun 13 ✓
+  'Haiti-Scotland':           {h:0,a:1,played:true},   // Jun 13 ✓
   'Australia-Turkey':         {h:2,a:0,played:true},   // Jun 14 ✓
-  'Netherlands-Japan':        {h:2,a:2,played:true},   // Jun 14 ✓ (Kamada 88')
+  'Germany-Curaçao':          {h:7,a:1,played:true},   // Jun 14 ✓
+  'Ivory Coast-Ecuador':      {h:1,a:0,played:true},   // Jun 14 ✓
+  'Netherlands-Japan':        {h:2,a:2,played:true},   // Jun 14 ✓
+  'Sweden-Tunisia':           {h:5,a:1,played:true},   // Jun 14 ✓
   'Spain-Cape Verde':         {h:0,a:0,played:true},   // Jun 15 ✓
   'Belgium-Egypt':            {h:1,a:1,played:true},   // Jun 15 ✓
   'Saudi Arabia-Uruguay':     {h:1,a:1,played:true},   // Jun 15 ✓
   'Iran-New Zealand':         {h:2,a:2,played:true},   // Jun 15 ✓
+  'France-Senegal':           {h:3,a:1,played:true},   // Jun 16 ✓
+  'Iraq-Norway':              {h:1,a:4,played:true},   // Jun 16 ✓
+  'Argentina-Algeria':        {h:3,a:0,played:true},   // Jun 16 ✓
+  'Austria-Jordan':           {h:3,a:1,played:true},   // Jun 17 ✓ (medianoche)
 };
 
-// ==================== CALENDARIO (fixture real fase grupos + eliminatorias) ====================
+// ==================== CALENDARIO OFICIAL FIFA WC 2026 ====================
+// Horarios en COT (Colombia, UTC-5). Fuente: worldcupwiki.com / FIFA oficial
+// "Jun 17" a medianoche ET = 23:00 COT Jun 16 → listado en Jun 16 para visualización local
 const CALENDAR_MATCHES = {
-  '2026-06-11':[{home:'Mexico',away:'South Africa',group:'A',time:'21:00'},{home:'South Korea',away:'Czechia',group:'A',time:'04:00'}],
-  '2026-06-12':[{home:'Canada',away:'Bosnia',group:'B',time:'21:00'},{home:'Brazil',away:'Morocco',group:'C',time:'15:00'}],
-  '2026-06-13':[{home:'United States',away:'Paraguay',group:'D',time:'22:00'},{home:'Qatar',away:'Switzerland',group:'B',time:'16:00'}],
-  '2026-06-14':[{home:'Germany',away:'Curaçao',group:'E',time:'13:00'},{home:'Haiti',away:'Scotland',group:'C',time:'13:00'},{home:'Australia',away:'Turkey',group:'D',time:'16:00'},{home:'Netherlands',away:'Japan',group:'F',time:'15:00'}],
-  '2026-06-15':[{home:'Spain',away:'Cape Verde',group:'H',time:'11:00'},{home:'Belgium',away:'Egypt',group:'G',time:'14:00'},{home:'Saudi Arabia',away:'Uruguay',group:'H',time:'17:00'},{home:'Iran',away:'New Zealand',group:'G',time:'20:00'}],
-  '2026-06-16':[{home:'Argentina',away:'Algeria',group:'J',time:'00:00'},{home:'Ivory Coast',away:'Ecuador',group:'E',time:'15:00'},{home:'France',away:'Senegal',group:'I',time:'18:00'}],
-  '2026-06-17':[{home:'Sweden',away:'Tunisia',group:'F',time:'03:00'},{home:'Portugal',away:'DR Congo',group:'K',time:'15:00'},{home:'England',away:'Croatia',group:'L',time:'18:00'}],
-  '2026-06-18':[{home:'Iraq',away:'Norway',group:'I',time:'03:00'},{home:'Austria',away:'Jordan',group:'J',time:'15:00'},{home:'Uzbekistan',away:'Colombia',group:'K',time:'18:00'}],
-  '2026-06-19':[{home:'Ghana',away:'Panama',group:'L',time:'00:00'},{home:'Mexico',away:'Czechia',group:'A',time:'15:00'}],
-  '2026-06-20':[{home:'South Africa',away:'South Korea',group:'A',time:'03:00'},{home:'Bosnia',away:'Qatar',group:'B',time:'15:00'},{home:'Canada',away:'Switzerland',group:'B',time:'18:00'}],
-  '2026-06-21':[{home:'Morocco',away:'Haiti',group:'C',time:'03:00'},{home:'Scotland',away:'Brazil',group:'C',time:'21:00'},{home:'Paraguay',away:'Australia',group:'D',time:'18:00'}],
-  '2026-06-22':[{home:'United States',away:'Turkey',group:'D',time:'03:00'},{home:'Curaçao',away:'Ivory Coast',group:'E',time:'15:00'},{home:'Germany',away:'Ecuador',group:'E',time:'21:00'}],
-  '2026-06-23':[{home:'Japan',away:'Sweden',group:'F',time:'03:00'},{home:'Netherlands',away:'Tunisia',group:'F',time:'21:00'},{home:'Egypt',away:'Iran',group:'G',time:'15:00'}],
-  '2026-06-24':[{home:'Belgium',away:'New Zealand',group:'G',time:'03:00'},{home:'Cape Verde',away:'Saudi Arabia',group:'H',time:'15:00'},{home:'Spain',away:'Uruguay',group:'H',time:'21:00'}],
-  '2026-06-25':[{home:'Senegal',away:'Iraq',group:'I',time:'03:00'},{home:'France',away:'Norway',group:'I',time:'21:00'},{home:'Algeria',away:'Austria',group:'J',time:'15:00'}],
-  '2026-06-26':[{home:'Argentina',away:'Jordan',group:'J',time:'03:00'},{home:'DR Congo',away:'Uzbekistan',group:'K',time:'15:00'},{home:'Portugal',away:'Colombia',group:'K',time:'21:00'}],
-  '2026-06-27':[{home:'Croatia',away:'Ghana',group:'L',time:'03:00'},{home:'England',away:'Panama',group:'L',time:'21:00'}],
-  // Eliminatorias (simplificadas)
-  '2026-07-04':[{home:'España (1A)',away:'Alemania (2F)',group:'R32',time:'16:00'}],
-  '2026-07-05':[{home:'Francia (1I)',away:'Portugal (1K)',group:'R32',time:'16:00'}],
-  '2026-07-09':[{home:'TBD',away:'TBD',group:'QF',time:'20:00'}],
-  '2026-07-14':[{home:'TBD',away:'TBD',group:'SF',time:'20:00'}],
-  '2026-07-18':[{home:'TBD',away:'TBD',group:'3er puesto',time:'15:00'}],
-  '2026-07-19':[{home:'TBD',away:'TBD',group:'Final',time:'15:00'}]
+  // ── JORNADA 1 ──
+  '2026-06-11':[
+    {home:'Mexico',        away:'South Africa', group:'A', time:'14:00'},
+    {home:'South Korea',   away:'Czechia',       group:'A', time:'20:00'}
+  ],
+  '2026-06-12':[
+    {home:'Canada',        away:'Bosnia',        group:'B', time:'14:00'},
+    {home:'United States', away:'Paraguay',       group:'D', time:'20:00'}
+  ],
+  '2026-06-13':[
+    {home:'Qatar',         away:'Switzerland',   group:'B', time:'14:00'},
+    {home:'Brazil',        away:'Morocco',        group:'C', time:'17:00'},
+    {home:'Haiti',         away:'Scotland',       group:'C', time:'20:00'}
+  ],
+  '2026-06-14':[
+    {home:'Australia',     away:'Turkey',         group:'D', time:'12:00'},
+    {home:'Germany',       away:'Curaçao',        group:'E', time:'13:00'},
+    {home:'Ivory Coast',   away:'Ecuador',        group:'E', time:'16:00'},
+    {home:'Netherlands',   away:'Japan',          group:'F', time:'15:00'},
+    {home:'Sweden',        away:'Tunisia',        group:'F', time:'19:00'}
+  ],
+  '2026-06-15':[
+    {home:'Spain',         away:'Cape Verde',     group:'H', time:'11:00'},
+    {home:'Belgium',       away:'Egypt',          group:'G', time:'14:00'},
+    {home:'Saudi Arabia',  away:'Uruguay',        group:'H', time:'17:00'},
+    {home:'Iran',          away:'New Zealand',    group:'G', time:'20:00'}
+  ],
+  '2026-06-16':[
+    {home:'France',        away:'Senegal',        group:'I', time:'14:00'},
+    {home:'Iraq',          away:'Norway',         group:'I', time:'17:00'},
+    {home:'Argentina',     away:'Algeria',        group:'J', time:'20:00'},
+    {home:'Austria',       away:'Jordan',         group:'J', time:'23:00'}  // 12AM ET = 23:00 COT
+  ],
+  '2026-06-17':[
+    {home:'Portugal',      away:'DR Congo',       group:'K', time:'12:00'},
+    {home:'England',       away:'Croatia',        group:'L', time:'15:00'},
+    {home:'Ghana',         away:'Panama',         group:'L', time:'18:00'},
+    {home:'Uzbekistan',    away:'Colombia',       group:'K', time:'21:00'}
+  ],
+  // ── JORNADA 2 ──
+  '2026-06-18':[
+    {home:'Czechia',       away:'South Africa',   group:'A', time:'11:00'},
+    {home:'Switzerland',   away:'Bosnia',         group:'B', time:'14:00'},
+    {home:'Canada',        away:'Qatar',          group:'B', time:'17:00'},
+    {home:'Mexico',        away:'South Korea',    group:'A', time:'20:00'}
+  ],
+  '2026-06-19':[
+    {home:'United States', away:'Australia',      group:'D', time:'14:00'},
+    {home:'Scotland',      away:'Morocco',        group:'C', time:'17:00'},
+    {home:'Brazil',        away:'Haiti',          group:'C', time:'19:30'},
+    {home:'Turkey',        away:'Paraguay',       group:'D', time:'22:00'}
+  ],
+  '2026-06-20':[
+    {home:'Netherlands',   away:'Sweden',         group:'F', time:'12:00'},
+    {home:'Germany',       away:'Ivory Coast',    group:'E', time:'15:00'},
+    {home:'Ecuador',       away:'Curaçao',        group:'E', time:'19:00'},
+    {home:'Tunisia',       away:'Japan',          group:'F', time:'23:00'}  // 12AM ET Jun 21
+  ],
+  '2026-06-21':[
+    {home:'Spain',         away:'Saudi Arabia',   group:'H', time:'11:00'},
+    {home:'Belgium',       away:'Iran',           group:'G', time:'14:00'},
+    {home:'Uruguay',       away:'Cape Verde',     group:'H', time:'17:00'},
+    {home:'New Zealand',   away:'Egypt',          group:'G', time:'20:00'}
+  ],
+  '2026-06-22':[
+    {home:'Argentina',     away:'Austria',        group:'J', time:'12:00'},
+    {home:'France',        away:'Iraq',           group:'I', time:'16:00'},
+    {home:'Norway',        away:'Senegal',        group:'I', time:'19:00'},
+    {home:'Jordan',        away:'Algeria',        group:'J', time:'22:00'}
+  ],
+  '2026-06-23':[
+    {home:'Portugal',      away:'Uzbekistan',     group:'K', time:'12:00'},
+    {home:'England',       away:'Ghana',          group:'L', time:'15:00'},
+    {home:'Panama',        away:'Croatia',        group:'L', time:'18:00'},
+    {home:'Colombia',      away:'DR Congo',       group:'K', time:'21:00'}
+  ],
+  // ── JORNADA 3 (simultáneos por grupo) ──
+  '2026-06-24':[
+    {home:'Switzerland',   away:'Canada',         group:'B', time:'14:00'},
+    {home:'Bosnia',        away:'Qatar',          group:'B', time:'14:00'},
+    {home:'Scotland',      away:'Brazil',         group:'C', time:'17:00'},
+    {home:'Morocco',       away:'Haiti',          group:'C', time:'17:00'},
+    {home:'Czechia',       away:'Mexico',         group:'A', time:'20:00'},
+    {home:'South Africa',  away:'South Korea',    group:'A', time:'20:00'}
+  ],
+  '2026-06-25':[
+    {home:'Curaçao',       away:'Ivory Coast',    group:'E', time:'15:00'},
+    {home:'Ecuador',       away:'Germany',        group:'E', time:'15:00'},
+    {home:'Japan',         away:'Sweden',         group:'F', time:'18:00'},
+    {home:'Tunisia',       away:'Netherlands',    group:'F', time:'18:00'},
+    {home:'Turkey',        away:'United States',  group:'D', time:'21:00'},
+    {home:'Paraguay',      away:'Australia',      group:'D', time:'21:00'}
+  ],
+  '2026-06-26':[
+    {home:'Norway',        away:'France',         group:'I', time:'14:00'},
+    {home:'Senegal',       away:'Iraq',           group:'I', time:'14:00'},
+    {home:'Cape Verde',    away:'Saudi Arabia',   group:'H', time:'19:00'},
+    {home:'Uruguay',       away:'Spain',          group:'H', time:'19:00'},
+    {home:'Egypt',         away:'Iran',           group:'G', time:'22:00'},
+    {home:'New Zealand',   away:'Belgium',        group:'G', time:'22:00'}
+  ],
+  '2026-06-27':[
+    {home:'Panama',        away:'England',        group:'L', time:'16:00'},
+    {home:'Croatia',       away:'Ghana',          group:'L', time:'16:00'},
+    {home:'Colombia',      away:'Portugal',       group:'K', time:'18:30'},
+    {home:'DR Congo',      away:'Uzbekistan',     group:'K', time:'18:30'},
+    {home:'Algeria',       away:'Austria',        group:'J', time:'21:00'},
+    {home:'Jordan',        away:'Argentina',      group:'J', time:'21:00'}
+  ],
+  // ── ELIMINATORIAS ──
+  '2026-07-19':[{home:'TBD',away:'TBD',group:'Final',time:'14:00'}]
 };
 
 // ==================== MODELOS ====================
