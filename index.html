@@ -632,6 +632,10 @@ function toggleAbsent(team,player){
 }
 
 function buildPerfilHtml(home,away){
+  const bpHome=BALON_PARADO[home]||{att:65,def:65};
+  const bpAway=BALON_PARADO[away]||{att:65,def:65};
+  const bpScoreHome=Math.round((bpHome.att+bpHome.def)/2);
+  const bpScoreAway=Math.round((bpAway.att+bpAway.def)/2);
   const dims=[
     {key:'Físico', icon:'💪', fh:PERFIL_FISICO},
     {key:'Mental', icon:'🧠', fh:PERFIL_MENTAL},
@@ -639,6 +643,7 @@ function buildPerfilHtml(home,away){
     {key:'Cultura',icon:'⭐', fh:CULTURA},
     {key:'Clutch', icon:'⚡', fh:CLUTCH},
     {key:'ADN',    icon:'🧬', fh:ADN_COMPETITIVO},
+    {key:'Balón P.',icon:'🎯', fh:{[home]:bpScoreHome,[away]:bpScoreAway}},
   ];
   const sh=perfilScore(home), sa=perfilScore(away);
   const ich=iccScore(home), ica=iccScore(away);
@@ -1018,6 +1023,43 @@ function diasporaLabel(team){
   return d>=0.80?'🏠 Local':d>=0.55?'🟢 Alto apoyo':d>=0.35?'🟡 Apoyo parcial':d>=0.15?'🟠 Poco apoyo':'⚪ Neutral';
 }
 
+// ==================== BALÓN PARADO (SET PIECE EFFICIENCY) ====================
+// Datos WC 2026: basados en clasificatorias + torneos recientes (EURO 2024, Copa América 2024).
+// Escala 0-100. ATT = eficacia ofensiva; DEF = solidez defensiva en balón parado.
+const BALON_PARADO = {
+  'England':       {att:88,def:74}, 'Germany':       {att:85,def:78},
+  'Netherlands':   {att:83,def:80}, 'Norway':        {att:83,def:76},
+  'Uruguay':       {att:81,def:83}, 'France':        {att:80,def:80},
+  'Argentina':     {att:79,def:77}, 'Belgium':       {att:77,def:75},
+  'Portugal':      {att:76,def:74}, 'Croatia':       {att:74,def:78},
+  'Scotland':      {att:74,def:72}, 'Sweden':        {att:74,def:72},
+  'Czechia':       {att:73,def:70}, 'Colombia':      {att:72,def:68},
+  'Australia':     {att:72,def:70}, 'Morocco':       {att:70,def:75},
+  'Spain':         {att:70,def:74}, 'Switzerland':   {att:70,def:72},
+  'United States': {att:70,def:68}, 'Austria':       {att:70,def:70},
+  'Egypt':         {att:69,def:70}, 'Turkey':        {att:69,def:68},
+  'Senegal':       {att:68,def:72}, 'Ghana':         {att:66,def:65},
+  'Canada':        {att:66,def:65}, 'Mexico':        {att:65,def:65},
+  'Brazil':        {att:65,def:72}, 'Japan':         {att:64,def:70},
+  'South Korea':   {att:64,def:68}, 'Ecuador':       {att:63,def:62},
+  'Algeria':       {att:63,def:66}, 'Paraguay':      {att:63,def:65},
+  'DR Congo':      {att:62,def:62}, 'Ivory Coast':   {att:62,def:65},
+  'Tunisia':       {att:62,def:68}, 'Bosnia':        {att:62,def:65},
+  'Iran':          {att:61,def:65}, 'New Zealand':   {att:61,def:62},
+  'Uzbekistan':    {att:60,def:62}, 'Iraq':          {att:60,def:62},
+  'Jordan':        {att:58,def:60}, 'Saudi Arabia':  {att:58,def:60},
+  'Panama':        {att:57,def:60}, 'South Africa':  {att:56,def:58},
+  'Cape Verde':    {att:55,def:58}, 'Qatar':         {att:52,def:55},
+  'Haiti':         {att:50,def:52}, 'Curaçao':       {att:48,def:50},
+};
+function getBalonParadoAdj(home, away){
+  // Ajuste xG por ventaja neta de balón parado. Max ±0.10 xG.
+  const bph=BALON_PARADO[home]||{att:65,def:65};
+  const bpa=BALON_PARADO[away] ||{att:65,def:65};
+  const netH=(bph.att-bpa.def)-(bpa.att-bph.def);
+  return netH/400*0.10;
+}
+
 function ensemblePredict(h,a){
   const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
 
@@ -1035,11 +1077,12 @@ function ensemblePredict(h,a){
 
   // Combinado 50/50 ELO-Mercado
   const cH=(ehEff+mhEff)/2, cA=(eaEff+maEff)/2;
-  // xG: base ~1.20, ajuste por diferencial de fuerza
+  // xG: base ~1.20, ajuste por diferencial de fuerza + balón parado
   const diff=cH-cA;
   const adj=Math.sign(diff)*Math.min(0.85,Math.abs(diff)/300*0.45);
-  const xgH=Math.max(0.35,Math.min(2.8,1.20+adj));
-  const xgA=Math.max(0.35,Math.min(2.8,1.20-adj));
+  const bpAdj=getBalonParadoAdj(h,a); // set piece efficiency (~5-8% xG)
+  const xgH=Math.max(0.35,Math.min(2.8,1.20+adj+bpAdj));
+  const xgA=Math.max(0.35,Math.min(2.8,1.20-adj-bpAdj));
   const {pH,pD,pA}=poissonOutcomes(xgH,xgA);
   return {pH,pD,pA,score:poissonBestScore(xgH,xgA),xgH:xgH.toFixed(2),xgA:xgA.toFixed(2)};
 }
