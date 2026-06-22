@@ -222,6 +222,33 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 
 /* === NO RESULT === */
 .no-result{background:rgba(240,188,53,.05);border-radius:8px;padding:10px;margin-top:10px;text-align:center;border:1px solid rgba(240,188,53,.3);font-size:14px;color:var(--muted);}
+
+/* === BRACKET === */
+.bracket-wrap{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+.bracket-info{padding:8px 12px 4px;flex-shrink:0;}
+.bracket-info-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+.bpill{padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;}
+.bpill-r32{background:rgba(47,168,245,.15);color:var(--accent);}
+.bpill-r16{background:rgba(32,192,90,.15);color:var(--green);}
+.bpill-qf{background:rgba(240,188,53,.15);color:var(--gold);}
+.bpill-sf{background:rgba(249,115,22,.15);color:var(--orange);}
+.bpill-f{background:rgba(232,64,74,.18);color:var(--red);}
+.bracket-scroller{flex:1;overflow:auto;padding:4px 8px 24px;}
+.bracket-canvas{position:relative;display:inline-block;}
+.bslot{position:absolute;background:var(--card);border:1px solid var(--border);border-radius:7px;overflow:hidden;box-sizing:border-box;}
+.bslot.active-match{border-color:var(--accent);}
+.bslot.finished{border-color:#2a3a52;}
+.bslot.champion{border-color:var(--gold)!important;background:rgba(240,188,53,.08);}
+.bteam{display:flex;align-items:center;justify-content:space-between;padding:0 5px;height:50%;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;}
+.bteam.won{color:var(--accent);}
+.bteam.tbd{color:var(--muted);font-style:italic;font-weight:400;font-size:10px;}
+.bteam-score{font-size:13px;font-weight:900;min-width:14px;text-align:right;}
+.bsep{position:absolute;left:0;right:0;height:1px;background:var(--border);}
+.bdate{position:absolute;bottom:1px;right:4px;font-size:8px;color:var(--muted);opacity:.7;}
+.brnd-lbl{position:absolute;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.5px;}
+.bconn{position:absolute;background:var(--border);pointer-events:none;}
+.bracket-trophy{text-align:center;font-size:32px;position:absolute;}
+.bfinal-badge{position:absolute;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;color:var(--gold);letter-spacing:1px;}
 </style>
 </head>
 <body>
@@ -282,6 +309,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
   <div class="tab" onclick="showTab(this,'duel')"><span class="ti">⚔️</span>Duelo</div>
   <div class="tab" onclick="showTab(this,'calendar')"><span class="ti">📅</span>Calendario</div>
   <div class="tab" onclick="showTab(this,'groups')"><span class="ti">🏟️</span>Grupos</div>
+  <div class="tab" onclick="showTab(this,'bracket')"><span class="ti">🎯</span>Bracket</div>
   <div class="tab" onclick="showTab(this,'model')"><span class="ti">🔬</span>Modelo</div>
 </div>
 
@@ -301,6 +329,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
     </div>
   </div>
   <div class="page" id="page-groups"></div>
+  <div class="page" id="page-bracket"></div>
   <div class="page" id="page-model"></div>
 </div>
 
@@ -1937,6 +1966,7 @@ function showTab(el,name){
   document.getElementById(`page-${name}`).classList.add('active');
   if(name==='champ'){ renderChamp(); }
   else if(name==='groups'){ if(!_tabRendered.groups) renderGroups(); _tabRendered.groups=true; }
+  else if(name==='bracket'){ renderBracket(); }
   else if(name==='calendar'){
     renderCalendar();
     if(calSelected) renderMatchPanel(calSelected);
@@ -2255,6 +2285,150 @@ function recalibrateELO(){
   // Evita el doble conteo de partidos ya incorporados en initElo().
   ALL_TEAMS.forEach(t=>G.elo[t]=ELO_PRE[t]||1500);
   _applyRealResultsToElo();
+}
+
+// ==================== BRACKET ELIMINATORIO ====================
+// Equipos se llenan automáticamente cuando se agreguen resultados de eliminatorias.
+// Claves: h/a = equipos, sh/sa = goles, pen = penales (si aplica), date/time en COT
+let BRACKET_KO = {
+  r32:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 1',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 1',time:'18:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 2',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 2',time:'18:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 2',time:'22:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 3',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 3',time:'18:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 3',time:'22:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 4',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 4',time:'18:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 4',time:'22:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 5',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 5',time:'18:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 5',time:'22:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 6',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 6',time:'18:00'},
+  ],
+  r16:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 9', time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 9', time:'18:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 10',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 10',time:'18:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 11',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 11',time:'18:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 12',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 12',time:'18:00'},
+  ],
+  qf:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 15',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 15',time:'18:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 16',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 16',time:'18:00'},
+  ],
+  sf:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 21',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 22',time:'14:00'},
+  ],
+  third:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 25',time:'14:00'},
+  ],
+  f:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 26',time:'14:00'},
+  ]
+};
+
+function renderBracket(){
+  const SW=122, SH=46, CW=22, HDR=30;
+  const rounds=[
+    {id:'r32',label:'Ronda de 32', dates:'1–6 jul', cls:'bpill-r32'},
+    {id:'r16',label:'Octavos',     dates:'9–12 jul',cls:'bpill-r16'},
+    {id:'qf', label:'Cuartos',     dates:'15–16 jul',cls:'bpill-qf'},
+    {id:'sf', label:'Semis',       dates:'21–22 jul',cls:'bpill-sf'},
+    {id:'f',  label:'⚽ FINAL',   dates:'26 jul',   cls:'bpill-f'},
+  ];
+  const N=16; // base slots (R32 count)
+  const totalH=N*SH+HDR+8;
+  const totalW=rounds.length*(SW+CW)+SW+30;
+
+  function slotTop(ri,mi){
+    const n=BRACKET_KO[rounds[ri].id].length;
+    const unit=N/n;
+    return HDR+(mi*unit+(unit-0.5))*SH - SH/2;
+  }
+
+  let html=`<div class="bracket-wrap">`;
+  // Header pills
+  html+=`<div class="bracket-info"><div class="bracket-info-row">`;
+  rounds.forEach(r=>html+=`<span class="bpill ${r.cls}">${r.label} <span style="opacity:.6;font-weight:400">${r.dates}</span></span>`);
+  html+=`</div><div style="font-size:11px;color:var(--muted);padding-bottom:4px">↔ Desliza para ver el bracket completo · Equipos se definen el 27–28 jun</div></div>`;
+  html+=`<div class="bracket-scroller"><div class="bracket-canvas" style="width:${totalW}px;height:${totalH}px;">`;
+
+  rounds.forEach((round,ri)=>{
+    const x=ri*(SW+CW);
+    const matches=BRACKET_KO[round.id]||[];
+    // Round label
+    html+=`<div class="brnd-lbl" style="left:${x}px;top:0;width:${SW}px;">${round.label}</div>`;
+    matches.forEach((m,mi)=>{
+      const y=slotTop(ri,mi);
+      const played=m.sh!==null;
+      const winH=played&&m.sh>m.sa;
+      const winA=played&&m.sa>m.sh;
+      const isFinal=(round.id==='f');
+      const tbd=t=>t==='TBD'?`<span class="tbd">Por definir</span>`:`<span>${FLAG(t)}&nbsp;${t}</span>`;
+      html+=`<div class="bslot${played?' finished':''}${isFinal&&played?' champion':''}" style="left:${x}px;top:${y}px;width:${SW}px;height:${SH}px;">
+        <div class="bteam${winH?' won':''}">
+          ${tbd(m.h)}
+          ${played?`<span class="bteam-score">${m.sh}</span>`:''}
+        </div>
+        <div class="bsep" style="top:${SH/2}px;"></div>
+        <div class="bteam${winA?' won':''}">
+          ${tbd(m.a)}
+          ${played?`<span class="bteam-score">${m.sa}</span>`:''}
+        </div>
+        <div class="bdate">${m.date}</div>
+        ${isFinal?`<div class="bfinal-badge" style="left:0;right:0;top:${SH+4}px;">🏆 CAMPEÓN</div>`:''}
+      </div>`;
+
+      // Connectors to next round
+      if(ri<rounds.length-1){
+        const midY=y+SH/2;
+        const lx=x+SW;
+        // Horizontal from this slot
+        html+=`<div class="bconn" style="left:${lx}px;top:${midY-.5}px;width:${CW/2}px;height:1px;"></div>`;
+        if(mi%2===0){
+          // Partner slot
+          const partnerY=slotTop(ri,mi+1);
+          const partnerMid=partnerY+SH/2;
+          const vTop=Math.min(midY,partnerMid);
+          const vH=Math.abs(partnerMid-midY);
+          const midMid=(midY+partnerMid)/2;
+          // Horizontal from partner
+          html+=`<div class="bconn" style="left:${lx}px;top:${partnerMid-.5}px;width:${CW/2}px;height:1px;"></div>`;
+          // Vertical line
+          html+=`<div class="bconn" style="left:${lx+CW/2}px;top:${vTop}px;width:1px;height:${vH}px;"></div>`;
+          // Horizontal to next slot
+          html+=`<div class="bconn" style="left:${lx+CW/2}px;top:${midMid-.5}px;width:${CW/2}px;height:1px;"></div>`;
+        }
+      }
+    });
+  });
+
+  // 3rd place match (below bracket)
+  const third=BRACKET_KO.third[0];
+  if(third){
+    const tx=(rounds.length-2)*(SW+CW);
+    const ty=totalH-SH-24;
+    html+=`<div style="position:absolute;left:${tx}px;top:${ty-16}px;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;width:${SW}px;text-align:center;">3er Puesto · ${third.date}</div>`;
+    const played3=third.sh!==null;
+    html+=`<div class="bslot${played3?' finished':''}" style="left:${tx}px;top:${ty}px;width:${SW}px;height:${SH}px;">
+      <div class="bteam${played3&&third.sh>third.sa?' won':''}">${third.h==='TBD'?'<span class="tbd">Por definir</span>':`${FLAG(third.h)}&nbsp;${third.h}`}${played3?`<span class="bteam-score">${third.sh}</span>`:''}</div>
+      <div class="bsep" style="top:${SH/2}px;"></div>
+      <div class="bteam${played3&&third.sa>third.sh?' won':''}">${third.a==='TBD'?'<span class="tbd">Por definir</span>':`${FLAG(third.a)}&nbsp;${third.a}`}${played3?`<span class="bteam-score">${third.sa}</span>`:''}</div>
+    </div>`;
+  }
+
+  html+=`</div></div></div>`;
+  document.getElementById('page-bracket').innerHTML=html;
 }
 
 boot();
