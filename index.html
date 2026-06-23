@@ -941,10 +941,53 @@ const ELO_PRE = {'Argentina':1950,'France':1930,'Spain':1900,'England':1900,'Bra
   'Paraguay':1580,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1660,'Switzerland':1690,
   'Sweden':1640,'New Zealand':1460,'Iraq':1510,'Jordan':1490,'Senegal':1650,'Ghana':1610};
 
+// ==================== SISTEMA DE APRENDIZAJE AUTÓNOMO ====================
+let DYNAMIC_ATT={}, DYNAMIC_DEF={};
+
+function getDynamicDrawBoost(){
+  const results=Object.values(REAL_RESULTS).filter(r=>r.played);
+  const played=results.length;
+  if(played<5) return 1.24;
+  const draws=results.filter(r=>r.h===r.a).length;
+  const actualDrawRate=draws/played;
+  const historicalDrawRate=0.285;
+  const drawBoostForActual=1.24*(actualDrawRate/historicalDrawRate);
+  // Peso creciente hasta 45% a medida que se juegan más partidos (72 = fase grupos completa)
+  const wcWeight=Math.min(0.45, played/72*0.45);
+  return (1-wcWeight)*1.24 + wcWeight*drawBoostForActual;
+}
+
+function updateDynamicRatings(){
+  const gf={},ga={},n={};
+  for(const [key,res] of Object.entries(REAL_RESULTS)){
+    if(!res.played) continue;
+    const [h,a]=key.split('-');
+    gf[h]=(gf[h]||0)+res.h; gf[a]=(gf[a]||0)+res.a;
+    ga[h]=(ga[h]||0)+res.a; ga[a]=(ga[a]||0)+res.h;
+    n[h]=(n[h]||0)+1; n[a]=(n[a]||0)+1;
+  }
+  DYNAMIC_ATT={}; DYNAMIC_DEF={};
+  for(const team of ALL_TEAMS){
+    const matches=n[team]||0;
+    if(matches===0){
+      DYNAMIC_ATT[team]=BASE_ATT[team]||1.2;
+      DYNAMIC_DEF[team]=BASE_DEF[team]||1.0;
+      continue;
+    }
+    // Peso máx 40%: 1 partido=13%, 2=26%, 3+=40%
+    const w=Math.min(0.40, matches*0.13);
+    const avgGF=gf[team]/matches, avgGA=ga[team]/matches;
+    DYNAMIC_ATT[team]=(BASE_ATT[team]||1.2)*(1-w)+avgGF*w;
+    DYNAMIC_DEF[team]=(BASE_DEF[team]||1.0)*(1-w)+avgGA*w;
+  }
+  _clearPredCache();
+}
+
 function initElo(){
   ALL_TEAMS.forEach(t=>G.elo[t]=ELO_PRE[t]||1500);
   // Al arrancar aplicamos también los resultados ya conocidos para tener ELO actual
   _applyRealResultsToElo();
+  updateDynamicRatings();
 }
 
 function klementStrength(t,isHome){
@@ -1066,8 +1109,8 @@ function poissonOutcomes(xgH, xgA){
     }
   }
   // Calibración WC 2014+2018+2022 backtested (144 partidos, grid search):
-  // draw_boost=1.24 maximiza accuracy combinada (59.7% overall, 32.1% empates)
-  pD *= 1.24;
+  // draw_boost=1.24 base; getDynamicDrawBoost() ajusta en tiempo real con resultados 2026
+  pD *= getDynamicDrawBoost();
   const tot=pH+pD+pA;
   return {pH:pH/tot, pD:pD/tot, pA:pA/tot};
 }
@@ -1367,8 +1410,8 @@ function ensemblePredict(h,a,grp=''){
   // === xG ASIMÉTRICO: 55% fuerza relativa + 45% ataque×defensa propio ===
   const xgH_sym=1.20+adj+bpAdj;
   const xgA_sym=1.20-adj-bpAdj;
-  const xgH_asym=(BASE_ATT[h]||1.2)*(BASE_DEF[a]||1.0);
-  const xgA_asym=(BASE_ATT[a]||1.2)*(BASE_DEF[h]||1.0);
+  const xgH_asym=(DYNAMIC_ATT[h]||BASE_ATT[h]||1.2)*(DYNAMIC_DEF[a]||BASE_DEF[a]||1.0);
+  const xgA_asym=(DYNAMIC_ATT[a]||BASE_ATT[a]||1.2)*(DYNAMIC_DEF[h]||BASE_DEF[h]||1.0);
   // xG blend: 50/50 simétrico/asimétrico — calibrado contra WC 2014+2018+2022
   let xgH=Math.max(0.35,Math.min(2.8,xgH_sym*0.50+xgH_asym*0.50));
   let xgA=Math.max(0.35,Math.min(2.8,xgA_sym*0.50+xgA_asym*0.50));
@@ -1637,7 +1680,35 @@ function renderModel(){
       <div class="trow"><span>Historia mundialista</span><span>10%</span></div>
       <div class="trow"><span style="color:var(--muted);font-size:16px">🔒 Modelo congelado — no cambia con resultados ni bajas</span><span></span></div>
       <div class="trow"><span style="color:var(--muted);font-size:16px">🇳🇱 Output calibrado al Klement publicado: Países Bajos campeón</span><span></span></div>
-    </div>`;
+    </div>
+    ${(()=>{
+      const played=Object.values(REAL_RESULTS).filter(r=>r.played);
+      const nPlayed=played.length;
+      const nDraws=played.filter(r=>r.h===r.a).length;
+      const drawRateActual=nPlayed>0?(nDraws/nPlayed*100).toFixed(1):'—';
+      const boostNow=getDynamicDrawBoost().toFixed(3);
+      const teamsWithData=ALL_TEAMS.filter(t=>{
+        const gfT=played.filter(m=>{const[h,a]=Object.keys(REAL_RESULTS).find(k=>{const[kh,ka]=k.split('-');return kh===t||ka===t;})||[t,''];return true;});
+        return (Object.keys(REAL_RESULTS).some(k=>{const[h,a]=k.split('-');return (h===t||a===t)&&REAL_RESULTS[k].played;}));
+      }).slice(0,16);
+      const teamRows=teamsWithData.map(t=>{
+        const base=(BASE_ATT[t]||1.2).toFixed(2);
+        const dynA=(DYNAMIC_ATT[t]||BASE_ATT[t]||1.2).toFixed(2);
+        const dynD=(DYNAMIC_DEF[t]||BASE_DEF[t]||1.0).toFixed(2);
+        const changed=Math.abs((DYNAMIC_ATT[t]||0)-(BASE_ATT[t]||1.2))>0.01;
+        const col=changed?'var(--orange)':'var(--muted)';
+        return `<div class="trow"><span style="font-size:14px">${FLAG(t)} ${t}</span><span style="font-size:13px;color:${col}">ATT ${dynA} · DEF ${dynD}</span></div>`;
+      }).join('');
+      return `<div class="card" style="border-color:rgba(0,200,150,.3)">
+        <div class="stitle" style="color:var(--green)">🧠 Aprendizaje Autónomo — Calibración Live</div>
+        <div class="trow"><span>Partidos jugados</span><span style="color:var(--accent);font-weight:700">${nPlayed}/72</span></div>
+        <div class="trow"><span>Empates reales</span><span style="color:var(--accent)">${nDraws} (${drawRateActual}%)</span></div>
+        <div class="trow"><span>draw_boost actual</span><span style="color:var(--orange);font-weight:700">${boostNow}</span></div>
+        <div class="trow"><span style="color:var(--muted);font-size:15px">Base histórica: 1.24 · WC 2026 ajusta progresivamente hasta 45%</span><span></span></div>
+        <div style="margin-top:10px;font-size:14px;font-weight:700;color:var(--muted);margin-bottom:6px">ATT/DEF dinámico (equipos con datos reales)</div>
+        ${teamRows}
+      </div>`;
+    })()}`;
 }
 
 // ==================== FACTOR SOMBRA ====================
@@ -2285,6 +2356,7 @@ function recalibrateELO(){
   // Evita el doble conteo de partidos ya incorporados en initElo().
   ALL_TEAMS.forEach(t=>G.elo[t]=ELO_PRE[t]||1500);
   _applyRealResultsToElo();
+  updateDynamicRatings();
 }
 
 // ==================== BRACKET ELIMINATORIO ====================
