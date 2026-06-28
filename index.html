@@ -820,6 +820,8 @@ const REAL_RESULTS = {
   'DR Congo-Uzbekistan':      {h:3,a:1,played:true},   // Jun 27
   'Algeria-Austria':          {h:3,a:3,played:true},   // Jun 27
   'Jordan-Argentina':         {h:1,a:3,played:true},   // Jun 27
+  // ── R32 (Jun 28+) ──
+  'South Africa-Canada':      {h:0,a:1,played:true},   // Jun 28 FT ✓
 };
 
 // ==================== CALENDARIO OFICIAL FIFA WC 2026 ====================
@@ -942,32 +944,32 @@ const CALENDAR_MATCHES = {
   // 1J=Argentina 2J=Austria 1K=Colombia 2K=Portugal 1L=England 2L=Croatia
   // 3os q avanzan: DR Congo, Sweden, Ecuador, Ghana, Bosnia, Algeria, Paraguay, Senegal
   '2026-06-28':[
-    {home:'South Africa',  away:'Canada',     group:'R32', time:'14:00'}   // P73: 2A vs 2B
+    {home:'South Africa',  away:'Canada',      group:'R32', time:'14:00'}  // P73 FT: 0-1 Canada ✓
   ],
   '2026-06-29':[
-    {home:'Brazil',        away:'Japan',      group:'R32', time:'12:00'},  // P76: 1C vs 2F
-    {home:'Germany',       away:'TBD',        group:'R32', time:'15:30'},  // P74: 1E vs 3rd-ABCDF
-    {home:'Netherlands',   away:'Morocco',    group:'R32', time:'20:00'}   // P75: 1F vs 2C
+    {home:'Brazil',        away:'Japan',       group:'R32', time:'12:00'}, // P76
+    {home:'Germany',       away:'Paraguay',    group:'R32', time:'15:30'}, // P74
+    {home:'Netherlands',   away:'Morocco',     group:'R32', time:'20:00'}  // P75
   ],
   '2026-06-30':[
-    {home:'Ivory Coast',   away:'Norway',     group:'R32', time:'12:00'},  // P78: 2E vs 2I
-    {home:'France',        away:'TBD',        group:'R32', time:'16:00'},  // P77: 1I vs 3rd-CDFGH
-    {home:'Mexico',        away:'TBD',        group:'R32', time:'20:00'}   // P79: 1A vs 3rd-CEFHI
+    {home:'Ivory Coast',   away:'Norway',      group:'R32', time:'12:00'}, // P78
+    {home:'France',        away:'Sweden',      group:'R32', time:'16:00'}, // P77
+    {home:'Mexico',        away:'Ecuador',     group:'R32', time:'20:00'}  // P79
   ],
   '2026-07-01':[
-    {home:'England',       away:'TBD',        group:'R32', time:'11:00'},  // P80: 1L vs 3rd-EHIJK
-    {home:'Belgium',       away:'TBD',        group:'R32', time:'15:00'},  // P82: 1G vs 3rd-AEHIJ
-    {home:'United States', away:'TBD',        group:'R32', time:'19:00'}   // P81: 1D vs 3rd-BEFIJ
+    {home:'England',       away:'DR Congo',    group:'R32', time:'11:00'}, // P80
+    {home:'Belgium',       away:'Senegal',     group:'R32', time:'15:00'}, // P82
+    {home:'United States', away:'Bosnia',      group:'R32', time:'19:00'}  // P81
   ],
   '2026-07-02':[
-    {home:'Spain',         away:'Austria',    group:'R32', time:'14:00'},  // P84: 1H vs 2J
-    {home:'Portugal',      away:'Croatia',    group:'R32', time:'18:00'},  // P83: 2K vs 2L
-    {home:'Switzerland',   away:'TBD',        group:'R32', time:'22:00'}   // P85: 1B vs 3rd-EFGIJ
+    {home:'Spain',         away:'Austria',     group:'R32', time:'14:00'}, // P84
+    {home:'Portugal',      away:'Croatia',     group:'R32', time:'18:00'}, // P83
+    {home:'Switzerland',   away:'Algeria',     group:'R32', time:'22:00'}  // P85
   ],
   '2026-07-03':[
-    {home:'Australia',     away:'Egypt',      group:'R32', time:'13:00'},  // P88: 2D vs 2G
-    {home:'Argentina',     away:'Cape Verde', group:'R32', time:'17:00'},  // P86: 1J vs 2H
-    {home:'Colombia',      away:'TBD',        group:'R32', time:'20:30'}   // P87: 1K vs 3rd-DEIJL
+    {home:'Australia',     away:'Egypt',       group:'R32', time:'13:00'}, // P88
+    {home:'Argentina',     away:'Cape Verde',  group:'R32', time:'17:00'}, // P86
+    {home:'Colombia',      away:'Ghana',       group:'R32', time:'20:30'}  // P87
   ],
   // ── OCTAVOS DE FINAL (Jul 4-7) ──
   '2026-07-04':[
@@ -2161,12 +2163,9 @@ function showTab(el,name){
   else if(name==='bracket'){ renderBracket(); }
   else if(name==='calendar'){
     renderCalendar();
-    if(calSelected){
-      // Solo re-renderiza matchPanel si cambió la fecha (evita bloqueo en cada tab switch)
-      if(calSelected!==_calPanelDate){
-        _calPanelDate=calSelected;
-        setTimeout(()=>renderMatchPanel(calSelected),0);
-      }
+    if(calSelected && calSelected!==_calPanelDate){
+      _calPanelDate=calSelected;
+      renderMatchPanel(calSelected); // sincrónico: cache ya caliente → respuesta inmediata
     }
   }
   else if(name==='duel'){ if(!_tabRendered.duel) renderDuel(); _tabRendered.duel=true; }
@@ -2196,10 +2195,10 @@ async function boot(){
   updateColTime();
   loadSavedResults(); // Cargar resultados manuales guardados en localStorage
   setProgress(5,'Inicializando ELO…'); initElo();
-  setProgress(15,'Monte Carlo — Modelo Actual (4k)…');
-  await runMC(4000,'actual',res=>{G.mc=res;});
-  setProgress(60,'Monte Carlo — Klement (4k)…');
-  await runMC(4000,'klement',res=>{K_MC=res;});
+  setProgress(15,'Monte Carlo — Modelo Actual (2k)…');
+  await runMC(2000,'actual',res=>{G.mc=res;});
+  setProgress(60,'Monte Carlo — Klement (2k)…');
+  await runMC(2000,'klement',res=>{K_MC=res;});
   setProgress(100,'¡Listo!');
   document.getElementById('statusDot').className='sdot ok';
   document.getElementById('modelScore').innerText='✓ OK';
@@ -2218,7 +2217,12 @@ async function boot(){
     if(autoDate){
       const mo=parseInt(autoDate.split('-')[1])-1;
       if(mo!==calMonth){ calMonth=mo; }
-      calSelected=autoDate; // pre-seleccionar sin renderizar aún
+      calSelected=autoDate;
+      // Pre-calentar _PRED_CACHE para la fecha seleccionada.
+      // Cuando el usuario abra el tab Calendario, ensemblePredict ya estará cacheado → responde instantáneo.
+      const mhoy=CALENDAR_MATCHES[autoDate]||[];
+      mhoy.forEach(m=>{ ensemblePredict(m.home,m.away,m.group||''); klementPredict(m.home,m.away); });
+      // NO marcar _calPanelDate aquí: showTab renderizará el panel con cache ya caliente.
     }
     // Auto-sync de resultados al arrancar
     setTimeout(()=>syncFromAPI(), 1200);
@@ -2494,41 +2498,41 @@ let BRACKET_KO = {
   // ── FUENTE OFICIAL: ESPN bracket visual (espn.com.co/futbol/cuadro) ──
   // Orden visual top→bottom tal como aparece en el cuadro ESPN.
   // codeH/codeA = código de posición de grupo ("1F","2C","3rd-ABCDF").
-  // h/a = equipo ya confirmado, o 'TBD' si se resuelve vía fillBracketPredictions.
-  // Parejas: r32[0]+r32[1]→r16[0], r32[2]+r32[3]→r16[1], etc.
+  // h/a = equipos confirmados. Parejas: r32[0]+r32[1]→r16[0], r32[2]+r32[3]→r16[1], etc.
+  // Fuente bracket: ESPN/FIFA oficial. 3ros asignados: PAR→3D, SWE→3F, ECU→3E, DR C→3K, SEN→3I, BOS→3B, ALG→3J, GHA→3L
   r32:[
     // [0] P74 → par con [1], feeds r16[0]
-    {h:'Germany',  a:'TBD', codeA:'3rd-ABCDF', sh:null,sa:null,date:'Jun 29',time:'15:30'},
+    {h:'Germany',       a:'Paraguay',    sh:null,sa:null,date:'Jun 29',time:'15:30'},
     // [1] P77
-    {h:'TBD',a:'TBD', codeH:'1I', codeA:'3rd-CDFGH', sh:null,sa:null,date:'Jun 30',time:'16:00'},
-    // [2] P73 → par con [3], feeds r16[1]
-    {h:'TBD',a:'TBD', codeH:'2A', codeA:'2B', sh:null,sa:null,date:'Jun 28',time:'14:00'},
+    {h:'France',        a:'Sweden',      sh:null,sa:null,date:'Jun 30',time:'16:00'},
+    // [2] P73 → par con [3], feeds r16[1] — FT: South Africa 0-1 Canada
+    {h:'South Africa',  a:'Canada',      sh:0,   sa:1,   date:'Jun 28',time:'14:00'},
     // [3] P75
-    {h:'TBD',a:'TBD', codeH:'1F', codeA:'2C', sh:null,sa:null,date:'Jun 29',time:'20:00'},
+    {h:'Netherlands',   a:'Morocco',     sh:null,sa:null,date:'Jun 29',time:'20:00'},
     // [4] P83 → par con [5], feeds r16[2]
-    {h:'TBD',a:'TBD', codeH:'2K', codeA:'2L', sh:null,sa:null,date:'Jul 2', time:'18:00'},
+    {h:'Portugal',      a:'Croatia',     sh:null,sa:null,date:'Jul 2', time:'18:00'},
     // [5] P84
-    {h:'TBD',a:'TBD', codeH:'1H', codeA:'2J', sh:null,sa:null,date:'Jul 2', time:'14:00'},
+    {h:'Spain',         a:'Austria',     sh:null,sa:null,date:'Jul 2', time:'14:00'},
     // [6] P81 → par con [7], feeds r16[3]
-    {h:'United States',a:'TBD', codeA:'3rd-BEFIJ', sh:null,sa:null,date:'Jul 1',time:'19:00'},
+    {h:'United States', a:'Bosnia',      sh:null,sa:null,date:'Jul 1', time:'19:00'},
     // [7] P82
-    {h:'TBD',a:'TBD', codeH:'1G', codeA:'3rd-AEHIJ', sh:null,sa:null,date:'Jul 1',time:'15:00'},
+    {h:'Belgium',       a:'Senegal',     sh:null,sa:null,date:'Jul 1', time:'15:00'},
     // [8] P76 → par con [9], feeds r16[4]
-    {h:'TBD',a:'TBD', codeH:'1C', codeA:'2F', sh:null,sa:null,date:'Jun 29',time:'12:00'},
+    {h:'Brazil',        a:'Japan',       sh:null,sa:null,date:'Jun 29',time:'12:00'},
     // [9] P78
-    {h:'TBD',a:'TBD', codeH:'2E', codeA:'2I', sh:null,sa:null,date:'Jun 30',time:'12:00'},
+    {h:'Ivory Coast',   a:'Norway',      sh:null,sa:null,date:'Jun 30',time:'12:00'},
     // [10] P79 → par con [11], feeds r16[5]
-    {h:'Mexico',a:'TBD', codeA:'3rd-CEFHI', sh:null,sa:null,date:'Jun 30',time:'20:00'},
+    {h:'Mexico',        a:'Ecuador',     sh:null,sa:null,date:'Jun 30',time:'20:00'},
     // [11] P80
-    {h:'TBD',a:'TBD', codeH:'1L', codeA:'3rd-EHIJK', sh:null,sa:null,date:'Jul 1', time:'11:00'},
+    {h:'England',       a:'DR Congo',    sh:null,sa:null,date:'Jul 1', time:'11:00'},
     // [12] P86 → par con [13], feeds r16[6]
-    {h:'TBD',a:'TBD', codeH:'1J', codeA:'2H', sh:null,sa:null,date:'Jul 3', time:'17:00'},
+    {h:'Argentina',     a:'Cape Verde',  sh:null,sa:null,date:'Jul 3', time:'17:00'},
     // [13] P88
-    {h:'TBD',a:'TBD', codeH:'2D', codeA:'2G', sh:null,sa:null,date:'Jul 3', time:'13:00'},
+    {h:'Australia',     a:'Egypt',       sh:null,sa:null,date:'Jul 3', time:'13:00'},
     // [14] P85 → par con [15], feeds r16[7]
-    {h:'TBD',a:'TBD', codeH:'1B', codeA:'3rd-EFGIJ', sh:null,sa:null,date:'Jul 2', time:'22:00'},
+    {h:'Switzerland',   a:'Algeria',     sh:null,sa:null,date:'Jul 2', time:'22:00'},
     // [15] P87
-    {h:'TBD',a:'TBD', codeH:'1K', codeA:'3rd-DEIJL', sh:null,sa:null,date:'Jul 3', time:'20:30'},
+    {h:'Colombia',      a:'Ghana',       sh:null,sa:null,date:'Jul 3', time:'20:30'},
   ],
   r16:[
     {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 4', time:'12:00'},  // P90
