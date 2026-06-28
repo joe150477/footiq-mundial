@@ -745,40 +745,81 @@ function buildBajasHtml(home,away){
 // ==================== RESULTADOS REALES ====================
 // Fuente: FIFA / ESPN oficial. Última actualización: 17 Jun 2026
 const REAL_RESULTS = {
-  // ── Jornada 1 ──
-  'Mexico-South Africa':      {h:2,a:0,played:true},   // Jun 11 ✓
-  'South Korea-Czechia':      {h:2,a:1,played:true},   // Jun 11 ✓
-  'Canada-Bosnia':            {h:1,a:1,played:true},   // Jun 12 ✓
-  'United States-Paraguay':   {h:4,a:1,played:true},   // Jun 12 ✓
-  'Qatar-Switzerland':        {h:1,a:1,played:true},   // Jun 13 ✓
-  'Brazil-Morocco':           {h:1,a:1,played:true},   // Jun 13 ✓
-  'Haiti-Scotland':           {h:0,a:1,played:true},   // Jun 13 ✓
-  'Australia-Turkey':         {h:2,a:0,played:true},   // Jun 14 ✓
-  'Germany-Curaçao':          {h:7,a:1,played:true},   // Jun 14 ✓
-  'Ivory Coast-Ecuador':      {h:1,a:0,played:true},   // Jun 14 ✓
-  'Netherlands-Japan':        {h:2,a:2,played:true},   // Jun 14 ✓
-  'Sweden-Tunisia':           {h:5,a:1,played:true},   // Jun 14 ✓
-  'Spain-Cape Verde':         {h:0,a:0,played:true},   // Jun 15 ✓
-  'Belgium-Egypt':            {h:1,a:1,played:true},   // Jun 15 ✓
-  'Saudi Arabia-Uruguay':     {h:1,a:1,played:true},   // Jun 15 ✓
-  'Iran-New Zealand':         {h:2,a:2,played:true},   // Jun 15 ✓
-  'France-Senegal':           {h:3,a:1,played:true},   // Jun 16 ✓
-  'Iraq-Norway':              {h:1,a:4,played:true},   // Jun 16 ✓
-  'Argentina-Algeria':        {h:3,a:0,played:true},   // Jun 16 ✓
-  'Austria-Jordan':           {h:3,a:1,played:true},   // Jun 17 ✓
-  // ── Jornada 2 ──
-  'Portugal-DR Congo':        {h:1,a:1,played:true},   // Jun 17 ✓
-  'England-Croatia':          {h:4,a:2,played:true},   // Jun 17 ✓
-  'Ghana-Panama':             {h:1,a:0,played:true},   // Jun 17 ✓
-  'Uzbekistan-Colombia':      {h:1,a:3,played:true},   // Jun 17 ✓ (Colombia ganó 3-1)
-  'Czechia-South Africa':     {h:1,a:1,played:true},   // Jun 18 ✓
-  'United States-Australia':  {h:2,a:0,played:true},   // Jun 19 ✓
-  // ── JORNADA 3 (confirmados al 25-26 Jun) ──
-  'Mexico-Czechia':       {h:3,a:0,played:true},   // Jun 25 ✓
-  'Brazil-Scotland':      {h:3,a:0,played:true},   // Jun 25 ✓
-  'Morocco-Haiti':        {h:4,a:2,played:true},   // Jun 25 ✓
-  'France-Norway':        {h:4,a:1,played:true},   // Jun 25 ✓
-  'Turkey-United States': {h:3,a:2,played:true},   // Jun 26 ✓ (Turkey ganó)
+  // ── JORNADA 1 (Jun 11-17) ──
+  'Mexico-South Africa':      {h:2,a:0,played:true},   // Jun 11
+  'South Korea-Czechia':      {h:2,a:1,played:true},   // Jun 11
+  'Canada-Bosnia':            {h:1,a:1,played:true},   // Jun 12
+  'United States-Paraguay':   {h:4,a:1,played:true},   // Jun 12
+  'Qatar-Switzerland':        {h:1,a:1,played:true},   // Jun 13
+  'Brazil-Morocco':           {h:1,a:1,played:true},   // Jun 13
+  'Haiti-Scotland':           {h:0,a:1,played:true},   // Jun 13
+  'Australia-Turkey':         {h:2,a:0,played:true},   // Jun 14
+  'Germany-Curaçao':          {h:7,a:1,played:true},   // Jun 14
+  'Ivory Coast-Ecuador':      {h:1,a:0,played:true},   // Jun 14
+  'Netherlands-Japan':        {h:2,a:2,played:true},   // Jun 14
+  'Sweden-Tunisia':           {h:5,a:1,played:true},   // Jun 14
+  'Spain-Cape Verde':         {h:0,a:0,played:true},   // Jun 15
+  'Belgium-Egypt':            {h:1,a:1,played:true},   // Jun 15
+  'Saudi Arabia-Uruguay':     {h:1,a:1,played:true},   // Jun 15
+  'Iran-New Zealand':         {h:2,a:2,played:true},   // Jun 15
+  'France-Senegal':           {h:3,a:1,played:true},   // Jun 16
+  'Iraq-Norway':              {h:1,a:4,played:true},   // Jun 16
+  'Argentina-Algeria':        {h:3,a:0,played:true},   // Jun 16
+  'Austria-Jordan':           {h:3,a:1,played:true},   // Jun 16
+  'Portugal-DR Congo':        {h:1,a:1,played:true},   // Jun 17 (J1 grupo K)
+  'England-Croatia':          {h:4,a:2,played:true},   // Jun 17 (J1 grupo L)
+  'Ghana-Panama':             {h:1,a:0,played:true},   // Jun 17 (J1 grupo L)
+  'Uzbekistan-Colombia':      {h:1,a:3,played:true},   // Jun 17 (J1 grupo K)
+  // ── JORNADA 2 (Jun 18-23) ──
+  'Czechia-South Africa':     {h:1,a:1,played:true},   // Jun 18
+  'Switzerland-Bosnia':       {h:4,a:1,played:true},   // Jun 18
+  'Canada-Qatar':             {h:6,a:0,played:true},   // Jun 18
+  'Mexico-South Korea':       {h:1,a:0,played:true},   // Jun 18
+  'United States-Australia':  {h:2,a:0,played:true},   // Jun 19
+  'Scotland-Morocco':         {h:0,a:1,played:true},   // Jun 19
+  'Brazil-Haiti':             {h:3,a:0,played:true},   // Jun 19
+  'Turkey-Paraguay':          {h:0,a:1,played:true},   // Jun 19
+  'Netherlands-Sweden':       {h:5,a:1,played:true},   // Jun 20
+  'Germany-Ivory Coast':      {h:2,a:1,played:true},   // Jun 20
+  'Ecuador-Curaçao':          {h:0,a:0,played:true},   // Jun 20
+  'Tunisia-Japan':            {h:0,a:4,played:true},   // Jun 20
+  'Spain-Saudi Arabia':       {h:4,a:0,played:true},   // Jun 21
+  'Belgium-Iran':             {h:0,a:0,played:true},   // Jun 21
+  'Uruguay-Cape Verde':       {h:2,a:2,played:true},   // Jun 21
+  'New Zealand-Egypt':        {h:1,a:3,played:true},   // Jun 21
+  'Argentina-Austria':        {h:2,a:0,played:true},   // Jun 22
+  'France-Iraq':              {h:3,a:0,played:true},   // Jun 22
+  'Norway-Senegal':           {h:3,a:2,played:true},   // Jun 22
+  'Jordan-Algeria':           {h:1,a:2,played:true},   // Jun 22
+  'Portugal-Uzbekistan':      {h:5,a:0,played:true},   // Jun 23
+  'England-Ghana':            {h:0,a:0,played:true},   // Jun 23
+  'Panama-Croatia':           {h:0,a:1,played:true},   // Jun 23
+  'Colombia-DR Congo':        {h:1,a:0,played:true},   // Jun 23
+  // ── JORNADA 3 (Jun 24-27) ──
+  'Switzerland-Canada':       {h:2,a:1,played:true},   // Jun 24
+  'Bosnia-Qatar':             {h:3,a:1,played:true},   // Jun 24
+  'Scotland-Brazil':          {h:0,a:3,played:true},   // Jun 24
+  'Morocco-Haiti':            {h:4,a:2,played:true},   // Jun 24
+  'Czechia-Mexico':           {h:0,a:3,played:true},   // Jun 24
+  'South Africa-South Korea': {h:1,a:0,played:true},   // Jun 24
+  'Curaçao-Ivory Coast':      {h:0,a:2,played:true},   // Jun 25
+  'Ecuador-Germany':          {h:2,a:1,played:true},   // Jun 25
+  'Japan-Sweden':             {h:1,a:1,played:true},   // Jun 25
+  'Tunisia-Netherlands':      {h:1,a:3,played:true},   // Jun 25
+  'Turkey-United States':     {h:3,a:2,played:true},   // Jun 25
+  'Paraguay-Australia':       {h:0,a:0,played:true},   // Jun 25
+  'Norway-France':            {h:1,a:4,played:true},   // Jun 26
+  'Senegal-Iraq':             {h:5,a:0,played:true},   // Jun 26
+  'Cape Verde-Saudi Arabia':  {h:0,a:0,played:true},   // Jun 26
+  'Uruguay-Spain':            {h:0,a:1,played:true},   // Jun 26
+  'Egypt-Iran':               {h:1,a:1,played:true},   // Jun 26
+  'New Zealand-Belgium':      {h:1,a:5,played:true},   // Jun 26
+  'Panama-England':           {h:0,a:2,played:true},   // Jun 27
+  'Croatia-Ghana':            {h:2,a:1,played:true},   // Jun 27
+  'Colombia-Portugal':        {h:0,a:0,played:true},   // Jun 27
+  'DR Congo-Uzbekistan':      {h:3,a:1,played:true},   // Jun 27
+  'Algeria-Austria':          {h:3,a:3,played:true},   // Jun 27
+  'Jordan-Argentina':         {h:1,a:3,played:true},   // Jun 27
 };
 
 // ==================== CALENDARIO OFICIAL FIFA WC 2026 ====================
@@ -894,7 +935,79 @@ const CALENDAR_MATCHES = {
     {home:'Algeria',       away:'Austria',        group:'J', time:'21:00'},
     {home:'Jordan',        away:'Argentina',      group:'J', time:'21:00'}
   ],
-  // ── ELIMINATORIAS ──
+  // ── ELIMINATORIAS: RONDA DE 32 (Jun 28 – Jul 3) ──
+  // 1A=Mexico 2A=SouthAfrica 1B=Switzerland 2B=Canada 1C=Brazil 2C=Morocco
+  // 1D=UnitedStates 2D=Australia 1E=Germany 2E=IvoryCoast 1F=Netherlands 2F=Japan
+  // 1G=Belgium 2G=Egypt 1H=Spain 2H=CapeVerde 1I=France 2I=Norway
+  // 1J=Argentina 2J=Austria 1K=Colombia 2K=Portugal 1L=England 2L=Croatia
+  // 3os q avanzan: DR Congo, Sweden, Ecuador, Ghana, Bosnia, Algeria, Paraguay, Senegal
+  '2026-06-28':[
+    {home:'South Africa',  away:'Canada',     group:'R32', time:'14:00'}   // P73: 2A vs 2B
+  ],
+  '2026-06-29':[
+    {home:'Brazil',        away:'Japan',      group:'R32', time:'12:00'},  // P76: 1C vs 2F
+    {home:'Germany',       away:'TBD',        group:'R32', time:'15:30'},  // P74: 1E vs 3rd-ABCDF
+    {home:'Netherlands',   away:'Morocco',    group:'R32', time:'20:00'}   // P75: 1F vs 2C
+  ],
+  '2026-06-30':[
+    {home:'Ivory Coast',   away:'Norway',     group:'R32', time:'12:00'},  // P78: 2E vs 2I
+    {home:'France',        away:'TBD',        group:'R32', time:'16:00'},  // P77: 1I vs 3rd-CDFGH
+    {home:'Mexico',        away:'TBD',        group:'R32', time:'20:00'}   // P79: 1A vs 3rd-CEFHI
+  ],
+  '2026-07-01':[
+    {home:'England',       away:'TBD',        group:'R32', time:'11:00'},  // P80: 1L vs 3rd-EHIJK
+    {home:'Belgium',       away:'TBD',        group:'R32', time:'15:00'},  // P82: 1G vs 3rd-AEHIJ
+    {home:'United States', away:'TBD',        group:'R32', time:'19:00'}   // P81: 1D vs 3rd-BEFIJ
+  ],
+  '2026-07-02':[
+    {home:'Spain',         away:'Austria',    group:'R32', time:'14:00'},  // P84: 1H vs 2J
+    {home:'Portugal',      away:'Croatia',    group:'R32', time:'18:00'},  // P83: 2K vs 2L
+    {home:'Switzerland',   away:'TBD',        group:'R32', time:'22:00'}   // P85: 1B vs 3rd-EFGIJ
+  ],
+  '2026-07-03':[
+    {home:'Australia',     away:'Egypt',      group:'R32', time:'13:00'},  // P88: 2D vs 2G
+    {home:'Argentina',     away:'Cape Verde', group:'R32', time:'17:00'},  // P86: 1J vs 2H
+    {home:'Colombia',      away:'TBD',        group:'R32', time:'20:30'}   // P87: 1K vs 3rd-DEIJL
+  ],
+  // ── OCTAVOS DE FINAL (Jul 4-7) ──
+  '2026-07-04':[
+    {home:'TBD',           away:'TBD',             group:'R16', time:'12:00'},
+    {home:'TBD',           away:'TBD',             group:'R16', time:'16:00'}
+  ],
+  '2026-07-05':[
+    {home:'TBD',           away:'TBD',             group:'R16', time:'15:00'},
+    {home:'TBD',           away:'TBD',             group:'R16', time:'19:00'}
+  ],
+  '2026-07-06':[
+    {home:'TBD',           away:'TBD',             group:'R16', time:'14:00'},
+    {home:'TBD',           away:'TBD',             group:'R16', time:'19:00'}
+  ],
+  '2026-07-07':[
+    {home:'TBD',           away:'TBD',             group:'R16', time:'11:00'},
+    {home:'TBD',           away:'TBD',             group:'R16', time:'15:00'}
+  ],
+  // ── CUARTOS DE FINAL (Jul 9-11) ──
+  '2026-07-09':[
+    {home:'TBD',           away:'TBD',             group:'QF', time:'15:00'}
+  ],
+  '2026-07-10':[
+    {home:'TBD',           away:'TBD',             group:'QF', time:'14:00'}
+  ],
+  '2026-07-11':[
+    {home:'TBD',           away:'TBD',             group:'QF', time:'16:00'},
+    {home:'TBD',           away:'TBD',             group:'QF', time:'20:00'}
+  ],
+  // ── SEMIFINALES (Jul 14-15) ──
+  '2026-07-14':[
+    {home:'TBD',           away:'TBD',             group:'SF', time:'14:00'}
+  ],
+  '2026-07-15':[
+    {home:'TBD',           away:'TBD',             group:'SF', time:'14:00'}
+  ],
+  // ── TERCER LUGAR & FINAL ──
+  '2026-07-18':[
+    {home:'TBD',           away:'TBD',             group:'3er Lugar', time:'16:00'}
+  ],
   '2026-07-19':[{home:'TBD',away:'TBD',group:'Final',time:'14:00'}]
 };
 
@@ -945,8 +1058,7 @@ const ELO_PRE = {'Argentina':1950,'France':1930,'Spain':1900,'England':1900,'Bra
   'Qatar':1560,'South Africa':1520,'Haiti':1490,'Curaçao':1470,'Ivory Coast':1620,
   'Cape Verde':1510,'Saudi Arabia':1590,'Iraq':1510,'Algeria':1610,'Jordan':1490,
   'DR Congo':1510,'Uzbekistan':1490,'Ghana':1610,'Panama':1510,'New Zealand':1460,
-  'Paraguay':1580,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1660,'Switzerland':1690,
-  'Sweden':1640,'New Zealand':1460,'Iraq':1510,'Jordan':1490,'Senegal':1650,'Ghana':1610};
+  'Paraguay':1580,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1660,'Switzerland':1690};
 
 // ==================== SISTEMA DE APRENDIZAJE AUTÓNOMO ====================
 let DYNAMIC_ATT={}, DYNAMIC_DEF={};
