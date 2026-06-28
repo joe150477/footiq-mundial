@@ -239,6 +239,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 .bslot.active-match{border-color:var(--accent);}
 .bslot.finished{border-color:#2a3a52;}
 .bslot.champion{border-color:var(--gold)!important;background:rgba(240,188,53,.08);}
+.bslot.predicted{border-color:rgba(99,202,183,.45);background:rgba(99,202,183,.05);}
 .bteam{display:flex;align-items:center;justify-content:space-between;padding:0 5px;height:50%;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;}
 .bteam.won{color:var(--accent);}
 .bteam.tbd{color:var(--muted);font-style:italic;font-weight:400;font-size:10px;}
@@ -1860,6 +1861,7 @@ function buildBetHtml(pred,home,away){
 // ==================== CALENDARIO — SEPARADO DE selectCalDay (FIX RECURSIÓN) ====================
 let calMonth=5; // Junio
 let calSelected=null;
+let _calPanelDate=null; // evita re-renderizar matchPanel si el día no cambió
 
 // renderCalendar: SOLO dibuja la grilla. NO llama a selectCalDay.
 function renderCalendar(){
@@ -1885,6 +1887,7 @@ function renderCalendar(){
 // selectCalDay: actualiza estado, re-renderiza grilla (sin recursión), y muestra los partidos.
 function selectCalDay(ds){
   calSelected=ds;
+  _calPanelDate=ds; // marcar como renderizado para evitar doble llamada en showTab
   renderCalendar(); // seguro: renderCalendar ya NO llama de vuelta a selectCalDay
   renderMatchPanel(ds);
   // Scroll al panel de partidos para que sea visible sin tener que bajar manualmente
@@ -2040,7 +2043,13 @@ function showTab(el,name){
   else if(name==='bracket'){ renderBracket(); }
   else if(name==='calendar'){
     renderCalendar();
-    if(calSelected) renderMatchPanel(calSelected);
+    if(calSelected){
+      // Solo re-renderiza matchPanel si cambió la fecha (evita bloqueo en cada tab switch)
+      if(calSelected!==_calPanelDate){
+        _calPanelDate=calSelected;
+        setTimeout(()=>renderMatchPanel(calSelected),0);
+      }
+    }
   }
   else if(name==='duel'){ if(!_tabRendered.duel) renderDuel(); _tabRendered.duel=true; }
   else if(name==='model'){ if(!_tabRendered.model) renderModel(); _tabRendered.model=true; }
@@ -2314,6 +2323,7 @@ async function syncFromAPI(){
     const manual=JSON.parse(localStorage.getItem('footiq_results')||'{}');
     Object.assign(REAL_RESULTS, safeResults, manual);
     _clearStandings(); _clearPredCache();
+    _calPanelDate=null; // forzar re-render del panel tras sync de resultados
     recalibrateELO();
     renderCalendar();
     if(calSelected) renderMatchPanel(calSelected);
@@ -2409,7 +2419,43 @@ let BRACKET_KO = {
   ]
 };
 
+// Obtiene [1°, 2°, 3°] de un grupo según PTS > GD > GF
+function getGroupRanked(grp){
+  const st=getGroupStandings();
+  const g=st[grp]; if(!g) return [];
+  return Object.entries(g)
+    .sort((a,b)=>b[1].pts-a[1].pts||b[1].gd-a[1].gd||b[1].gf-a[1].gf)
+    .map(([t,s])=>({t,s}));
+}
+
+// Rellena BRACKET_KO.r32 con predicciones cuando aún no hay equipos confirmados.
+// Pairing aproximado WC 2026 (12 grupos, ganadores vs. subcampeones de grupos adyacentes)
+function fillBracketPredictions(){
+  const pairs=[
+    ['A',0,'B',1], ['B',0,'A',1],  // 1A-2B, 1B-2A
+    ['C',0,'D',1], ['D',0,'C',1],  // 1C-2D, 1D-2C
+    ['E',0,'F',1], ['F',0,'E',1],  // 1E-2F, 1F-2E
+    ['G',0,'H',1], ['H',0,'G',1],  // 1G-2H, 1H-2G
+    ['I',0,'J',1], ['J',0,'I',1],  // 1I-2J, 1J-2I
+    ['K',0,'L',1], ['L',0,'K',1],  // 1K-2L, 1L-2K
+    // Slots 12-15: mejores 3ros (no determinísticos hasta fin de grupos)
+    null, null, null, null
+  ];
+  pairs.forEach((pair,i)=>{
+    if(!pair) return; // 3rd-place slots quedan TBD
+    const [gH,posH,gA,posA]=pair;
+    const rankH=getGroupRanked(gH);
+    const rankA=getGroupRanked(gA);
+    const teamH=rankH[posH]?.t||'TBD';
+    const teamA=rankA[posA]?.t||'TBD';
+    if(teamH!=='TBD'||teamA!=='TBD'){
+      BRACKET_KO.r32[i]={...BRACKET_KO.r32[i], h:teamH, a:teamA, pred:true};
+    }
+  });
+}
+
 function renderBracket(){
+  fillBracketPredictions(); // auto-poblar con predicciones si aún hay TBDs
   const SW=122, SH=46, CW=22, HDR=30;
   const rounds=[
     {id:'r32',label:'Ronda de 32', dates:'1–6 jul', cls:'bpill-r32'},
@@ -2446,8 +2492,9 @@ function renderBracket(){
       const winH=played&&m.sh>m.sa;
       const winA=played&&m.sa>m.sh;
       const isFinal=(round.id==='f');
+      const isPred=!played&&m.pred===true;
       const tbd=t=>t==='TBD'?`<span class="tbd">Por definir</span>`:`<span>${FLAG(t)}&nbsp;${t}</span>`;
-      html+=`<div class="bslot${played?' finished':''}${isFinal&&played?' champion':''}" style="left:${x}px;top:${y}px;width:${SW}px;height:${SH}px;">
+      html+=`<div class="bslot${played?' finished':''}${isPred?' predicted':''}${isFinal&&played?' champion':''}" style="left:${x}px;top:${y}px;width:${SW}px;height:${SH}px;">
         <div class="bteam${winH?' won':''}">
           ${tbd(m.h)}
           ${played?`<span class="bteam-score">${m.sh}</span>`:''}
@@ -2457,7 +2504,7 @@ function renderBracket(){
           ${tbd(m.a)}
           ${played?`<span class="bteam-score">${m.sa}</span>`:''}
         </div>
-        <div class="bdate">${m.date}</div>
+        <div class="bdate">${isPred?'📊 PRED · ':''} ${m.date}</div>
         ${isFinal?`<div class="bfinal-badge" style="left:0;right:0;top:${SH+4}px;">🏆 CAMPEÓN</div>`:''}
       </div>`;
 
