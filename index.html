@@ -309,9 +309,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
   <div class="tab active" onclick="showTab(this,'champ')"><span class="ti">🏆</span>Campeón</div>
   <div class="tab" onclick="showTab(this,'duel')"><span class="ti">⚔️</span>Duelo</div>
   <div class="tab" onclick="showTab(this,'calendar')"><span class="ti">📅</span>Calendario</div>
-  <div class="tab" onclick="showTab(this,'groups')"><span class="ti">🏟️</span>Grupos</div>
   <div class="tab" onclick="showTab(this,'bracket')"><span class="ti">🎯</span>Bracket</div>
-  <div class="tab" onclick="showTab(this,'model')"><span class="ti">🔬</span>Modelo</div>
 </div>
 
 <div class="pages">
@@ -329,9 +327,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
       <div class="card" style="text-align:center;color:var(--muted);">Selecciona un día del calendario</div>
     </div>
   </div>
-  <div class="page" id="page-groups"></div>
   <div class="page" id="page-bracket"></div>
-  <div class="page" id="page-model"></div>
 </div>
 
 <script>
@@ -608,6 +604,52 @@ function iccScore(team){
   );
 }
 
+// ==================== FOOTIQ_CACHE — Sistema de caché en memoria ====================
+const FOOTIQ_CACHE = {
+  perfil:      new Map(), // team → perfilScore(team)
+  icc:         new Map(), // team → iccScore(team)
+  momentum:    new Map(), // team → getMomentum(team) result
+  predictions: new Map(), // 'E:h:a' or 'K:h:a' → predict result
+  panelHtml:   new Map(), // 'YYYY-MM-DD' → rendered HTML string
+};
+
+function getCachedPerfil(team){
+  if(!FOOTIQ_CACHE.perfil.has(team)) FOOTIQ_CACHE.perfil.set(team,perfilScore(team));
+  return FOOTIQ_CACHE.perfil.get(team);
+}
+function getCachedICC(team){
+  if(!FOOTIQ_CACHE.icc.has(team)) FOOTIQ_CACHE.icc.set(team,iccScore(team));
+  return FOOTIQ_CACHE.icc.get(team);
+}
+function getCachedMomentum(team){
+  if(!FOOTIQ_CACHE.momentum.has(team)) FOOTIQ_CACHE.momentum.set(team,getMomentum(team));
+  return FOOTIQ_CACHE.momentum.get(team);
+}
+function getCachedPrediction(home,away,grp,model){
+  const key=(model==='K'?'K':'E')+':'+home+':'+away;
+  if(!FOOTIQ_CACHE.predictions.has(key)){
+    const v=model==='K'?klementPredict(home,away):ensemblePredict(home,away,grp||'');
+    FOOTIQ_CACHE.predictions.set(key,v);
+  }
+  return FOOTIQ_CACHE.predictions.get(key);
+}
+
+// type: 'results' → momentum+icc+panelHtml; 'bajas' → predictions+panelHtml; 'all' → todo
+function invalidateCache(type){
+  if(type==='results'||type==='all'){
+    FOOTIQ_CACHE.momentum.clear();
+    FOOTIQ_CACHE.icc.clear();
+    FOOTIQ_CACHE.panelHtml.clear();
+  }
+  if(type==='bajas'||type==='all'){
+    FOOTIQ_CACHE.predictions.clear();
+    FOOTIQ_CACHE.panelHtml.clear();
+  }
+  if(type==='all'){
+    FOOTIQ_CACHE.perfil.clear();
+  }
+}
+
 const CHOKE = {'Germany':-80,'Belgium':-60,'Mexico':-50,'Spain':-30,'Portugal':-40,'Netherlands':-30};
 const DARK  = {'Spain':70,'Norway':60,'Austria':50,'Colombia':40,'Senegal':35,'Morocco':30,'United States':25,'Canada':20};
 
@@ -660,6 +702,7 @@ function toggleAbsent(team,player){
   const idx=LINEUP_ABSENT[team].indexOf(player);
   if(idx>=0) LINEUP_ABSENT[team].splice(idx,1);
   else LINEUP_ABSENT[team].push(player);
+  invalidateCache('bajas');
   renderMatchPanel(calSelected);
 }
 
@@ -1666,12 +1709,6 @@ function renderChamp(){
     <div style="font-size:14px;color:var(--muted);margin-top:6px;line-height:1.5">🔒 Modelo congelado pre-torneo · no cambia con resultados ni bajas · Países Bajos campeón según Klement publicado</div>
     </div>`;
 }
-function renderGroups(){
-  let html='';
-  for(let [g,eqs] of Object.entries(GRUPOS))
-    html+=`<div class="grp-card"><div class="grp-head">Grupo ${g}</div>${eqs.map(e=>`<div class="grp-team"><div class="tflg">${FLAG(e)}</div><div class="tname">${e}</div><span class="pill pg">${G.mc[e]?.toFixed(1)||0}%</span></div>`).join('')}</div>`;
-  document.getElementById('page-groups').innerHTML=html;
-}
 function renderDuel(){
   computeModelScores();
   const ms=MODEL_SCORES;
@@ -1722,114 +1759,6 @@ function renderDuel(){
       </div>
       ${histHtml||'<div style="color:var(--muted);font-size:14px;padding:10px">Sin resultados aún</div>'}
     </div>`;
-}
-function renderModel(){
-  const medals=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
-  // ICC Top 10
-  const iccRank=ALL_TEAMS.map(t=>({t,v:iccScore(t)})).sort((a,b)=>b.v-a.v).slice(0,10);
-  // Perfil compuesto Top 8
-  const ranked=ALL_TEAMS.map(t=>({t,s:perfilScore(t)})).sort((a,b)=>b.s-a.s).slice(0,8);
-  // Top 5 por cada dimensión
-  const topFisico=ALL_TEAMS.map(t=>({t,v:PERFIL_FISICO[t]??70})).sort((a,b)=>b.v-a.v).slice(0,5);
-  const topMental=ALL_TEAMS.map(t=>({t,v:PERFIL_MENTAL[t]??70})).sort((a,b)=>b.v-a.v).slice(0,5);
-  const topGarra=ALL_TEAMS.map(t=>({t,v:GARRA[t]??70})).sort((a,b)=>b.v-a.v).slice(0,5);
-  const topCultura=ALL_TEAMS.map(t=>({t,v:CULTURA[t]??70})).sort((a,b)=>b.v-a.v).slice(0,5);
-  const topClutch=ALL_TEAMS.map(t=>({t,v:CLUTCH[t]??65})).sort((a,b)=>b.v-a.v).slice(0,5);
-  const topADN=ALL_TEAMS.map(t=>({t,v:ADN_COMPETITIVO[t]??65})).sort((a,b)=>b.v-a.v).slice(0,5);
-  const dimBlock=(title,icon,arr,col)=>`
-    <div style="margin-bottom:10px;">
-      <div style="font-size:14px;font-weight:700;color:var(--muted);margin-bottom:6px;">${icon} ${title}</div>
-      ${arr.map((x,i)=>`<div class="trow" style="padding:4px 0">
-        <span style="font-size:15px">${medals[i]} ${FLAG(x.t)} ${x.t}</span>
-        <span style="font-size:16px;font-weight:700;color:${col||'var(--accent)'}">${x.v}</span>
-      </div>`).join('')}
-    </div>`;
-  document.getElementById('page-model').innerHTML=`
-    <div class="card" style="border-color:rgba(240,188,53,.3)">
-      <div class="stitle" style="color:var(--gold)">🏆 ICC — Índice de Capacidad de Campeonato</div>
-      <div style="font-size:14px;color:var(--muted);margin-bottom:8px">9 dimensiones · activo en fase eliminatoria</div>
-      ${iccRank.map((x,i)=>{
-        const ss=SUPERSTAR[x.t];
-        const abT=LINEUP_ABSENT[x.t]||[];
-        let fjdStr='';
-        if(ss){
-          const eff=(ss.fdj*(ss.form??1)*100).toFixed(0);
-          const formPct=Math.round((ss.form??1)*100);
-          const col=abT.includes(ss.n)?'var(--red)':formPct<85?'var(--dim)':'var(--gold)';
-          fjdStr=` <span style="color:${col};font-size:15px">${abT.includes(ss.n)?'❌':'⭐'} ${ss.n}${ss.age?' '+ss.age+'a':''} +${eff}%${formPct<85&&!abT.includes(ss.n)?` (${formPct}%)`:''}</span>`;
-        }
-        return `<div class="trow">
-          <span style="font-size:15px">${medals[i]} ${FLAG(x.t)} ${x.t}${fjdStr}</span>
-          <span style="font-size:15px;font-weight:800;color:var(--gold)">${x.v.toFixed(1)}</span>
-        </div>`;
-      }).join('')}
-      <div style="font-size:16px;color:var(--muted);margin-top:8px;line-height:1.6">
-        Técnico 15% · Físico 8% · Fortaleza 12% · Clutch 15% · FJD 10% · Exp.Int 10% · ADN 15% · Banca 8% · Momento 7%
-      </div>
-    </div>
-    <div class="card">
-      <div class="stitle">⚙️ Motor Ensemble</div>
-      <div class="trow"><span>ELO × Perfil</span><span style="color:var(--accent)">50%</span></div>
-      <div class="trow"><span>Mercado × Perfil</span><span style="color:var(--accent)">50%</span></div>
-      <div class="trow"><span>Monte Carlo</span><span style="color:var(--gold)">20.000 iter.</span></div>
-      <div class="trow"><span>Bracket seeding</span><span style="color:var(--gold)">ICC</span></div>
-      <div class="trow"><span style="color:var(--muted);font-size:16px">ICC + Clutch activos en fase eliminatoria únicamente</span><span></span></div>
-    </div>
-    <div class="card">
-      <div class="stitle">📊 Rankings por Dimensión</div>
-      ${dimBlock('Físico-Atlético','💪',topFisico,'var(--accent)')}
-      ${dimBlock('Fortaleza Mental','🧠',topMental,'var(--accent)')}
-      ${dimBlock('Garra Competitiva','🔥',topGarra,'var(--orange)')}
-      ${dimBlock('Cultura Futbolística','⭐',topCultura,'var(--accent)')}
-      ${dimBlock('Factor Clutch','⚡',topClutch,'var(--yellow)')}
-      ${dimBlock('ADN Competitivo','🧬',topADN,'var(--green)')}
-    </div>
-    <div class="card">
-      <div class="stitle">🔬 Perfil Compuesto (4D) — Top 8</div>
-      ${ranked.map((x,i)=>`<div class="trow">
-        <span>${medals[i]} ${FLAG(x.t)} ${x.t}</span>
-        <span style="color:var(--accent);font-weight:700">${x.s.toFixed(1)}/100</span>
-      </div>`).join('')}
-      <div style="font-size:16px;color:var(--muted);margin-top:6px">Físico 20% · Mental 30% · Garra 25% · Cultura 25%</div>
-    </div>
-    <div class="card">
-      <div class="stitle">🧮 Klement — Variables estructurales</div>
-      <div class="trow"><span>PIB per cápita (cap $60k)</span><span style="color:var(--accent)">40%</span></div>
-      <div class="trow"><span>Ranking FIFA (escala lineal)</span><span style="color:var(--accent)">18%</span></div>
-      <div class="trow"><span>Factor climático / hemisferio</span><span style="color:var(--accent)">18%</span></div>
-      <div class="trow"><span>Infraestructura deportiva</span><span>12%</span></div>
-      <div class="trow"><span>Historia mundialista</span><span>10%</span></div>
-      <div class="trow"><span style="color:var(--muted);font-size:16px">🔒 Modelo congelado — no cambia con resultados ni bajas</span><span></span></div>
-      <div class="trow"><span style="color:var(--muted);font-size:16px">🇳🇱 Output calibrado al Klement publicado: Países Bajos campeón</span><span></span></div>
-    </div>
-    ${(()=>{
-      const played=Object.values(REAL_RESULTS).filter(r=>r.played);
-      const nPlayed=played.length;
-      const nDraws=played.filter(r=>r.h===r.a).length;
-      const drawRateActual=nPlayed>0?(nDraws/nPlayed*100).toFixed(1):'—';
-      const boostNow=getDynamicDrawBoost().toFixed(3);
-      const teamsWithData=ALL_TEAMS.filter(t=>{
-        const gfT=played.filter(m=>{const[h,a]=Object.keys(REAL_RESULTS).find(k=>{const[kh,ka]=k.split('-');return kh===t||ka===t;})||[t,''];return true;});
-        return (Object.keys(REAL_RESULTS).some(k=>{const[h,a]=k.split('-');return (h===t||a===t)&&REAL_RESULTS[k].played;}));
-      }).slice(0,16);
-      const teamRows=teamsWithData.map(t=>{
-        const base=(BASE_ATT[t]||1.2).toFixed(2);
-        const dynA=(DYNAMIC_ATT[t]||BASE_ATT[t]||1.2).toFixed(2);
-        const dynD=(DYNAMIC_DEF[t]||BASE_DEF[t]||1.0).toFixed(2);
-        const changed=Math.abs((DYNAMIC_ATT[t]||0)-(BASE_ATT[t]||1.2))>0.01;
-        const col=changed?'var(--orange)':'var(--muted)';
-        return `<div class="trow"><span style="font-size:14px">${FLAG(t)} ${t}</span><span style="font-size:13px;color:${col}">ATT ${dynA} · DEF ${dynD}</span></div>`;
-      }).join('');
-      return `<div class="card" style="border-color:rgba(0,200,150,.3)">
-        <div class="stitle" style="color:var(--green)">🧠 Aprendizaje Autónomo — Calibración Live</div>
-        <div class="trow"><span>Partidos jugados</span><span style="color:var(--accent);font-weight:700">${nPlayed}/72</span></div>
-        <div class="trow"><span>Empates reales</span><span style="color:var(--accent)">${nDraws} (${drawRateActual}%)</span></div>
-        <div class="trow"><span>draw_boost actual</span><span style="color:var(--orange);font-weight:700">${boostNow}</span></div>
-        <div class="trow"><span style="color:var(--muted);font-size:15px">Base histórica: 1.24 · WC 2026 ajusta progresivamente hasta 45%</span><span></span></div>
-        <div style="margin-top:10px;font-size:14px;font-weight:700;color:var(--muted);margin-bottom:6px">ATT/DEF dinámico (equipos con datos reales)</div>
-        ${teamRows}
-      </div>`;
-    })()}`;
 }
 
 // ==================== FACTOR SOMBRA ====================
@@ -2026,11 +1955,16 @@ function renderMatchPanel(ds){
     container.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">📭 Sin partidos este día</div>';
     return;
   }
+  // Servir desde caché si existe (se invalida en syncFromAPI/toggleAbsent/saveManualResult)
+  if(FOOTIQ_CACHE.panelHtml.has(ds)){
+    container.innerHTML=FOOTIQ_CACHE.panelHtml.get(ds);
+    return;
+  }
   try{
   const isPastDate=ds<todayStr;
-  container.innerHTML=matches.map(m=>{
-    const pred=ensemblePredict(m.home,m.away,m.group||'');
-    const kpred=klementPredict(m.home,m.away);
+  const _panelHtml=matches.map(m=>{
+    const pred=getCachedPrediction(m.home,m.away,m.group,'E');
+    const kpred=getCachedPrediction(m.home,m.away,m.group,'K');
     const real=REAL_RESULTS[`${m.home}-${m.away}`];
     const isFinished=real?.played===true; // solo si la API/datos confirmaron el resultado
     let resultHtml='', betHtml='';
@@ -2094,7 +2028,7 @@ function renderMatchPanel(ds){
         </div>
       </div>
       ${(()=>{
-        const momH=getMomentum(m.home), momA=getMomentum(m.away);
+        const momH=getCachedMomentum(m.home), momA=getCachedMomentum(m.away);
         const dH=getDiaspora(m.home), dA=getDiaspora(m.away);
         const gcH=getGoleadaFactor(m.home), gcA=getGoleadaFactor(m.away);
         const momClass=mom=>mom.label.includes('llamas')?'ctx-momentum-fire':mom.label.includes('racha')?'ctx-momentum-good':mom.label.includes('Sin')?'ctx-momentum-cold':'ctx-momentum-neut';
@@ -2129,6 +2063,8 @@ function renderMatchPanel(ds){
       ${resultHtml}
     </div>`;
   }).join('');
+  FOOTIQ_CACHE.panelHtml.set(ds,_panelHtml);
+  container.innerHTML=_panelHtml;
   } catch(err) {
     container.innerHTML=`<div class="card" style="text-align:center;color:#f44">⚠️ Error al cargar partidos: ${err.message}<br><small>Abre la consola del navegador (F12) y reporta el error.</small></div>`;
     console.error('renderMatchPanel error:', err);
@@ -2152,24 +2088,22 @@ function changeMonth(dir){
   }
 }
 
-const _tabRendered={};
+const _renderedTabs=new Set();
 function showTab(el,name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   if(el) el.classList.add('active');
   document.getElementById(`page-${name}`).classList.add('active');
   if(name==='champ'){ renderChamp(); }
-  else if(name==='groups'){ if(!_tabRendered.groups) renderGroups(); _tabRendered.groups=true; }
   else if(name==='bracket'){ renderBracket(); }
   else if(name==='calendar'){
     renderCalendar();
     if(calSelected && calSelected!==_calPanelDate){
       _calPanelDate=calSelected;
-      renderMatchPanel(calSelected); // sincrónico: cache ya caliente → respuesta inmediata
+      requestAnimationFrame(()=>renderMatchPanel(calSelected));
     }
   }
-  else if(name==='duel'){ if(!_tabRendered.duel) renderDuel(); _tabRendered.duel=true; }
-  else if(name==='model'){ if(!_tabRendered.model) renderModel(); _tabRendered.model=true; }
+  else if(name==='duel'){ if(!_renderedTabs.has('duel')){ renderDuel(); _renderedTabs.add('duel'); } }
 }
 
 // ==================== PROGRESO Y BOOT ====================
@@ -2218,10 +2152,21 @@ async function boot(){
       const mo=parseInt(autoDate.split('-')[1])-1;
       if(mo!==calMonth){ calMonth=mo; }
       calSelected=autoDate;
-      // Pre-calentar _PRED_CACHE para la fecha seleccionada.
-      // Cuando el usuario abra el tab Calendario, ensemblePredict ya estará cacheado → responde instantáneo.
+      // Pre-calentar cache de predicciones para la fecha seleccionada (síncrono).
       const mhoy=CALENDAR_MATCHES[autoDate]||[];
-      mhoy.forEach(m=>{ ensemblePredict(m.home,m.away,m.group||''); klementPredict(m.home,m.away); });
+      mhoy.forEach(m=>{ getCachedPrediction(m.home,m.away,m.group,'E'); getCachedPrediction(m.home,m.away,m.group,'K'); });
+      // En tiempo libre: pre-calcular perfil/ICC para todos los equipos y predicciones del día siguiente.
+      const ric=typeof requestIdleCallback==='function'?requestIdleCallback:cb=>setTimeout(cb,100);
+      ric(()=>{
+        ALL_TEAMS.forEach(t=>{ getCachedPerfil(t); getCachedICC(t); });
+        // Día siguiente con partidos
+        const todasF=Object.keys(CALENDAR_MATCHES).sort();
+        const nextDate=todasF.find(d=>d>autoDate);
+        if(nextDate){
+          const msNext=CALENDAR_MATCHES[nextDate]||[];
+          msNext.forEach(m=>{ getCachedPrediction(m.home,m.away,m.group,'E'); getCachedPrediction(m.home,m.away,m.group,'K'); });
+        }
+      });
       // NO marcar _calPanelDate aquí: showTab renderizará el panel con cache ya caliente.
     }
     // Auto-sync de resultados al arrancar
@@ -2313,7 +2258,7 @@ function saveManualResult(){
   const savedKey = _resultModalKey;
   closeResultModal();
   // Limpiar cachés y recalibrar ELO
-  _clearStandings(); _clearPredCache();
+  _clearStandings(); _clearPredCache(); invalidateCache('results');
   recalibrateELO();
   renderCalendar();
   if(calSelected) renderMatchPanel(calSelected);
@@ -2444,7 +2389,7 @@ async function syncFromAPI(){
     // Mezclar: resultados del servidor (solo fechas pasadas) + manuales del usuario (manual tiene prioridad)
     const manual=JSON.parse(localStorage.getItem('footiq_results')||'{}');
     Object.assign(REAL_RESULTS, safeResults, manual);
-    _clearStandings(); _clearPredCache();
+    _clearStandings(); _clearPredCache(); invalidateCache('results');
     _calPanelDate=null; // forzar re-render del panel tras sync de resultados
     recalibrateELO();
     renderCalendar();
