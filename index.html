@@ -1947,6 +1947,116 @@ function selectCalDay(ds){
 }
 
 // renderMatchPanel: muestra los partidos del día dado.
+// Genera el HTML del panel para una fecha y lo guarda en caché — sin tocar el DOM.
+// Se puede llamar desde requestIdleCallback en boot para pre-renderizar.
+function prebuildMatchPanel(ds){
+  if(FOOTIQ_CACHE.panelHtml.has(ds)) return; // ya está cacheado
+  const matches=CALENDAR_MATCHES[ds]||[];
+  if(!matches.length) return;
+  try{
+  const isPastDate=ds<todayStr;
+  const _panelHtml=matches.map(m=>{
+    const pred=getCachedPrediction(m.home,m.away,m.group,'E');
+    const kpred=getCachedPrediction(m.home,m.away,m.group,'K');
+    const real=REAL_RESULTS[`${m.home}-${m.away}`];
+    const isFinished=real?.played===true;
+    let resultHtml='', betHtml='';
+    if(isFinished){
+      resultHtml=`<div class="result-real"><div class="rscore">${real.h} — ${real.a}</div><div class="rlabel">Resultado final ✅</div></div>`;
+      betHtml=`<div class="bet-market"><div class="bet-market-title">✅ Partido finalizado</div></div>`;
+    } else if(isPastDate){
+      const enterBtn=`<button class="enter-result-btn" onclick="openResultModal('${m.home}','${m.away}','${ds}')">✏️ Ingresar resultado</button>`;
+      resultHtml=`<div class="no-result">⏳ Sin resultado — ${enterBtn}</div>`;
+      betHtml=buildBetHtml(pred,m.home,m.away);
+    } else {
+      betHtml=buildBetHtml(pred,m.home,m.away);
+    }
+    const penH=getLineupPenalty(m.home),penA=getLineupPenalty(m.away);
+    const penBadgeH=penH>0?`<span class="pen-badge">−${(penH*100).toFixed(0)}%</span>`:'';
+    const penBadgeA=penA>0?`<span class="pen-badge">−${(penA*100).toFixed(0)}%</span>`:'';
+    const perfilHtml=buildPerfilHtml(m.home,m.away);
+    const bajasHtml=!isFinished?buildBajasHtml(m.home,m.away):'';
+    const sombra=calcSombraFactor(m.home,m.away);
+    const sombraHtml=sombra?`<div class="sombra-alert">
+      <div class="sombra-header">
+        <span style="font-size:18px">🌑</span>
+        <span class="sombra-title">Contexto institucional</span>
+        <span class="sombra-nivel">${sombra.nivel===3?'⚠️ Alto':sombra.nivel===2?'Moderado':'Leve'}</span>
+      </div>
+      ${sombra.alertas.map(a=>`<div class="sombra-item"><strong>${FLAG(a.team)} ${a.team}:</strong> ${a.hist}</div>`).join('')}
+      <div class="sombra-disclaimer">${sombra.disclaimer}</div>
+    </div>`:'';
+    const momH=getCachedMomentum(m.home), momA=getCachedMomentum(m.away);
+    const dH=getDiaspora(m.home), dA=getDiaspora(m.away);
+    const gcH=getGoleadaFactor(m.home), gcA=getGoleadaFactor(m.away);
+    const momClass=mom=>mom.label.includes('llamas')?'ctx-momentum-fire':mom.label.includes('racha')?'ctx-momentum-good':mom.label.includes('Sin')?'ctx-momentum-cold':'ctx-momentum-neut';
+    const crdClass=d=>d>=0.80?'ctx-crowd-home':d>=0.50?'ctx-crowd-high':d>=0.30?'ctx-crowd-part':'ctx-crowd-low';
+    const momLabelH=momH.matches>0?`${momH.label} · ${momH.pts}pts · ${momH.gfPer}g/p`:(momH.label);
+    const momLabelA=momA.matches>0?`${momA.label} · ${momA.pts}pts · ${momA.gfPer}g/p`:(momA.label);
+    const fatHtml=t=>(EXTRA_TIME[t]||0)>0?`<div class="ctx-fatigue">🥵 Cansancio: ${EXTRA_TIME[t]} prórroga(s) · −${(getFatiguePenalty(t)*100).toFixed(1)}%</div>`:'';
+    const gcHtml=gc=>gc.label?`<div class="ctx-fatigue" style="color:var(--yellow)">${gc.label}</div>`:'';
+    return `<div class="mcard-dual">
+      <div class="match-header">
+        <div class="tflg">${FLAG(m.home)}</div>
+        <div class="tname">${m.home}${penBadgeH}</div>
+        <div style="font-size:15px;font-weight:900;padding:0 4px">vs</div>
+        <div class="tname" style="text-align:right">${penBadgeA}${m.away}</div>
+        <div class="tflg">${FLAG(m.away)}</div>
+        <div class="match-group">Grupo ${m.group} · ${m.time}</div>
+      </div>
+      <div class="model-grid">
+        <div class="model-box actual">
+          ${(()=>{const conf=Math.max(pred.pH,pred.pD,pred.pA);const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';const lbl=conf>=0.60?'Alta confianza':conf>=0.50?'Confianza media':'⚠️ Baja confianza';return `<div class="model-box-title">Modelo Actual <span class="conf-badge ${cl}">${lbl}</span></div>`;})()}
+          <div class="model-probs-mini">
+            <div class="mprob-mini"><div class="mpv">${(pred.pH*100).toFixed(0)}%</div><div class="mlabel">Local</div></div>
+            <div class="mprob-mini"><div class="mpv">${(pred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
+            <div class="mprob-mini"><div class="mpv">${(pred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
+          </div>
+          <div class="mscore-big">${pred.score}</div>
+          <div class="mscore-label">Marcador probable</div>
+          <div class="mscore">xG: ${pred.xgH} – ${pred.xgA}</div>
+        </div>
+        <div class="model-box klement">
+          ${(()=>{const conf=Math.max(kpred.pH,kpred.pD,kpred.pA);const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';const lbl=conf>=0.60?'Alta':conf>=0.50?'Media':'⚠️ Baja';return `<div class="model-box-title">Klement <span class="conf-badge ${cl}">${lbl}</span> <span style="font-size:14px;color:var(--muted);display:block;margin-top:2px">Estructural · pre-torneo · no se actualiza</span></div>`;})()}
+          <div class="model-probs-mini">
+            <div class="mprob-mini"><div class="mpv">${(kpred.pH*100).toFixed(0)}%</div><div class="mlabel">Local</div></div>
+            <div class="mprob-mini"><div class="mpv">${(kpred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
+            <div class="mprob-mini"><div class="mpv">${(kpred.pA*100).toFixed(0)}%</div><div class="mlabel">Visit</div></div>
+          </div>
+          <div class="mscore-big">${kpred.score}</div>
+          <div class="mscore-label">Marcador probable</div>
+          <div class="mscore">xG: ${kpred.xgH} – ${kpred.xgA}</div>
+        </div>
+      </div>
+      <div class="ctx-strip">
+        <div class="ctx-col">
+          <div class="ctx-header">Perrenque</div>
+          <span class="ctx-badge ${momClass(momH)}">${momLabelH}</span>
+          ${gcHtml(gcH)}
+          <div class="ctx-header" style="margin-top:4px">Ambiente</div>
+          <span class="ctx-badge ${crdClass(dH)}">${diasporaLabel(m.home)}</span>
+          ${fatHtml(m.home)}
+        </div>
+        <div class="ctx-col ctx-col-right">
+          <div class="ctx-header">Perrenque</div>
+          <span class="ctx-badge ${momClass(momA)}">${momLabelA}</span>
+          ${gcHtml(gcA)}
+          <div class="ctx-header" style="margin-top:4px">Ambiente</div>
+          <span class="ctx-badge ${crdClass(dA)}">${diasporaLabel(m.away)}</span>
+          ${fatHtml(m.away)}
+        </div>
+      </div>
+      ${perfilHtml}
+      ${bajasHtml}
+      ${betHtml}
+      ${sombraHtml}
+      ${resultHtml}
+    </div>`;
+  }).join('');
+  FOOTIQ_CACHE.panelHtml.set(ds,_panelHtml);
+  }catch(err){ console.warn('prebuildMatchPanel error:',err); }
+}
+
 function renderMatchPanel(ds){
   const matches=CALENDAR_MATCHES[ds]||[];
   const container=document.getElementById('calDayMatches');
@@ -1955,18 +2065,20 @@ function renderMatchPanel(ds){
     container.innerHTML='<div class="card" style="text-align:center;color:var(--muted)">📭 Sin partidos este día</div>';
     return;
   }
-  // Servir desde caché si existe (se invalida en syncFromAPI/toggleAbsent/saveManualResult)
+  // Pre-construir si no está en caché, luego servir
+  prebuildMatchPanel(ds);
   if(FOOTIQ_CACHE.panelHtml.has(ds)){
     container.innerHTML=FOOTIQ_CACHE.panelHtml.get(ds);
     return;
   }
+  // Fallback inline si prebuild falló
   try{
   const isPastDate=ds<todayStr;
   const _panelHtml=matches.map(m=>{
     const pred=getCachedPrediction(m.home,m.away,m.group,'E');
     const kpred=getCachedPrediction(m.home,m.away,m.group,'K');
     const real=REAL_RESULTS[`${m.home}-${m.away}`];
-    const isFinished=real?.played===true; // solo si la API/datos confirmaron el resultado
+    const isFinished=real?.played===true;
     let resultHtml='', betHtml='';
     if(isFinished){
       resultHtml=`<div class="result-real"><div class="rscore">${real.h} — ${real.a}</div><div class="rlabel">Resultado final ✅</div></div>`;
@@ -2156,15 +2268,19 @@ async function boot(){
       const mhoy=CALENDAR_MATCHES[autoDate]||[];
       mhoy.forEach(m=>{ getCachedPrediction(m.home,m.away,m.group,'E'); getCachedPrediction(m.home,m.away,m.group,'K'); });
       // En tiempo libre: pre-calcular perfil/ICC para todos los equipos y predicciones del día siguiente.
-      const ric=typeof requestIdleCallback==='function'?requestIdleCallback:cb=>setTimeout(cb,100);
+      const ric=typeof requestIdleCallback==='function'?requestIdleCallback:cb=>setTimeout(cb,200);
       ric(()=>{
-        ALL_TEAMS.forEach(t=>{ getCachedPerfil(t); getCachedICC(t); });
+        // Pre-calcular perfil/ICC de todos los equipos
+        ALL_TEAMS.forEach(t=>{ getCachedPerfil(t); getCachedICC(t); getCachedMomentum(t); });
+        // Pre-renderizar panel del día seleccionado (resultado: instantáneo al abrir Calendario)
+        prebuildMatchPanel(autoDate);
         // Día siguiente con partidos
         const todasF=Object.keys(CALENDAR_MATCHES).sort();
         const nextDate=todasF.find(d=>d>autoDate);
         if(nextDate){
           const msNext=CALENDAR_MATCHES[nextDate]||[];
           msNext.forEach(m=>{ getCachedPrediction(m.home,m.away,m.group,'E'); getCachedPrediction(m.home,m.away,m.group,'K'); });
+          prebuildMatchPanel(nextDate);
         }
       });
       // NO marcar _calPanelDate aquí: showTab renderizará el panel con cache ya caliente.
@@ -2547,6 +2663,17 @@ function fillBracketPredictions(){
 }
 
 function renderBracket(){
+  // Sincronizar resultados reales de REAL_RESULTS → BRACKET_KO antes de renderizar
+  for(const rnd of ['r32','r16','qf','sf','f','third']){
+    const slots=BRACKET_KO[rnd]||[];
+    for(const m of slots){
+      if(m.sh===null){
+        const key=`${m.h}-${m.a}`;
+        const real=REAL_RESULTS[key];
+        if(real?.played){ m.sh=real.h; m.sa=real.a; }
+      }
+    }
+  }
   fillBracketPredictions(); // auto-poblar con predicciones si aún hay TBDs
   const SW=122, SH=46, CW=22, HDR=30;
   const rounds=[
