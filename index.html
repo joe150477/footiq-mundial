@@ -880,7 +880,11 @@ const REAL_RESULTS = {
   'Algeria-Austria':          {h:3,a:3,played:true},   // Jun 27
   'Jordan-Argentina':         {h:1,a:3,played:true},   // Jun 27
   // ── R32 (Jun 28+) ──
-  'South Africa-Canada':      {h:0,a:1,played:true},   // Jun 28 FT ✓
+  'South Africa-Canada':      {h:0,a:1,played:true},          // Jun 28 FT ✓
+  // ── R32 Jun 29 ──
+  'Brazil-Japan':             {h:2,a:1,played:true},          // Jun 29 FT ✓
+  'Germany-Paraguay':         {h:1,a:1,played:true,penH:3,penA:4}, // Jun 29 AET • Paraguay gana 4-3 pens ✓
+  'Netherlands-Morocco':      {h:1,a:1,played:true,penH:2,penA:3}, // Jun 29 AET • Marruecos gana 3-2 pens ✓ (Países Bajos eliminado)
 };
 
 // ==================== CALENDARIO OFICIAL FIFA WC 2026 ====================
@@ -2773,14 +2777,14 @@ let BRACKET_KO = {
   // h/a = equipos confirmados. Parejas: r32[0]+r32[1]→r16[0], r32[2]+r32[3]→r16[1], etc.
   // Fuente bracket: ESPN/FIFA oficial. 3ros asignados: PAR→3D, SWE→3F, ECU→3E, DR C→3K, SEN→3I, BOS→3B, ALG→3J, GHA→3L
   r32:[
-    // [0] P74 → par con [1], feeds r16[0]
-    {h:'Germany',       a:'Paraguay',    sh:null,sa:null,date:'Jun 29',time:'15:30'},
+    // [0] P74 → par con [1], feeds r16[0] — AET: Alemania eliminada (Pens 3-4)
+    {h:'Germany',       a:'Paraguay',    sh:1,sa:1,pen_h:3,pen_a:4,date:'Jun 29',time:'15:30'},
     // [1] P77
     {h:'France',        a:'Sweden',      sh:null,sa:null,date:'Jun 30',time:'16:00'},
     // [2] P73 → par con [3], feeds r16[1] — FT: South Africa 0-1 Canada
     {h:'South Africa',  a:'Canada',      sh:0,   sa:1,   date:'Jun 28',time:'14:00'},
-    // [3] P75
-    {h:'Netherlands',   a:'Morocco',     sh:null,sa:null,date:'Jun 29',time:'20:00'},
+    // [3] P75 — AET: Países Bajos eliminado (Pens 2-3) ¡SORPRESA MUNDIAL!
+    {h:'Netherlands',   a:'Morocco',     sh:1,sa:1,pen_h:2,pen_a:3,date:'Jun 29',time:'20:00'},
     // [4] P83 → par con [5], feeds r16[2]
     {h:'Portugal',      a:'Croatia',     sh:null,sa:null,date:'Jul 2', time:'18:00'},
     // [5] P84
@@ -2789,8 +2793,8 @@ let BRACKET_KO = {
     {h:'United States', a:'Bosnia',      sh:null,sa:null,date:'Jul 1', time:'19:00'},
     // [7] P82
     {h:'Belgium',       a:'Senegal',     sh:null,sa:null,date:'Jul 1', time:'15:00'},
-    // [8] P76 → par con [9], feeds r16[4]
-    {h:'Brazil',        a:'Japan',       sh:null,sa:null,date:'Jun 29',time:'12:00'},
+    // [8] P76 → par con [9], feeds r16[4] — FT: Brasil clasifica
+    {h:'Brazil',        a:'Japan',       sh:2,sa:1,date:'Jun 29',time:'12:00'},
     // [9] P78
     {h:'Ivory Coast',   a:'Norway',      sh:null,sa:null,date:'Jun 30',time:'12:00'},
     // [10] P79 → par con [11], feeds r16[5]
@@ -2807,8 +2811,8 @@ let BRACKET_KO = {
     {h:'Colombia',      a:'Ghana',       sh:null,sa:null,date:'Jul 3', time:'20:30'},
   ],
   r16:[
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 4', time:'12:00'},  // P90
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 4', time:'16:00'},  // P89
+    {h:'TBD',    a:'TBD',    sh:null,sa:null,date:'Jul 4', time:'12:00'},  // P90 — Paraguay vs {France|Sweden}
+    {h:'Canada', a:'Morocco',sh:null,sa:null,date:'Jul 4', time:'16:00'},  // P89 ✓ confirmado
     {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 5', time:'15:00'},  // P91
     {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 5', time:'19:00'},  // P92
     {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 6', time:'14:00'},  // P93
@@ -2881,7 +2885,10 @@ function renderBracket(){
       if(m.sh===null){
         const key=`${m.h}-${m.a}`;
         const real=REAL_RESULTS[key];
-        if(real?.played){ m.sh=real.h; m.sa=real.a; }
+        if(real?.played){
+          m.sh=real.h; m.sa=real.a;
+          if(real.penH!==undefined){ m.pen_h=real.penH; m.pen_a=real.penA; }
+        }
       }
     }
   }
@@ -2919,22 +2926,24 @@ function renderBracket(){
     matches.forEach((m,mi)=>{
       const y=slotTop(ri,mi);
       const played=m.sh!==null;
-      const winH=played&&m.sh>m.sa;
-      const winA=played&&m.sa>m.sh;
+      const hasPen=played&&m.pen_h!==undefined;
+      const winH=played&&(m.sh>m.sa||(hasPen&&m.pen_h>m.pen_a));
+      const winA=played&&(m.sa>m.sh||(hasPen&&m.pen_a>m.pen_h));
       const isFinal=(round.id==='f');
       const isPred=!played&&m.pred===true;
       const tbd=t=>t==='TBD'?`<span class="tbd">Por definir</span>`:`<span>${FLAG(t)}&nbsp;${t}</span>`;
-      html+=`<div class="bslot${played?' finished':''}${isPred?' predicted':''}${isFinal&&played?' champion':''}" style="left:${x}px;top:${y}px;width:${SW}px;height:${SH}px;">
+      const penLabel=hasPen?`<span style="font-size:7px;color:var(--orange);font-weight:700;position:absolute;right:3px;top:1px">P</span>`:'';
+      html+=`<div class="bslot${played?' finished':''}${isPred?' predicted':''}${isFinal&&played?' champion':''}" style="left:${x}px;top:${y}px;width:${SW}px;height:${SH}px;position:relative">
         <div class="bteam${winH?' won':''}">
           ${tbd(m.h)}
-          ${played?`<span class="bteam-score">${m.sh}</span>`:''}
+          ${played?`<span class="bteam-score">${m.sh}${hasPen?`<sup style="font-size:7px;opacity:.7">${m.pen_h}</sup>`:''}</span>`:''}
         </div>
         <div class="bsep" style="top:${SH/2}px;"></div>
         <div class="bteam${winA?' won':''}">
           ${tbd(m.a)}
-          ${played?`<span class="bteam-score">${m.sa}</span>`:''}
+          ${played?`<span class="bteam-score">${m.sa}${hasPen?`<sup style="font-size:7px;opacity:.7">${m.pen_a}</sup>`:''}</span>`:''}
         </div>
-        <div class="bdate">${isPred?'📊 PRED · ':''} ${m.date}</div>
+        <div class="bdate">${isPred?'📊 PRED · ':''}${hasPen?'⚡P · ':''}${m.date}</div>
         ${isFinal?`<div class="bfinal-badge" style="left:0;right:0;top:${SH+4}px;">🏆 CAMPEÓN</div>`:''}
       </div>`;
 
