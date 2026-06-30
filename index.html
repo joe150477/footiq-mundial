@@ -250,6 +250,20 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 .bconn{position:absolute;background:var(--border);pointer-events:none;}
 .bracket-trophy{text-align:center;font-size:32px;position:absolute;}
 .bfinal-badge{position:absolute;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;color:var(--gold);letter-spacing:1px;}
+
+/* === ANÁLISIS ESTRUCTURAL / INFLUENCIA POLÍTICO-COMERCIAL === */
+.ana-search{width:100%;padding:9px 14px;border-radius:10px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:var(--text);font-size:15px;box-sizing:border-box;outline:none;}
+.ana-bar{height:7px;background:rgba(255,255,255,.1);border-radius:4px;flex:1;overflow:hidden;margin:0 7px}
+.ana-fill{height:100%;border-radius:4px;transition:width .55s cubic-bezier(.4,0,.2,1)}
+.ana-dim{display:flex;align-items:center;margin:5px 0;font-size:13px}
+.ana-dim-lbl{width:134px;color:var(--muted);flex-shrink:0}
+.ana-dim-val{width:30px;text-align:right;font-weight:800;flex-shrink:0;font-size:14px}
+.ana-rank-item{display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)}
+.ana-rank-item:last-child{border-bottom:none}
+.ana-rank-item:active{background:rgba(255,255,255,.04);border-radius:6px}
+.ana-score-badge{padding:3px 10px;border-radius:99px;font-size:12px;font-weight:800;letter-spacing:.02em}
+.ana-team-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.ipc-note{font-size:12px;color:var(--muted);margin-top:8px;padding:7px 10px;background:rgba(249,115,22,.06);border-radius:8px;line-height:1.5;border-left:2px solid rgba(249,115,22,.3)}
 </style>
 </head>
 <body>
@@ -310,6 +324,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
   <div class="tab" onclick="showTab(this,'duel')"><span class="ti">⚔️</span>Duelo</div>
   <div class="tab" onclick="showTab(this,'calendar')"><span class="ti">📅</span>Calendario</div>
   <div class="tab" onclick="showTab(this,'bracket')"><span class="ti">🎯</span>Bracket</div>
+  <div class="tab" onclick="showTab(this,'analisis')"><span class="ti">🔬</span>Análisis</div>
 </div>
 
 <div class="pages">
@@ -328,6 +343,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
     </div>
   </div>
   <div class="page" id="page-bracket"></div>
+  <div class="page" id="page-analisis"></div>
 </div>
 
 <script>
@@ -1104,6 +1120,118 @@ const ELO_PRE = {'Argentina':1950,'France':1930,'Spain':1900,'England':1900,'Bra
   'Cape Verde':1510,'Saudi Arabia':1590,'Iraq':1510,'Algeria':1610,'Jordan':1490,
   'DR Congo':1510,'Uzbekistan':1490,'Ghana':1610,'Panama':1510,'New Zealand':1460,
   'Paraguay':1580,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1660,'Switzerland':1690};
+
+// ==================== ANÁLISIS ESTRUCTURAL ====================
+// 8 dimensiones por selección: [cantera, estab_fed, hist_competitivo, jugadores_eur, balance_edad, continuidad_tec, profundidad, vs_elite]
+const STRUCT_DIMS=['Calidad de Cantera','Estabilidad Fed.','Historial Competitivo','Jugadores en Europa','Balance Etario','Continuidad Técnica','Profundidad Plantilla','Capacidad vs Élite'];
+const STRUCT_ICONS=['🌱','🏛️','🏆','🌍','📊','👔','🧩','⚔️'];
+const STRUCTURAL={
+  'Argentina':    [88,65,97,90,65,92,65,92],
+  'France':       [96,88,94,98,85,88,95,94],
+  'Spain':        [95,90,95,88,88,85,93,93],
+  'Germany':      [90,92,97,85,82,78,90,95],
+  'Brazil':       [92,58,100,95,80,62,85,94],
+  'England':      [78,82,78,82,80,70,88,78],
+  'Netherlands':  [88,72,82,85,78,80,80,82],
+  'Portugal':     [82,80,72,90,72,78,68,75],
+  'Belgium':      [82,85,65,85,55,75,78,70],
+  'Croatia':      [80,78,78,78,65,78,75,78],
+  'Uruguay':      [78,72,88,72,68,70,72,80],
+  'Switzerland':  [75,85,58,80,75,82,75,65],
+  'Colombia':     [72,65,62,75,82,78,65,62],
+  'Morocco':      [65,80,65,70,85,82,72,68],
+  'Japan':        [70,88,52,58,80,88,70,62],
+  'Mexico':       [68,62,62,48,70,62,68,60],
+  'South Korea':  [68,70,62,55,70,70,65,62],
+  'Turkey':       [65,68,55,68,70,65,62,58],
+  'Sweden':       [65,82,65,65,70,75,68,62],
+  'Czechia':      [65,72,60,68,65,68,65,60],
+  'Ivory Coast':  [65,60,55,65,72,65,65,58],
+  'Austria':      [68,70,55,70,78,78,70,62],
+  'Norway':       [62,80,45,68,88,80,68,55],
+  'Scotland':     [62,75,52,70,68,72,62,55],
+  'Senegal':      [62,62,55,68,75,70,65,58],
+  'Algeria':      [60,62,55,60,70,65,60,55],
+  'Ecuador':      [60,62,52,52,78,62,58,50],
+  'Ghana':        [60,58,58,62,68,65,62,55],
+  'Tunisia':      [55,60,52,52,65,60,55,50],
+  'Egypt':        [55,60,55,50,65,68,58,52],
+  'Australia':    [55,72,52,50,72,72,58,52],
+  'Paraguay':     [60,58,55,55,65,60,58,52],
+  'Bosnia':       [50,55,42,60,62,58,52,45],
+  'Canada':       [58,78,42,48,82,78,60,48],
+  'United States':[62,78,55,45,85,70,65,55],
+  'Iran':         [50,58,48,42,65,60,52,48],
+  'Saudi Arabia': [48,62,48,38,65,62,50,45],
+  'South Africa': [50,60,42,42,68,62,52,45],
+  'DR Congo':     [48,52,45,45,65,58,50,42],
+  'Cape Verde':   [48,58,35,52,72,62,50,40],
+  'New Zealand':  [40,68,38,38,65,65,42,38],
+  'Uzbekistan':   [42,58,38,35,68,60,45,40],
+  'Panama':       [45,65,42,38,65,68,48,42],
+  'Qatar':        [38,65,42,30,62,68,42,38],
+  'Iraq':         [42,52,42,38,65,55,45,40],
+  'Jordan':       [38,52,35,30,65,58,40,35],
+  'Haiti':        [40,48,38,35,65,52,42,35],
+  'Curaçao':      [38,52,32,40,65,55,40,35],
+};
+
+// ==================== ÍNDICE POLÍTICO-COMERCIAL ====================
+// 7 dimensiones: [impacto_estrella, audiencia_ingresos, valor_patrocinadores, audiencias_tv, presion_mediatica, historial_arbitral, geopolitica_sede]
+// IMPORTANTE: índice estimativo basado en datos públicos documentados.
+// Un IPC alto refleja la magnitud de incentivos externos — no implica conducta irregular.
+const INFL_DIMS=['Impacto Estrella','Audiencia/Ingresos','Valor Patrocinadores','Audiencias TV','Presión Mediática','Historial Arbitral *','Geopolítica/Sede'];
+const INFL_ICONS=['⭐','💰','🤝','📺','📰','🏁','🌐'];
+const INFLUENCE={
+  'Portugal':     [100,98,97,95,96,70,50], // CR7: mayor impacto comercial individual activo
+  'Argentina':    [98,97,95,95,97,65,68],  // Messi: último WC, valor comercial máximo
+  'Brazil':       [85,90,88,90,90,68,78],  // Vinícius + mercado masivo + anfitrión 2014
+  'France':       [88,88,90,88,88,58,72],  // Mbappé + plantilla más valiosa del mundo
+  'Spain':        [78,82,85,82,80,58,68],  // Yamal emergente + LaLiga
+  'Germany':      [75,80,85,80,78,55,68],  // Bundesliga + relación histórica FIFA
+  'England':      [72,82,83,85,88,60,65],  // Premier + Kane + peso mediático anglosajón
+  'United States':[62,88,90,88,72,52,95], // CO-ANFITRIÓN: expansión comercial FIFA a EEUU
+  'Mexico':       [60,80,78,85,68,58,90],  // CO-ANFITRIÓN: 130M + Azteca + TV Azteca/Televisa
+  'Canada':       [42,58,55,62,45,48,78],  // CO-ANFITRIÓN: menor impacto individual
+  'Japan':        [68,78,78,80,70,48,62],  // Audiencia asiática masiva + crecimiento liga
+  'South Korea':  [60,72,70,72,62,88,58],  // 2002: caso arbitral más documentado en historia WC (Moreno)
+  'Belgium':      [68,68,72,68,68,50,58],  // De Bruyne + golden gen
+  'Netherlands':  [62,65,70,65,62,50,55],
+  'Colombia':     [58,62,58,62,58,50,55],
+  'Croatia':      [55,60,58,60,58,52,52],
+  'Morocco':      [52,58,55,60,65,52,68],  // Qatar 2022 semifinal + candidatura WC 2030
+  'Uruguay':      [58,58,55,58,58,55,48],
+  'Switzerland':  [48,52,58,52,50,48,55],
+  'Austria':      [50,52,55,52,50,48,52],
+  'Norway':       [58,55,55,55,55,48,50],  // Haaland = impacto estrella
+  'Sweden':       [52,52,55,52,52,48,52],
+  'Australia':    [42,48,48,48,42,48,52],
+  'Ecuador':      [40,45,42,45,40,48,50],
+  'Senegal':      [50,50,50,50,48,48,50],
+  'Ghana':        [45,45,45,45,45,48,48],
+  'Ivory Coast':  [48,48,48,48,48,48,48],
+  'Egypt':        [45,48,45,48,45,48,50],
+  'Algeria':      [45,45,45,45,45,48,50],
+  'South Africa': [38,40,40,40,38,48,52],
+  'Qatar':        [35,40,52,38,55,90,92],  // 2022 host: mayor polémica institucional FIFA documentada
+  'Saudi Arabia': [38,42,60,42,40,50,88],  // Vision 2030 + patrocinios FIFA + LIV Golf
+  'Turkey':       [45,48,50,48,45,52,62],  // Geopolítica activa + liga emergente
+  'Iran':         [35,38,40,38,38,52,70],  // Geopolítica
+  'Bosnia':       [40,40,38,40,40,48,45],
+  'Paraguay':     [40,40,40,40,40,48,45],
+  'Czechia':      [40,40,48,40,40,48,50],
+  'Scotland':     [40,45,48,45,40,48,50],
+  'Panama':       [32,35,35,35,32,48,50],
+  'New Zealand':  [28,30,32,30,28,48,42],
+  'Uzbekistan':   [28,30,30,30,28,48,45],
+  'DR Congo':     [32,32,32,32,32,48,45],
+  'Cape Verde':   [28,28,28,28,28,48,42],
+  'Iraq':         [25,28,28,28,25,50,62],  // Geopolítica
+  'Jordan':       [22,25,25,25,22,48,55],  // Geopolítica
+  'Tunisia':      [35,35,35,35,35,48,48],
+  'Haiti':        [25,25,25,25,22,48,45],
+  'Curaçao':      [20,20,22,20,20,48,42],
+};
 
 // ==================== SISTEMA DE APRENDIZAJE AUTÓNOMO ====================
 let DYNAMIC_ATT={}, DYNAMIC_DEF={};
@@ -2200,6 +2328,88 @@ function changeMonth(dir){
   }
 }
 
+// ==================== MÓDULO ANÁLISIS ====================
+let _analisisSelected=null;
+
+function _ieScore(t){ const d=STRUCTURAL[t]; return d?Math.round(d.reduce((a,b)=>a+b,0)/d.length):50; }
+function _ipcScore(t){ const d=INFLUENCE[t]; return d?Math.round(d.reduce((a,b)=>a+b,0)/d.length):40; }
+
+function selectAnalisis(t){ _analisisSelected=t; renderAnalisis(); }
+function clearAnalisis(){ _analisisSelected=null; renderAnalisis(); }
+
+function analisisSearch(q){
+  const box=document.getElementById('ana-suggest');
+  if(!box) return;
+  if(!q.trim()){ box.innerHTML=''; return; }
+  const ts=Object.keys(STRUCTURAL).filter(t=>t.toLowerCase().includes(q.toLowerCase()));
+  if(ts.length===1){ selectAnalisis(ts[0]); return; }
+  box.innerHTML=ts.slice(0,8).map(t=>`<div class="ana-rank-item" onclick="selectAnalisis('${t}')">${FLAG(t)}&nbsp;${t}</div>`).join('');
+}
+
+function renderAnalisis(){
+  const bar=(v,col)=>`<div class="ana-bar"><div class="ana-fill" style="width:${v}%;background:${col}"></div></div>`;
+  const dimRow=(lbl,icon,v,col)=>`<div class="ana-dim">
+    <span class="ana-dim-lbl">${icon}&nbsp;${lbl}</span>${bar(v,col)}<span class="ana-dim-val" style="color:${col}">${v}</span></div>`;
+
+  const ieTier=s=>s>=85?['#4aaeff','Elite']:s>=70?['var(--accent)','Sólida']:s>=55?['var(--orange)','Creciente']:['var(--muted)','Limitada'];
+  const ipcTier=s=>s>=70?['#e84074','Alta']:s>=52?['var(--orange)','Media']:['var(--green)','Baja'];
+
+  const teamCard=t=>{
+    const sd=STRUCTURAL[t]||new Array(8).fill(50);
+    const id=INFLUENCE[t]||new Array(7).fill(35);
+    const ie=_ieScore(t),[ieCol,ieLabel]=ieTier(ie);
+    const ipc=_ipcScore(t),[ipcCol,ipcLabel]=ipcTier(ipc);
+    return `<div class="card" style="border-color:rgba(74,170,255,.3)">
+      <div class="ana-team-hdr">
+        <span style="font-size:32px">${FLAG(t)}</span>
+        <div style="flex:1">
+          <div style="font-size:18px;font-weight:800">${t}</div>
+          <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+            <span class="ana-score-badge" style="background:rgba(74,170,255,.15);color:${ieCol}">IE ${ie}/100 · ${ieLabel}</span>
+            <span class="ana-score-badge" style="background:rgba(249,115,22,.12);color:${ipcCol}">IPC ${ipc}/100 · ${ipcLabel}</span>
+          </div>
+        </div>
+        <button onclick="clearAnalisis()" style="background:rgba(255,255,255,.08);border:none;color:var(--muted);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px">✕</button>
+      </div>
+      <div class="stitle" style="font-size:15px;margin:2px 0 8px">🏗️ Índice Estructural (IE)</div>
+      ${STRUCT_DIMS.map((l,i)=>dimRow(l,STRUCT_ICONS[i],sd[i],'var(--accent)')).join('')}
+      <div style="text-align:right;margin-top:6px;font-size:13px;color:var(--muted)">IE promedio: <strong style="color:${ieCol};font-size:16px">${ie}/100</strong></div>
+
+      <div class="stitle" style="font-size:15px;margin:14px 0 8px">⚖️ Índice Político-Comercial (IPC)</div>
+      ${INFL_DIMS.map((l,i)=>dimRow(l,INFL_ICONS[i],id[i],'var(--orange)')).join('')}
+      <div style="text-align:right;margin-top:6px;font-size:13px;color:var(--muted)">IPC promedio: <strong style="color:${ipcCol};font-size:16px">${ipc}/100</strong></div>
+      <div class="ipc-note">⚠️ El IPC es un índice <em>estimativo</em> basado en datos públicos documentados. Un valor alto no implica irregularidad — refleja la magnitud de incentivos externos observables que rodean a esa selección. (*) Historial arbitral: análisis estadístico de decisiones cuestionadas en torneos anteriores según investigadores independientes.</div>
+    </div>`;
+  };
+
+  const rankRow=(t,sc,col)=>`<div class="ana-rank-item" onclick="selectAnalisis('${t}')">
+    <span style="flex:1;font-size:14px">${FLAG(t)}&nbsp;${t}</span>
+    <div class="ana-bar" style="max-width:70px">${`<div class="ana-fill" style="width:${sc}%;background:${col}"></div>`}</div>
+    <span class="ana-dim-val" style="color:${col}">${sc}</span>
+  </div>`;
+
+  const allT=Object.keys(STRUCTURAL);
+  const ieRank=[...allT].sort((a,b)=>_ieScore(b)-_ieScore(a));
+  const ipcRank=[...allT].sort((a,b)=>_ipcScore(b)-_ipcScore(a));
+  const sel=_analisisSelected;
+
+  document.getElementById('page-analisis').innerHTML=`<div style="padding:4px 0">
+    <input class="ana-search" type="text" placeholder="🔍 Buscar selección..." oninput="analisisSearch(this.value)">
+    <div id="ana-suggest" style="margin-top:4px"></div>
+    ${sel?teamCard(sel):''}
+    ${!sel?`<div class="card" style="padding:8px 12px">
+      <div class="stitle" style="font-size:15px;margin:2px 0 6px">🏗️ Índice Estructural — Top 10</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Toca cualquier selección para ver análisis completo</div>
+      ${ieRank.slice(0,10).map(t=>rankRow(t,_ieScore(t),'var(--accent)')).join('')}
+    </div>
+    <div class="card" style="padding:8px 12px">
+      <div class="stitle" style="font-size:15px;margin:2px 0 6px">⚖️ Índice Político-Comercial — Top 10</div>
+      ${ipcRank.slice(0,10).map(t=>rankRow(t,_ipcScore(t),'var(--orange)')).join('')}
+      <div class="ipc-note">⚠️ IPC estimativo · No implica irregularidad · Refleja incentivos externos documentados · (*) Historial arbitral basado en análisis estadísticos publicados</div>
+    </div>`:''}
+  </div>`;
+}
+
 const _renderedTabs=new Set();
 function showTab(el,name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -2216,6 +2426,7 @@ function showTab(el,name){
     }
   }
   else if(name==='duel'){ if(!_renderedTabs.has('duel')){ renderDuel(); _renderedTabs.add('duel'); } }
+  else if(name==='analisis'){ renderAnalisis(); }
 }
 
 // ==================== PROGRESO Y BOOT ====================
