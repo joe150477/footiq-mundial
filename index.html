@@ -12,32 +12,32 @@
   --dim:#6b7a90;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
 
 /* === OVERLAY === */
 #overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
 #overlay.gone{display:none;}
-.ov-ball{font-size:52px;animation:spin 2s linear infinite;}
-.ov-title{font-size:22px;font-weight:700;}
-.ov-sub{font-size:17px;color:var(--muted);}
+.ov-ball{font-size:55px;animation:spin 2s linear infinite;}
+.ov-title{font-size:25px;font-weight:700;}
+.ov-sub{font-size:20px;color:var(--muted);}
 .ov-prog{width:280px;height:5px;background:var(--border);border-radius:3px;}
 .ov-fill{height:100%;background:var(--accent);width:0%;transition:width .2s;}
-.ov-step{font-size:17px;color:var(--muted);}
+.ov-step{font-size:20px;color:var(--muted);}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes blink{50%{opacity:.3}}
 
 /* === TOPBAR / TABS === */
 .topbar{display:flex;padding:12px 14px;border-bottom:1px solid var(--border);align-items:center;gap:8px;}
-.logo{font-size:24px;font-weight:900;} .logo em{color:var(--accent);}
+.logo{font-size:27px;font-weight:900;} .logo em{color:var(--accent);}
 .spacer{flex:1;}
-.col-time{font-size:16px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
-.score-pill{background:var(--bg2);border-radius:99px;padding:4px 10px;font-size:16px;}
+.col-time{font-size:19px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.score-pill{background:var(--bg2);border-radius:99px;padding:4px 10px;font-size:19px;}
 .sdot{width:10px;height:10px;border-radius:50%;background:var(--muted);}
 .sdot.ok{background:var(--green);}
 .tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);}
-.tab{flex:1;text-align:center;padding:10px 2px;font-size:16px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;}
+.tab{flex:1;text-align:center;padding:10px 2px;font-size:19px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
-.tab .ti{font-size:24px;display:block;}
+.tab .ti{font-size:27px;display:block;}
 
 /* === PAGES === */
 .pages{flex:1;overflow:hidden;position:relative;}
@@ -46,37 +46,37 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 
 /* === CARDS / ROWS === */
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
-.stitle{font-size:18px;font-weight:700;margin:12px 0 8px;display:flex;align-items:center;gap:6px;}
+.stitle{font-size:21px;font-weight:700;margin:12px 0 8px;display:flex;align-items:center;gap:6px;}
 .trow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
-.tflg{font-size:26px;} .tname{font-size:19px;font-weight:600;flex:1;}
-.tpct{font-size:18px;font-weight:700;color:var(--accent);}
-.pill{font-size:15px;padding:2px 8px;border-radius:99px;}
+.tflg{font-size:29px;} .tname{font-size:22px;font-weight:600;flex:1;}
+.tpct{font-size:21px;font-weight:700;color:var(--accent);}
+.pill{font-size:18px;padding:2px 8px;border-radius:99px;}
 .pg{background:rgba(32,192,90,.2);color:var(--green);}
 
 /* === CHAMPION === */
 .champ-wrap{background:linear-gradient(135deg,#090f1e,#0d1c35);border-radius:16px;padding:22px;text-align:center;margin-bottom:12px;}
-.champ-flag{font-size:56px;} .champ-name{font-size:28px;font-weight:900;}
-.champ-pct{font-size:44px;font-weight:900;color:var(--gold);}
+.champ-flag{font-size:59px;} .champ-name{font-size:31px;font-weight:900;}
+.champ-pct{font-size:47px;font-weight:900;color:var(--gold);}
 
 /* === GROUPS === */
 .grp-card{background:var(--card);border-radius:12px;margin-bottom:10px;overflow:hidden;}
-.grp-head{background:var(--bg2);padding:10px 14px;font-weight:700;font-size:19px;}
+.grp-head{background:var(--bg2);padding:10px 14px;font-weight:700;font-size:22px;}
 .grp-team{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
 
 /* === DUEL === */
 .ld-board{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .ld-card{text-align:center;padding:14px;border:2px solid var(--border);border-radius:12px;}
-.ld-name{font-size:17px;color:var(--muted);margin-bottom:6px;}
-.ld-score{font-size:42px;font-weight:900;}
-.ld-detail{font-size:17px;color:var(--muted);}
+.ld-name{font-size:20px;color:var(--muted);margin-bottom:6px;}
+.ld-score{font-size:45px;font-weight:900;}
+.ld-detail{font-size:20px;color:var(--muted);}
 
 /* === CALENDAR === */
 .cal-header{display:flex;justify-content:space-between;align-items:center;padding:8px;margin-bottom:8px;}
-.cal-nav{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:50%;cursor:pointer;font-size:22px;user-select:none;}
-.cal-title{font-size:18px;font-weight:700;}
-.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:15px;color:var(--muted);margin-bottom:6px;}
+.cal-nav{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:50%;cursor:pointer;font-size:25px;user-select:none;}
+.cal-title{font-size:21px;font-weight:700;}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:18px;color:var(--muted);margin-bottom:6px;}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:17px;font-weight:600;}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:20px;font-weight:600;}
 .cal-day.has-match{border-color:rgba(47,168,245,.4);}
 .cal-day.active{background:var(--accent);color:#000;border-color:var(--accent);}
 .cal-day.active .cal-d-dot{background:#000;}
@@ -87,94 +87,94 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 /* === MATCH CARD === */
 .mcard-dual{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;}
 .match-header{display:flex;align-items:center;gap:8px;padding:6px 0;margin-bottom:10px;border-bottom:1px solid var(--border);}
-.match-group{font-size:16px;color:var(--muted);margin-left:auto;}
-.match-time{font-size:16px;color:var(--muted);}
+.match-group{font-size:19px;color:var(--muted);margin-left:auto;}
+.match-time{font-size:19px;color:var(--muted);}
 .model-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px;}
 .model-box{padding:10px;border-radius:10px;}
-.model-box-title{font-size:16px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+.model-box-title{font-size:19px;font-weight:700;color:var(--muted);margin-bottom:6px;}
 .model-box.actual{background:rgba(47,168,245,.1);border:1px solid rgba(47,168,245,.3);}
 .model-probs-mini{display:flex;gap:5px;margin:8px 0;}
 .mprob-mini{flex:1;text-align:center;background:rgba(255,255,255,.05);border-radius:8px;padding:8px 4px;}
-.mpv{font-size:30px;font-weight:900;}
-.mlabel{font-size:15px;color:var(--muted);margin-top:3px;}
-.mscore{font-size:13px;color:var(--muted);margin-top:4px;}
-.mscore-big{font-size:34px;font-weight:900;letter-spacing:2px;margin-top:6px;color:var(--accent);text-align:center;line-height:1;}
-.mscore-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:center;margin-top:2px;}
+.mpv{font-size:33px;font-weight:900;}
+.mlabel{font-size:18px;color:var(--muted);margin-top:3px;}
+.mscore{font-size:17px;color:var(--muted);margin-top:4px;}
+.mscore-big{font-size:37px;font-weight:900;letter-spacing:2px;margin-top:6px;color:var(--accent);text-align:center;line-height:1;}
+.mscore-label{font-size:15px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);text-align:center;margin-top:2px;}
 
 /* === API SYNC === */
-.sync-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bg2);cursor:pointer;font-size:16px;border:1px solid var(--border);transition:all .2s;}
+.sync-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bg2);cursor:pointer;font-size:19px;border:1px solid var(--border);transition:all .2s;}
 .sync-btn:hover{border-color:var(--accent);}
 .sync-btn.syncing{animation:spin 1s linear infinite;}
-.sync-status{font-size:16px;color:var(--muted);margin-left:4px;}
+.sync-status{font-size:19px;color:var(--muted);margin-left:4px;}
 .settings-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9998;display:flex;align-items:center;justify-content:center;}
 .settings-modal.gone{display:none;}
 /* Modal ingreso de resultados */
 .result-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;}
 .result-modal.gone{display:none;}
 .result-content{background:var(--card);border:1px solid var(--accent);border-radius:18px;padding:24px;width:92%;max-width:380px;}
-.result-match-title{font-size:18px;font-weight:800;margin-bottom:4px;text-align:center;}
-.result-match-sub{font-size:16px;color:var(--muted);text-align:center;margin-bottom:16px;}
+.result-match-title{font-size:21px;font-weight:800;margin-bottom:4px;text-align:center;}
+.result-match-sub{font-size:19px;color:var(--muted);text-align:center;margin-bottom:16px;}
 .result-score-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;}
-.result-score-input{width:70px;background:var(--bg2);border:2px solid var(--accent);border-radius:10px;padding:10px;color:var(--text);font-size:28px;font-weight:800;text-align:center;outline:none;}
-.result-dash{font-size:28px;font-weight:800;color:var(--muted);}
+.result-score-input{width:70px;background:var(--bg2);border:2px solid var(--accent);border-radius:10px;padding:10px;color:var(--text);font-size:31px;font-weight:800;text-align:center;outline:none;}
+.result-dash{font-size:31px;font-weight:800;color:var(--muted);}
 .result-btns{display:flex;gap:8px;}
-.result-btn-save{flex:1;background:var(--green);color:#000;border:none;border-radius:10px;padding:12px;font-size:16px;font-weight:800;cursor:pointer;}
-.result-btn-cancel{background:var(--bg2);color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:14px;cursor:pointer;}
-.enter-result-btn{display:inline-block;margin-top:8px;background:var(--accent);color:#000;border:none;border-radius:8px;padding:8px 16px;font-size:16px;font-weight:700;cursor:pointer;}
+.result-btn-save{flex:1;background:var(--green);color:#000;border:none;border-radius:10px;padding:12px;font-size:19px;font-weight:800;cursor:pointer;}
+.result-btn-cancel{background:var(--bg2);color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:17px;cursor:pointer;}
+.enter-result-btn{display:inline-block;margin-top:8px;background:var(--accent);color:#000;border:none;border-radius:8px;padding:8px 16px;font-size:19px;font-weight:700;cursor:pointer;}
 .settings-content{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;width:90%;max-width:360px;}
-.settings-title{font-size:20px;font-weight:800;margin-bottom:6px;}
-.settings-desc{font-size:17px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
+.settings-title{font-size:23px;font-weight:800;margin-bottom:6px;}
+.settings-desc{font-size:20px;color:var(--muted);margin-bottom:14px;line-height:1.5;}
 .settings-desc a{color:var(--accent);}
-.api-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:15px;margin-bottom:12px;outline:none;}
+.api-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:18px;margin-bottom:12px;outline:none;}
 .api-input:focus{border-color:var(--accent);}
 .settings-btns{display:flex;gap:8px;}
-.btn-save{flex:1;background:var(--accent);color:#000;border:none;border-radius:8px;padding:10px;font-size:15px;font-weight:700;cursor:pointer;}
-.btn-cancel{background:var(--bg2);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;cursor:pointer;}
-.settings-msg{font-size:16px;margin-top:10px;min-height:18px;}
+.btn-save{flex:1;background:var(--accent);color:#000;border:none;border-radius:8px;padding:10px;font-size:18px;font-weight:700;cursor:pointer;}
+.btn-cancel{background:var(--bg2);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:17px;cursor:pointer;}
+.settings-msg{font-size:19px;margin-top:10px;min-height:18px;}
 .settings-msg.ok{color:var(--green);}
 .settings-msg.err{color:var(--red);}
-.sync-toast{position:fixed;top:58px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 40px 10px 16px;font-size:16px;z-index:9997;opacity:0;transition:opacity .3s;pointer-events:auto;max-width:90vw;word-break:break-word;line-height:1.4;}
+.sync-toast{position:fixed;top:58px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 40px 10px 16px;font-size:19px;z-index:9997;opacity:0;transition:opacity .3s;pointer-events:auto;max-width:90vw;word-break:break-word;line-height:1.4;}
 .sync-toast.show{opacity:1;}
-.toast-close{position:absolute;top:6px;right:10px;font-size:18px;cursor:pointer;color:var(--muted);line-height:1;}
+.toast-close{position:absolute;top:6px;right:10px;font-size:21px;cursor:pointer;color:var(--muted);line-height:1;}
 
 /* === PERFIL INTEGRAL === */
 .perfil-section{background:rgba(255,255,255,.03);border:1px solid rgba(100,200,255,.15);border-radius:10px;padding:10px;margin-top:10px;}
-.perfil-title{font-size:15px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:8px;}
-.perfil-row{display:flex;align-items:center;gap:5px;margin-bottom:6px;font-size:17px;}
-.perfil-dim{width:70px;color:var(--muted);font-size:15px;}
+.perfil-title{font-size:18px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:8px;}
+.perfil-row{display:flex;align-items:center;gap:5px;margin-bottom:6px;font-size:20px;}
+.perfil-dim{width:70px;color:var(--muted);font-size:18px;}
 .perfil-bar-wrap{flex:1;height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;}
 .perfil-bar{height:100%;border-radius:4px;transition:width .3s;}
 .perfil-bar.home{background:var(--accent);}
 .perfil-bar.away{background:var(--orange);}
-.perfil-val{width:34px;text-align:right;font-weight:700;font-size:17px;}
+.perfil-val{width:34px;text-align:right;font-weight:700;font-size:20px;}
 .perfil-val.win{color:var(--green);}
-.perfil-total{display:flex;justify-content:space-between;margin-top:6px;font-size:17px;font-weight:700;border-top:1px solid var(--border);padding-top:6px;}
+.perfil-total{display:flex;justify-content:space-between;margin-top:6px;font-size:20px;font-weight:700;border-top:1px solid var(--border);padding-top:6px;}
 
 /* === BAJAS === */
 .bajas-section{background:rgba(255,255,255,.03);border:1px solid rgba(255,100,100,.2);border-radius:10px;padding:10px;margin-top:10px;}
-.bajas-title{font-size:16px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:8px;}
-.bajas-team-label{font-size:17px;color:var(--muted);margin-bottom:5px;}
+.bajas-title{font-size:19px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:8px;}
+.bajas-team-label{font-size:20px;color:var(--muted);margin-bottom:5px;}
 .bajas-pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
-.baja-pill{font-size:17px;padding:6px 12px;border-radius:99px;background:var(--bg2);border:1px solid var(--border);cursor:pointer;transition:all .2s;user-select:none;}
+.baja-pill{font-size:20px;padding:6px 12px;border-radius:99px;background:var(--bg2);border:1px solid var(--border);cursor:pointer;transition:all .2s;user-select:none;}
 .baja-pill.absent{background:rgba(232,64,74,.2);border-color:var(--red);color:var(--red);text-decoration:line-through;}
 .baja-pill:not(.absent):hover{border-color:var(--muted);}
-.baja-impact{font-size:16px;color:var(--red);margin-top:3px;}
-.conf-badge{font-size:14px;font-weight:600;padding:2px 7px;border-radius:99px;margin-left:5px;}
+.baja-impact{font-size:19px;color:var(--red);margin-top:3px;}
+.conf-badge{font-size:17px;font-weight:600;padding:2px 7px;border-radius:99px;margin-left:5px;}
 .conf-high{background:rgba(32,192,90,.2);color:var(--green);}
 .conf-med{background:rgba(250,204,21,.15);color:var(--yellow);}
 .conf-low{background:rgba(249,115,22,.2);color:var(--orange);}
 .fjd-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);}
-.fjd-star{font-size:16px;padding:3px 9px;border-radius:99px;background:rgba(240,188,53,.12);border:1px solid rgba(240,188,53,.3);color:var(--gold);}
+.fjd-star{font-size:19px;padding:3px 9px;border-radius:99px;background:rgba(240,188,53,.12);border:1px solid rgba(240,188,53,.3);color:var(--gold);}
 .fjd-star.fjd-baja{background:rgba(232,64,74,.12);border-color:var(--red);color:var(--red);text-decoration:line-through;}
 .fjd-star.fjd-aged{background:rgba(107,122,144,.12);border-color:var(--muted);color:var(--dim);}
-.pen-badge{font-size:16px;color:var(--red);margin-left:5px;}
+.pen-badge{font-size:19px;color:var(--red);margin-left:5px;}
 
 /* === MOMENTUM / FATIGA / DIÁSPORA === */
 .ctx-strip{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 6px;padding:10px;background:rgba(0,0,0,.2);border-radius:10px;}
 .ctx-col{display:flex;flex-direction:column;gap:3px;}
 .ctx-col-right{text-align:right;}
-.ctx-header{font-size:15px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
-.ctx-badge{display:inline-flex;align-items:center;gap:4px;font-size:16px;font-weight:600;padding:4px 9px;border-radius:99px;margin-top:2px;}
+.ctx-header{font-size:18px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.ctx-badge{display:inline-flex;align-items:center;gap:4px;font-size:19px;font-weight:600;padding:4px 9px;border-radius:99px;margin-top:2px;}
 .ctx-momentum-fire{background:rgba(249,115,22,.18);color:#fb923c;}
 .ctx-momentum-good{background:rgba(32,192,90,.15);color:var(--green);}
 .ctx-momentum-neut{background:rgba(107,122,144,.15);color:var(--muted);}
@@ -183,50 +183,50 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 .ctx-crowd-high{background:rgba(250,204,21,.15);color:var(--yellow);}
 .ctx-crowd-part{background:rgba(249,115,22,.12);color:#fb923c;}
 .ctx-crowd-low{background:rgba(107,122,144,.12);color:var(--muted);}
-.ctx-fatigue{font-size:15px;color:var(--red);margin-top:3px;font-style:italic;}
+.ctx-fatigue{font-size:18px;color:var(--red);margin-top:3px;font-style:italic;}
 
 /* === SORPRESA DEL DÍA === */
 .surprise-bet{margin-top:12px;background:rgba(232,64,74,.12);border:1.5px solid rgba(232,64,74,.5);border-radius:10px;padding:12px 14px;}
 .sb-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.sb-icon{font-size:18px;}
-.sb-title{font-size:17px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--red);}
-.sb-score{margin-left:auto;font-size:16px;font-weight:800;color:var(--red);background:rgba(232,64,74,.2);padding:2px 9px;border-radius:99px;}
-.sb-team{font-size:19px;color:#fff;margin-bottom:6px;}
-.sb-prob{font-size:16px;color:var(--muted);}
+.sb-icon{font-size:21px;}
+.sb-title{font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--red);}
+.sb-score{margin-left:auto;font-size:19px;font-weight:800;color:var(--red);background:rgba(232,64,74,.2);padding:2px 9px;border-radius:99px;}
+.sb-team{font-size:22px;color:#fff;margin-bottom:6px;}
+.sb-prob{font-size:19px;color:var(--muted);}
 .sb-reasons{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
-.sb-reason{font-size:16px;color:rgba(255,255,255,.75);padding-left:6px;border-left:2px solid rgba(232,64,74,.5);}
-.sb-disclaimer{font-size:15px;color:var(--muted);font-style:italic;}
+.sb-reason{font-size:19px;color:rgba(255,255,255,.75);padding-left:6px;border-left:2px solid rgba(232,64,74,.5);}
+.sb-disclaimer{font-size:18px;color:var(--muted);font-style:italic;}
 
 /* === SOMBRA INSTITUCIONAL === */
 .sombra-alert{margin-top:12px;background:rgba(80,70,100,.15);border:1px solid rgba(120,100,160,.35);border-radius:10px;padding:12px 14px;}
 .sombra-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.sombra-title{font-size:16px;font-weight:800;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;}
-.sombra-nivel{font-size:15px;padding:2px 8px;border-radius:99px;background:rgba(120,100,160,.2);color:#c4b5fd;margin-left:auto;}
-.sombra-item{font-size:16px;color:rgba(200,190,220,.8);padding:3px 0 3px 8px;border-left:2px solid rgba(120,100,160,.4);margin-bottom:4px;line-height:1.4;}
-.sombra-disclaimer{font-size:15px;color:var(--muted);font-style:italic;margin-top:6px;}
+.sombra-title{font-size:19px;font-weight:800;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;}
+.sombra-nivel{font-size:18px;padding:2px 8px;border-radius:99px;background:rgba(120,100,160,.2);color:#c4b5fd;margin-left:auto;}
+.sombra-item{font-size:19px;color:rgba(200,190,220,.8);padding:3px 0 3px 8px;border-left:2px solid rgba(120,100,160,.4);margin-bottom:4px;line-height:1.4;}
+.sombra-disclaimer{font-size:18px;color:var(--muted);font-style:italic;margin-top:6px;}
 
 /* === BET === */
 .bet-market{background:rgba(0,0,0,.3);border-radius:12px;padding:12px;margin-top:12px;}
-.bet-market-title{font-size:17px;font-weight:700;color:var(--yellow);margin-bottom:8px;text-transform:uppercase;}
+.bet-market-title{font-size:20px;font-weight:700;color:var(--yellow);margin-bottom:8px;text-transform:uppercase;}
 .bet-odds{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
 .bet-option{background:var(--bg2);border-radius:8px;padding:8px 12px;text-align:center;min-width:72px;border:1px solid var(--border);}
-.bet-option .blabel{font-size:15px;color:var(--muted);}
-.bet-option .bval{font-size:19px;font-weight:800;color:var(--gold);}
-.bet-option .breason{font-size:14px;color:var(--dim);font-style:italic;}
+.bet-option .blabel{font-size:18px;color:var(--muted);}
+.bet-option .bval{font-size:22px;font-weight:800;color:var(--gold);}
+.bet-option .breason{font-size:17px;color:var(--dim);font-style:italic;}
 
 /* === RESULT === */
 .result-real{background:rgba(32,192,90,.1);border-radius:8px;padding:12px;margin-top:12px;text-align:center;border:1px solid var(--green);}
-.result-real .rscore{font-size:28px;font-weight:900;}
-.result-real .rlabel{font-size:16px;color:var(--muted);margin-top:3px;}
+.result-real .rscore{font-size:31px;font-weight:900;}
+.result-real .rlabel{font-size:19px;color:var(--muted);margin-top:3px;}
 
 /* === NO RESULT === */
-.no-result{background:rgba(240,188,53,.05);border-radius:8px;padding:10px;margin-top:10px;text-align:center;border:1px solid rgba(240,188,53,.3);font-size:14px;color:var(--muted);}
+.no-result{background:rgba(240,188,53,.05);border-radius:8px;padding:10px;margin-top:10px;text-align:center;border:1px solid rgba(240,188,53,.3);font-size:17px;color:var(--muted);}
 
 /* === BRACKET === */
 .bracket-wrap{display:flex;flex-direction:column;height:100%;overflow:hidden;}
 .bracket-tabs{display:flex;gap:6px;overflow-x:auto;padding:8px 12px 4px;scrollbar-width:none;}
 .bracket-tabs::-webkit-scrollbar{display:none;}
-.btab{padding:7px 14px;border-radius:20px;border:none;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--card);color:var(--muted);}
+.btab{padding:7px 14px;border-radius:20px;border:none;font-size:17px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--card);color:var(--muted);}
 .btab-r32.active{background:var(--accent);color:#000;}
 .btab-r16.active{background:var(--green);color:#000;}
 .btab-qf.active{background:var(--gold);color:#000;}
@@ -239,32 +239,32 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 .bmatch.bm-final{border-color:var(--gold);background:rgba(240,188,53,.06);}
 .bmatch.bm-third{border-color:rgba(99,202,183,.35);background:rgba(99,202,183,.04);}
 .bmatch.bm-pred{border-color:rgba(99,202,183,.2);}
-.bmatch-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;color:var(--muted);}
+.bmatch-label{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;color:var(--muted);}
 .bmatch-team{display:flex;align-items:center;justify-content:space-between;padding:5px 0;}
 .bmatch-team.won .bmatch-name{color:var(--accent);font-weight:900;}
 .bmatch-team.lost{opacity:.38;}
-.bmatch-name{font-size:15px;font-weight:700;}
-.bmatch-score{font-size:22px;font-weight:900;min-width:30px;text-align:right;}
-.bmatch-pen{font-size:11px;color:var(--orange);font-weight:700;display:block;text-align:right;}
+.bmatch-name{font-size:18px;font-weight:700;}
+.bmatch-score{font-size:25px;font-weight:900;min-width:30px;text-align:right;}
+.bmatch-pen{font-size:15px;color:var(--orange);font-weight:700;display:block;text-align:right;}
 .bmatch-sep{height:1px;background:var(--border);margin:2px 0;}
-.bmatch-meta{display:flex;justify-content:space-between;align-items:center;margin-top:7px;font-size:12px;color:var(--muted);}
-.bmatch-tbd{font-size:14px;color:var(--muted);font-style:italic;}
+.bmatch-meta{display:flex;justify-content:space-between;align-items:center;margin-top:7px;font-size:16px;color:var(--muted);}
+.bmatch-tbd{font-size:17px;color:var(--muted);font-style:italic;}
 .bracket-trophy{text-align:center;font-size:32px;position:absolute;}
-.bfinal-badge{position:absolute;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;color:var(--gold);letter-spacing:1px;}
+.bfinal-badge{position:absolute;text-align:center;font-size:16px;font-weight:700;text-transform:uppercase;color:var(--gold);letter-spacing:1px;}
 
 /* === ANÁLISIS ESTRUCTURAL / INFLUENCIA POLÍTICO-COMERCIAL === */
-.ana-search{width:100%;padding:9px 14px;border-radius:10px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:var(--text);font-size:15px;box-sizing:border-box;outline:none;}
+.ana-search{width:100%;padding:9px 14px;border-radius:10px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:var(--text);font-size:18px;box-sizing:border-box;outline:none;}
 .ana-bar{height:7px;background:rgba(255,255,255,.1);border-radius:4px;flex:1;overflow:hidden;margin:0 7px}
 .ana-fill{height:100%;border-radius:4px;transition:width .55s cubic-bezier(.4,0,.2,1)}
-.ana-dim{display:flex;align-items:center;margin:5px 0;font-size:13px}
+.ana-dim{display:flex;align-items:center;margin:5px 0;font-size:17px}
 .ana-dim-lbl{width:134px;color:var(--muted);flex-shrink:0}
-.ana-dim-val{width:30px;text-align:right;font-weight:800;flex-shrink:0;font-size:14px}
-.ana-rank-item{display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)}
+.ana-dim-val{width:30px;text-align:right;font-weight:800;flex-shrink:0;font-size:17px}
+.ana-rank-item{display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;font-size:17px;border-bottom:1px solid var(--border)}
 .ana-rank-item:last-child{border-bottom:none}
 .ana-rank-item:active{background:rgba(255,255,255,.04);border-radius:6px}
-.ana-score-badge{padding:3px 10px;border-radius:99px;font-size:12px;font-weight:800;letter-spacing:.02em}
+.ana-score-badge{padding:3px 10px;border-radius:99px;font-size:16px;font-weight:800;letter-spacing:.02em}
 .ana-team-hdr{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)}
-.ipc-note{font-size:12px;color:var(--muted);margin-top:8px;padding:7px 10px;background:rgba(249,115,22,.06);border-radius:8px;line-height:1.5;border-left:2px solid rgba(249,115,22,.3)}
+.ipc-note{font-size:16px;color:var(--muted);margin-top:8px;padding:7px 10px;background:rgba(249,115,22,.06);border-radius:8px;line-height:1.5;border-left:2px solid rgba(249,115,22,.3)}
 </style>
 </head>
 <body>
@@ -278,7 +278,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span style="font-size:10px;opacity:0.5;font-weight:normal">v30jun-b</span></div>
+  <div class="logo">Foot<em>IQ</em> <span style="font-size:15px;opacity:0.5;font-weight:normal">v30jun-b</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -745,7 +745,7 @@ function buildPerfilHtml(home,away){
       <div class="perfil-dim">${d.icon} ${d.key}</div>
       <div class="perfil-val${winH?' win':''}">${Math.round(vh)}</div>
       <div class="perfil-bar-wrap" style="margin:0 3px"><div class="perfil-bar home" style="width:${Math.round(vh)}%"></div></div>
-      <div style="font-size:16px;color:var(--muted);width:14px;text-align:center">${winH?'›':tie?'=':'‹'}</div>
+      <div style="font-size:19px;color:var(--muted);width:14px;text-align:center">${winH?'›':tie?'=':'‹'}</div>
       <div class="perfil-bar-wrap" style="margin:0 3px"><div class="perfil-bar away" style="width:${Math.round(va)}%"></div></div>
       <div class="perfil-val${!winH&&!tie?' win':''}">${Math.round(va)}</div>
     </div>`;
@@ -760,21 +760,21 @@ function buildPerfilHtml(home,away){
     const formPct=Math.round((ss.form??1)*100);
     const degraded=formPct<85;
     const badge=absent?` ❌ BAJA`:(degraded?` (${formPct}% forma)`:'✓');
-    return `<span class="fjd-star${absent?' fjd-baja':degraded?' fjd-aged':''}">⭐ ${ss.n}${ss.age?' '+ss.age+'a':''} FJD +${eff}%${absent?'':(degraded?` <span style="font-size:15px;opacity:.6">/${pot}%</span>`:'')}</span>`;
+    return `<span class="fjd-star${absent?' fjd-baja':degraded?' fjd-aged':''}">⭐ ${ss.n}${ss.age?' '+ss.age+'a':''} FJD +${eff}%${absent?'':(degraded?` <span style="font-size:18px;opacity:.6">/${pot}%</span>`:'')}</span>`;
   }
   const fjdH=fjdLabel(sH,sH&&abH.includes(sH.n));
   const fjdA=fjdLabel(sA,sA&&abA.includes(sA.n));
   const iccWin=ich>ica?`${FLAG(home)} ${home}`:(ica>ich?`${FLAG(away)} ${away}`:'ICC igualado');
   return `<div class="perfil-section">
     <div class="perfil-title">🔬 Análisis Integral — aplica solo al Ensemble (6D + ICC)</div>
-    <div style="display:flex;justify-content:space-between;font-size:16px;color:var(--muted);margin-bottom:5px;">
+    <div style="display:flex;justify-content:space-between;font-size:19px;color:var(--muted);margin-bottom:5px;">
       <span style="color:var(--accent)">${FLAG(home)} ${home}</span>
       <span style="color:var(--orange)">${FLAG(away)} ${away}</span>
     </div>
     ${rows}
     <div class="perfil-total">
       <span style="color:var(--accent)">ICC ${ich.toFixed(1)}</span>
-      <span style="font-size:16px;color:var(--gold)">🏆 ${iccWin}</span>
+      <span style="font-size:19px;color:var(--gold)">🏆 ${iccWin}</span>
       <span style="color:var(--orange)">ICC ${ica.toFixed(1)}</span>
     </div>
     ${(fjdH||fjdA)?`<div class="fjd-row">${fjdH}${fjdA}</div>`:''}
@@ -793,10 +793,10 @@ function buildBajasHtml(home,away){
   return `<div class="bajas-section">
     <div class="bajas-title">👥 Marcar bajas confirmadas (toca el jugador)</div>
     <div class="bajas-team-label">${FLAG(home)} ${home}</div>
-    <div class="bajas-pills">${pillsH||'<span style="font-size:16px;color:var(--muted)">Sin datos</span>'}</div>
+    <div class="bajas-pills">${pillsH||'<span style="font-size:19px;color:var(--muted)">Sin datos</span>'}</div>
     ${impactH}
     <div class="bajas-team-label" style="margin-top:4px">${FLAG(away)} ${away}</div>
-    <div class="bajas-pills">${pillsA||'<span style="font-size:16px;color:var(--muted)">Sin datos</span>'}</div>
+    <div class="bajas-pills">${pillsA||'<span style="font-size:19px;color:var(--muted)">Sin datos</span>'}</div>
     ${impactA}
   </div>`;
 }
@@ -1688,9 +1688,9 @@ function renderChamp(){
   let act=ALL_TEAMS.map(t=>({t,f:FLAG(t),p:G.mc[t]||0})).sort((a,b)=>b.p-a.p);
   if(!act.length||!act[0]) return;
   document.getElementById('page-champ').innerHTML=`
-    <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:14px;color:var(--muted)">Modelo Actual</div></div>
+    <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:17px;color:var(--muted)">Modelo Actual</div></div>
     <div class="stitle">📈 Top 16 — Probabilidades de campeonato</div>
-    <div class="card">${act.slice(0,16).map((x,i)=>`<div class="trow"><div style="font-size:16px;color:var(--muted);width:26px;text-align:center">${i+1}</div><div class="tflg">${x.f}</div><div class="tname">${x.t}</div><div class="tpct">${x.p}%</div></div>`).join('')}</div>`;
+    <div class="card">${act.slice(0,16).map((x,i)=>`<div class="trow"><div style="font-size:19px;color:var(--muted);width:26px;text-align:center">${i+1}</div><div class="tflg">${x.f}</div><div class="tname">${x.t}</div><div class="tpct">${x.p}%</div></div>`).join('')}</div>`;
 }
 function renderDuel(){
   computeModelScores();
@@ -1706,9 +1706,9 @@ function renderDuel(){
     const pa=ensemblePredict(h,a);
     const oa=predOutcome(pa);
     const aOk=oa===ro;
-    histHtml+=`<div class="trow" style="font-size:15px">
+    histHtml+=`<div class="trow" style="font-size:18px">
       <div style="flex:1">${FLAG(h)} ${h} <strong>${real.h}–${real.a}</strong> ${a} ${FLAG(a)}</div>
-      <div style="width:34px;text-align:center;font-size:18px">${aOk?'✅':'❌'}</div>
+      <div style="width:34px;text-align:center;font-size:21px">${aOk?'✅':'❌'}</div>
     </div>`;
   }
 
@@ -1721,15 +1721,15 @@ function renderDuel(){
       </div>
     </div>
     <div class="stitle" style="margin-top:6px">📋 Historial partido a partido</div>
-    <div style="font-size:16px;color:var(--muted);margin:-4px 0 10px;line-height:1.5;padding:8px 10px;background:rgba(47,168,245,.07);border-radius:8px">
+    <div style="font-size:19px;color:var(--muted);margin:-4px 0 10px;line-height:1.5;padding:8px 10px;background:rgba(47,168,245,.07);border-radius:8px">
       ℹ️ El modelo predice basándose en ELO, ICC, mercado de apuestas y momentum. Cuando ocurren sorpresas reales, <em>ningún modelo estadístico las predice</em> — ni Opta ni FiveThirtyEight.
     </div>
     <div class="card" style="padding:8px 12px">
-      <div class="trow" style="font-size:16px;color:var(--muted);font-weight:700">
+      <div class="trow" style="font-size:19px;color:var(--muted);font-weight:700">
         <div style="flex:1">Partido · Resultado</div>
         <div style="width:50px;text-align:center">Actual</div>
       </div>
-      ${histHtml||'<div style="color:var(--muted);font-size:14px;padding:10px">Sin resultados aún</div>'}
+      ${histHtml||'<div style="color:var(--muted);font-size:17px;padding:10px">Sin resultados aún</div>'}
     </div>`;
 }
 
@@ -1938,7 +1938,7 @@ function prebuildMatchPanel(ds){
     const sombra=calcSombraFactor(m.home,m.away);
     const sombraHtml=sombra?`<div class="sombra-alert">
       <div class="sombra-header">
-        <span style="font-size:18px">🌑</span>
+        <span style="font-size:21px">🌑</span>
         <span class="sombra-title">Contexto institucional</span>
         <span class="sombra-nivel">${sombra.nivel===3?'⚠️ Alto':sombra.nivel===2?'Moderado':'Leve'}</span>
       </div>
@@ -1958,7 +1958,7 @@ function prebuildMatchPanel(ds){
       <div class="match-header">
         <div class="tflg">${FLAG(m.home)}</div>
         <div class="tname">${m.home}${penBadgeH}</div>
-        <div style="font-size:15px;font-weight:900;padding:0 4px">vs</div>
+        <div style="font-size:18px;font-weight:900;padding:0 4px">vs</div>
         <div class="tname" style="text-align:right">${penBadgeA}${m.away}</div>
         <div class="tflg">${FLAG(m.away)}</div>
         <div class="match-group">Grupo ${m.group} · ${m.time}</div>
@@ -2046,7 +2046,7 @@ function renderMatchPanel(ds){
     const sombra=calcSombraFactor(m.home,m.away);
     const sombraHtml=sombra?`<div class="sombra-alert">
       <div class="sombra-header">
-        <span style="font-size:18px">🌑</span>
+        <span style="font-size:21px">🌑</span>
         <span class="sombra-title">Contexto institucional</span>
         <span class="sombra-nivel">${sombra.nivel===3?'⚠️ Alto':sombra.nivel===2?'Moderado':'Leve'}</span>
       </div>
@@ -2057,7 +2057,7 @@ function renderMatchPanel(ds){
       <div class="match-header">
         <div class="tflg">${FLAG(m.home)}</div>
         <div class="tname">${m.home}${penBadgeH}</div>
-        <div style="font-size:15px;font-weight:900;padding:0 4px">vs</div>
+        <div style="font-size:18px;font-weight:900;padding:0 4px">vs</div>
         <div class="tname" style="text-align:right">${penBadgeA}${m.away}</div>
         <div class="tflg">${FLAG(m.away)}</div>
         <div class="match-group">Grupo ${m.group} · ${m.time}</div>
@@ -2171,27 +2171,27 @@ function renderAnalisis(){
       <div class="ana-team-hdr">
         <span style="font-size:32px">${FLAG(t)}</span>
         <div style="flex:1">
-          <div style="font-size:18px;font-weight:800">${t}</div>
+          <div style="font-size:21px;font-weight:800">${t}</div>
           <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
             <span class="ana-score-badge" style="background:rgba(74,170,255,.15);color:${ieCol}">IE ${ie}/100 · ${ieLabel}</span>
             <span class="ana-score-badge" style="background:rgba(249,115,22,.12);color:${ipcCol}">IPC ${ipc}/100 · ${ipcLabel}</span>
           </div>
         </div>
-        <button onclick="clearAnalisis()" style="background:rgba(255,255,255,.08);border:none;color:var(--muted);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px">✕</button>
+        <button onclick="clearAnalisis()" style="background:rgba(255,255,255,.08);border:none;color:var(--muted);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:17px">✕</button>
       </div>
-      <div class="stitle" style="font-size:15px;margin:2px 0 8px">🏗️ Índice Estructural (IE)</div>
+      <div class="stitle" style="font-size:18px;margin:2px 0 8px">🏗️ Índice Estructural (IE)</div>
       ${STRUCT_DIMS.map((l,i)=>dimRow(l,STRUCT_ICONS[i],sd[i],'var(--accent)')).join('')}
-      <div style="text-align:right;margin-top:6px;font-size:13px;color:var(--muted)">IE promedio: <strong style="color:${ieCol};font-size:16px">${ie}/100</strong></div>
+      <div style="text-align:right;margin-top:6px;font-size:17px;color:var(--muted)">IE promedio: <strong style="color:${ieCol};font-size:19px">${ie}/100</strong></div>
 
-      <div class="stitle" style="font-size:15px;margin:14px 0 8px">⚖️ Índice Político-Comercial (IPC)</div>
+      <div class="stitle" style="font-size:18px;margin:14px 0 8px">⚖️ Índice Político-Comercial (IPC)</div>
       ${INFL_DIMS.map((l,i)=>dimRow(l,INFL_ICONS[i],id[i],'var(--orange)')).join('')}
-      <div style="text-align:right;margin-top:6px;font-size:13px;color:var(--muted)">IPC promedio: <strong style="color:${ipcCol};font-size:16px">${ipc}/100</strong></div>
+      <div style="text-align:right;margin-top:6px;font-size:17px;color:var(--muted)">IPC promedio: <strong style="color:${ipcCol};font-size:19px">${ipc}/100</strong></div>
       <div class="ipc-note">⚠️ El IPC es un índice <em>estimativo</em> basado en datos públicos documentados. Un valor alto no implica irregularidad — refleja la magnitud de incentivos externos observables que rodean a esa selección. (*) Historial arbitral: análisis estadístico de decisiones cuestionadas en torneos anteriores según investigadores independientes.</div>
     </div>`;
   };
 
   const rankRow=(t,sc,col)=>`<div class="ana-rank-item" onclick="selectAnalisis('${t}')">
-    <span style="flex:1;font-size:14px">${FLAG(t)}&nbsp;${t}</span>
+    <span style="flex:1;font-size:17px">${FLAG(t)}&nbsp;${t}</span>
     <div class="ana-bar" style="max-width:70px">${`<div class="ana-fill" style="width:${sc}%;background:${col}"></div>`}</div>
     <span class="ana-dim-val" style="color:${col}">${sc}</span>
   </div>`;
@@ -2206,12 +2206,12 @@ function renderAnalisis(){
     <div id="ana-suggest" style="margin-top:4px"></div>
     ${sel?teamCard(sel):''}
     ${!sel?`<div class="card" style="padding:8px 12px">
-      <div class="stitle" style="font-size:15px;margin:2px 0 6px">🏗️ Índice Estructural — Top 10</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Toca cualquier selección para ver análisis completo</div>
+      <div class="stitle" style="font-size:18px;margin:2px 0 6px">🏗️ Índice Estructural — Top 10</div>
+      <div style="font-size:16px;color:var(--muted);margin-bottom:6px">Toca cualquier selección para ver análisis completo</div>
       ${ieRank.slice(0,10).map(t=>rankRow(t,_ieScore(t),'var(--accent)')).join('')}
     </div>
     <div class="card" style="padding:8px 12px">
-      <div class="stitle" style="font-size:15px;margin:2px 0 6px">⚖️ Índice Político-Comercial — Top 10</div>
+      <div class="stitle" style="font-size:18px;margin:2px 0 6px">⚖️ Índice Político-Comercial — Top 10</div>
       ${ipcRank.slice(0,10).map(t=>rankRow(t,_ipcScore(t),'var(--orange)')).join('')}
       <div class="ipc-note">⚠️ IPC estimativo · No implica irregularidad · Refleja incentivos externos documentados · (*) Historial arbitral basado en análisis estadísticos publicados</div>
     </div>`:''}
@@ -2849,7 +2849,7 @@ function renderBracket(){
     html+=`<button class="btab btab-${r.cls}${on?' active':''}" onclick="window._bracketRound='${r.id}';renderBracket()">${r.label}</button>`;
   });
   html+=`</div>`;
-  html+=`<div class="bracket-top-bar"><span style="font-size:12px;color:var(--muted);flex:1">${ROUNDS.find(r=>r.id===active)?.dates||''}</span><button id="sync-espn-btn" onclick="syncFromESPN()" style="padding:5px 12px;background:var(--accent);color:#000;border:none;border-radius:20px;font-size:12px;font-weight:800;cursor:pointer">🔄 Actualizar</button></div>`;
+  html+=`<div class="bracket-top-bar"><span style="font-size:16px;color:var(--muted);flex:1">${ROUNDS.find(r=>r.id===active)?.dates||''}</span><button id="sync-espn-btn" onclick="syncFromESPN()" style="padding:5px 12px;background:var(--accent);color:#000;border:none;border-radius:20px;font-size:16px;font-weight:800;cursor:pointer">🔄 Actualizar</button></div>`;
   html+=`<div class="bracket-content">`;
 
   // Matches for active round
