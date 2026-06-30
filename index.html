@@ -277,7 +277,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:18px
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span style="font-size:10px;opacity:0.5;font-weight:normal">v27jun</span></div>
+  <div class="logo">Foot<em>IQ</em> <span style="font-size:10px;opacity:0.5;font-weight:normal">v30jun</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -2878,21 +2878,49 @@ function fillBracketPredictions(){
 }
 
 function renderBracket(){
-  // Sincronizar resultados reales de REAL_RESULTS → BRACKET_KO antes de renderizar
-  for(const rnd of ['r32','r16','qf','sf','f','third']){
-    const slots=BRACKET_KO[rnd]||[];
-    for(const m of slots){
-      if(m.sh===null){
-        const key=`${m.h}-${m.a}`;
-        const real=REAL_RESULTS[key];
-        if(real?.played){
-          m.sh=real.h; m.sa=real.a;
-          if(real.penH!==undefined){ m.pen_h=real.penH; m.pen_a=real.penA; }
-        }
-      }
+  // ── SOLUCIÓN DEFINITIVA: sync cascading REAL_RESULTS → BRACKET_KO → auto-avance ──
+  // Solo actualizar REAL_RESULTS para que todo lo demás se calcule solo.
+  const _syncScore=(m)=>{
+    if(m.sh===null && m.h!=='TBD' && m.a!=='TBD'){
+      const real=REAL_RESULTS[`${m.h}-${m.a}`];
+      if(real?.played){ m.sh=real.h; m.sa=real.a; if(real.penH!==undefined){m.pen_h=real.penH;m.pen_a=real.penA;} }
     }
+  };
+  const _winner=(m)=>{
+    if(m.sh===null) return null;
+    if(m.sh>m.sa) return m.h; if(m.sa>m.sh) return m.a;
+    if(m.pen_h!==undefined) return m.pen_h>m.pen_a?m.h:m.a;
+    return null;
+  };
+  const _loser=(m)=>{ const w=_winner(m); return (w&&m.sh!==null)?(w===m.h?m.a:m.h):null; };
+  const _adv=(src0,src1,dst)=>{ if(!dst) return; const w0=_winner(src0),w1=_winner(src1); if(w0&&dst.h==='TBD')dst.h=w0; if(w1&&dst.a==='TBD')dst.a=w1; };
+
+  // 1. Sync R32 scores
+  BRACKET_KO.r32.forEach(_syncScore);
+  // 2. Avanzar R32→R16, sync R16
+  for(let i=0;i<BRACKET_KO.r32.length;i+=2){
+    _adv(BRACKET_KO.r32[i],BRACKET_KO.r32[i+1],BRACKET_KO.r16[i/2]);
+    _syncScore(BRACKET_KO.r16[i/2]);
   }
-  fillBracketPredictions(); // auto-poblar con predicciones si aún hay TBDs
+  // 3. Avanzar R16→QF, sync QF
+  for(let i=0;i<BRACKET_KO.r16.length;i+=2){
+    _adv(BRACKET_KO.r16[i],BRACKET_KO.r16[i+1],BRACKET_KO.qf[i/2]);
+    _syncScore(BRACKET_KO.qf[i/2]);
+  }
+  // 4. Avanzar QF→SF, sync SF
+  for(let i=0;i<BRACKET_KO.qf.length;i+=2){
+    _adv(BRACKET_KO.qf[i],BRACKET_KO.qf[i+1],BRACKET_KO.sf[i/2]);
+    _syncScore(BRACKET_KO.sf[i/2]);
+  }
+  // 5. Avanzar SF→Final + 3er puesto
+  {
+    const sf0=BRACKET_KO.sf[0],sf1=BRACKET_KO.sf[1],fs=BRACKET_KO.f[0],tp=BRACKET_KO.third[0];
+    const fw0=_winner(sf0),fw1=_winner(sf1),fl0=_loser(sf0),fl1=_loser(sf1);
+    if(fw0&&fs&&fs.h==='TBD')fs.h=fw0; if(fw1&&fs&&fs.a==='TBD')fs.a=fw1;
+    if(fl0&&tp&&tp.h==='TBD')tp.h=fl0; if(fl1&&tp&&tp.a==='TBD')tp.a=fl1;
+    _syncScore(fs); _syncScore(tp);
+  }
+  fillBracketPredictions(); // predicciones para slots aún sin confirmar
   const SW=122, SH=46, CW=22, HDR=30;
   const rounds=[
     {id:'r32',label:'Ronda de 32', dates:'28 jun–3 jul', cls:'bpill-r32'},
