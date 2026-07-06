@@ -322,14 +322,16 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
 
 <div class="tabs">
   <div class="tab active" onclick="showTab(this,'champ')"><span class="ti">🏆</span>Campeón</div>
-  <div class="tab" onclick="showTab(this,'bracket')"><span class="ti">🎯</span>Bracket</div>
+  <div class="tab" onclick="showTab(this,'hoy')"><span class="ti">📅</span>Partidos Hoy</div>
   <div class="tab" onclick="showTab(this,'duel')"><span class="ti">⚔️</span>Duelo</div>
+  <div class="tab" onclick="showTab(this,'comp')"><span class="ti">📊</span>Comparativa</div>
 </div>
 
 <div class="pages">
   <div class="page active" id="page-champ"></div>
-  <div class="page" id="page-bracket"></div>
+  <div class="page" id="page-hoy"></div>
   <div class="page" id="page-duel"><div id="duelBody"></div></div>
+  <div class="page" id="page-comp"></div>
 </div>
 
 <script>
@@ -1668,6 +1670,114 @@ async function runMC(N,modelo,cb){
 }
 
 // ==================== RENDERIZADO ====================
+
+// ==================== MÚSCULOS DE PRONÓSTICO ====================
+// 3 modelos independientes que compiten con el modelo principal.
+// Basado en Value Betting: detectar divergencia entre nuestras estimaciones
+// y las probabilidades implícitas del mercado.
+
+function _mus_elo(rH, rA){
+  // Modelo ELO puro — rating histórico, sin momentum ni contexto
+  const diff=rH-rA;
+  const pW=1/(1+Math.pow(10,-diff/400));
+  const draw=Math.max(0.12,Math.min(0.30,0.27-Math.abs(diff)*0.00015));
+  const pH=pW*(1-draw), pA=(1-pW)*(1-draw);
+  return {pH, pD:1-pH-pA, pA};
+}
+function _mus_icc(iH, iA){
+  // Modelo Estructura (ICC) — calidad de plantilla y ADN competitivo
+  const diff=iH-iA;
+  const pW=1/(1+Math.pow(10,-diff/25));
+  const draw=Math.max(0.12,Math.min(0.30,0.27-Math.abs(diff)*0.003));
+  const pH=pW*(1-draw), pA=(1-pW)*(1-draw);
+  return {pH, pD:1-pH-pA, pA};
+}
+function _mus_mom(momH, momA){
+  // Modelo Momentum — forma reciente en este torneo
+  const pH_per=momH.matches>0?momH.pts/momH.matches:1.3;
+  const pA_per=momA.matches>0?momA.pts/momA.matches:1.3;
+  const rH=pH_per/3, rA=pA_per/3;
+  const total=rH+rA;
+  const pW=total>0?rH/total:0.50;
+  const draw=Math.max(0.14,Math.min(0.30,0.30-Math.abs(rH-rA)*0.20));
+  const pH=pW*(1-draw), pA=(1-pW)*(1-draw);
+  return {pH, pD:1-pH-pA, pA};
+}
+
+function buildMusclesHtml(pred, home, away){
+  const elo = _mus_elo(G.elo[home]||1500, G.elo[away]||1500);
+  const icc = _mus_icc(getCachedICC(home), getCachedICC(away));
+  const mom = _mus_mom(getCachedMomentum(home), getCachedMomentum(away));
+  const mkt = _mus_elo(MERCADO[home]||1500, MERCADO[away]||1500); // mercado implícito
+
+  // Consenso: promedio de los 4 modelos
+  const avgH=(pred.pH+elo.pH+icc.pH+mom.pH)/4;
+  const avgD=(pred.pD+elo.pD+icc.pD+mom.pD)/4;
+  const avgA=(pred.pA+elo.pA+icc.pA+mom.pA)/4;
+
+  const p=v=>Math.round(v*100)+'%';
+  const delta=(v,base)=>{
+    const d=Math.round((v-base)*100);
+    return d>0?'<span style="color:var(--green);font-size:14px"> +'+d+'%</span>':
+           d<0?'<span style="color:var(--red);font-size:14px"> '+d+'%</span>':'';
+  };
+
+  // Detección de valor: consenso vs mercado
+  const edgeH=avgH-mkt.pH, edgeA=avgA-mkt.pA, edgeD=avgD-mkt.pD;
+  const THRESH=0.05;
+  let valorHtml='<div style="font-size:16px;color:var(--muted);margin-top:4px">─ Sin ventaja clara frente al mercado</div>';
+  const edges=[];
+  if(edgeH>=THRESH) edges.push('<span style="color:var(--green);font-weight:800">🟢 Local +'+Math.round(edgeH*100)+'%</span>');
+  if(edgeA>=THRESH) edges.push('<span style="color:var(--green);font-weight:800">🟢 Visitante +'+Math.round(edgeA*100)+'%</span>');
+  if(edgeD>=THRESH) edges.push('<span style="color:var(--green);font-weight:800">🟢 Empate +'+Math.round(edgeD*100)+'%</span>');
+  if(edges.length) valorHtml='<div style="font-size:17px;margin-top:4px">💰 Posible valor: '+edges.join(' · ')+'</div><div style="font-size:15px;color:var(--muted);margin-top:3px">EV estimado = (prob_modelo − prob_mercado). Umbral: +5%. No garantiza ganancia.</div>';
+  else if(edgeH<-THRESH||edgeA<-THRESH) valorHtml='<div style="font-size:16px;color:var(--red);margin-top:4px">🔴 Mercado sobrevalora este partido vs nuestro modelo</div>';
+
+  const row=(lbl,icon,m,ref)=>'<tr>'+
+    '<td style="padding:5px 8px;font-size:16px;color:var(--muted);white-space:nowrap">'+icon+' '+lbl+'</td>'+
+    '<td style="padding:5px 6px;text-align:center;font-size:17px;font-weight:700">'+p(m.pH)+(ref?delta(m.pH,ref.pH):'')+'</td>'+
+    '<td style="padding:5px 6px;text-align:center;font-size:17px;font-weight:700">'+p(m.pD)+(ref?delta(m.pD,ref.pD):'')+'</td>'+
+    '<td style="padding:5px 6px;text-align:center;font-size:17px;font-weight:700">'+p(m.pA)+(ref?delta(m.pA,ref.pA):'')+'</td>'+
+  '</tr>';
+
+  const hShort=home.split(' ')[0], aShort=away.split(' ')[0];
+
+  return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:10px 12px;margin-top:8px">'+
+    '<div style="font-size:18px;font-weight:800;margin-bottom:8px;color:var(--accent)">🧬 Músculos del Pronóstico</div>'+
+    '<table style="width:100%;border-collapse:collapse">'+
+      '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.12)">'+
+        '<th style="padding:4px 8px;text-align:left;font-size:15px;color:var(--muted);font-weight:600">Modelo</th>'+
+        '<th style="padding:4px 6px;text-align:center;font-size:15px;color:var(--muted);font-weight:600">'+hShort+'</th>'+
+        '<th style="padding:4px 6px;text-align:center;font-size:15px;color:var(--muted);font-weight:600">Emp</th>'+
+        '<th style="padding:4px 6px;text-align:center;font-size:15px;color:var(--muted);font-weight:600">'+aShort+'</th>'+
+      '</tr></thead>'+
+      '<tbody>'+
+        row('Principal (Integrado)',  '🎯', pred, null)+
+        row('ELO (Historial)','⚡', elo, pred)+
+        row('ICC (Calidad)','🏗️', icc, pred)+
+        row('Momentum (Forma)','🔥', mom, pred)+
+        '<tr style="border-top:1px solid rgba(255,255,255,.12)">'+
+          '<td style="padding:6px 8px;font-size:16px;font-weight:800">📊 Consenso</td>'+
+          '<td style="padding:6px 6px;text-align:center;font-size:17px;font-weight:900;color:var(--accent)">'+p(avgH)+'</td>'+
+          '<td style="padding:6px 6px;text-align:center;font-size:17px;font-weight:900;color:var(--accent)">'+p(avgD)+'</td>'+
+          '<td style="padding:6px 6px;text-align:center;font-size:17px;font-weight:900;color:var(--accent)">'+p(avgA)+'</td>'+
+        '</tr>'+
+        '<tr style="border-top:1px dashed rgba(255,255,255,.08)">'+
+          '<td style="padding:5px 8px;font-size:15px;color:var(--muted)">Mercado implícito</td>'+
+          '<td style="padding:5px 6px;text-align:center;font-size:16px;color:var(--muted)">'+p(mkt.pH)+'</td>'+
+          '<td style="padding:5px 6px;text-align:center;font-size:16px;color:var(--muted)">'+p(mkt.pD)+'</td>'+
+          '<td style="padding:5px 6px;text-align:center;font-size:16px;color:var(--muted)">'+p(mkt.pA)+'</td>'+
+        '</tr>'+
+      '</tbody>'+
+    '</table>'+
+    valorHtml+
+    '<div style="font-size:14px;color:var(--muted);margin-top:6px;line-height:1.4">'+
+      'ELO: rating histórico puro · Estructura: calidad de plantilla y ADN competitivo · '+
+      'Momentum: forma en este torneo · Consenso: promedio 4 modelos'+
+    '</div>'+
+  '</div>';
+}
+
 function renderChamp(){
   let act=ALL_TEAMS.map(t=>({t,f:FLAG(t),p:G.mc[t]||0})).sort((a,b)=>b.p-a.p);
   if(!act.length||!act[0]) return;
@@ -1716,6 +1826,36 @@ function renderDuel(){
     </div>`;
   }
 
+  // Partidos KO jugados pero sin resultado en REAL_RESULTS
+  const MN2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const d2=new Date(todayStr+'T23:59:59');
+  const todayBD2=MN2[d2.getMonth()]+' '+d2.getDate();
+  const koRounds=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[]),...(BRACKET_KO.third||[])];
+  // Partidos cuya fecha ya pasó pero sh sigue null
+  const pending=koRounds.filter(m=>{
+    if(m.sh!==null) return false;
+    if(m.h==='TBD'||m.a==='TBD') return false;
+    // Compare date: parse 'Jun 30', 'Jul 1' etc
+    const [mon,day]=m.date.split(' ');
+    const mi=MN2.indexOf(mon);
+    if(mi<0) return false;
+    const mDate=new Date(2026,mi,parseInt(day));
+    return mDate<=d2;
+  });
+  let pendHtml='';
+  if(pending.length){
+    pendHtml='<div class="stitle" style="margin-top:10px;color:var(--orange)">⏳ '+pending.length+' partido(s) KO sin resultado — toca ✏️ para ingresar</div>'+
+      '<div class="card" style="padding:8px 12px">';
+    pending.forEach(m=>{
+      pendHtml+='<div class="trow" style="font-size:17px">'+
+        '<div style="flex:1">'+FLAG(m.h)+' '+m.h+' vs '+m.a+' '+FLAG(m.a)+
+        ' <span style="color:var(--muted);font-size:15px">'+m.date+'</span></div>'+
+        '<button class="enter-result-btn" style="font-size:15px" onclick="openResultModal(\''+m.h+'\',\''+m.a+'\',\''+todayStr+'\')">✏️ Ingresar</button>'+
+      '</div>';
+    });
+    pendHtml+='</div>';
+  }
+
   document.getElementById('duelBody').innerHTML=`
     <div class="ld-board">
       <div class="ld-card" style="border-color:var(--accent)">
@@ -1724,6 +1864,7 @@ function renderDuel(){
         <div class="ld-detail">${ms.actual.cw}/${ms.actual.total} partidos · ${aAcc}%</div>
       </div>
     </div>
+    ${pendHtml}
     <div class="stitle" style="margin-top:6px">📋 Historial partido a partido</div>
     <div style="font-size:19px;color:var(--muted);margin:-4px 0 10px;line-height:1.5;padding:8px 10px;background:rgba(47,168,245,.07);border-radius:8px">
       ℹ️ El modelo predice basándose en ELO, ICC, mercado de apuestas y momentum. Cuando ocurren sorpresas reales, <em>ningún modelo estadístico las predice</em> — ni Opta ni FiveThirtyEight.
@@ -1840,6 +1981,83 @@ function calcSurpriseFactor(home,away,pred){
 }
 
 // ==================== APUESTAS ====================
+// ==================== DETECTOR DE SORPRESA ====================
+// Evalúa si el underdog tiene razones concretas para ganar.
+// 6 factores: CHOKE histórico, Momentum, Fatiga, Bajas, ICC vs ELO, Dark Horse.
+function buildSorpresaHtml(pred, home, away){
+  const favIsH=pred.pH>=pred.pA;
+  const fav=favIsH?home:away, und=favIsH?away:home;
+  const favP=favIsH?pred.pH:pred.pA, undP=favIsH?pred.pA:pred.pH;
+
+  if(Math.abs(pred.pH-pred.pA)<0.08)
+    return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;margin-top:8px"><div style="font-size:18px;font-weight:800;color:var(--gold);margin-bottom:4px">🔮 Sorpresa (Valor Sorpresa)</div><div style="font-size:16px;color:var(--muted)">⚖️ Partido muy parejo — no hay underdog claro para analizar</div></div>';
+
+  const reasons=[];
+  let score=0;
+
+  // 1. CHOKE histórico del favorito
+  const choke=CHOKE[fav]||0;
+  if(choke<=-70){score+=25;reasons.push({w:'alto',t:fav+' tiene historial severo de bloqueo en eliminatorias ('+choke+' pts CHOKE)'});}
+  else if(choke<=-40){score+=15;reasons.push({w:'medio',t:fav+' muestra tendencia a la presión en eliminatorias ('+choke+' pts CHOKE)'});}
+  else if(choke<=-20){score+=8;reasons.push({w:'leve',t:fav+' tiene historial leve de dificultades en momentos decisivos'});}
+
+  // 2. Momentum: underdog con mejor forma reciente
+  const momF=getCachedMomentum(fav), momU=getCachedMomentum(und);
+  const momDiff=momU.mult-momF.mult;
+  if(momDiff>0.03){
+    score+=20;
+    const ppU=momU.matches>0?(momU.pts/momU.matches).toFixed(1):'—';
+    const ppF=momF.matches>0?(momF.pts/momF.matches).toFixed(1):'—';
+    reasons.push({w:'alto',t:und+' lleva mejor momentum en este torneo ('+ppU+' pts/p vs '+ppF+' del favorito)'});
+  } else if(momDiff>0.01){score+=8;reasons.push({w:'leve',t:und+' tiene forma reciente comparable al favorito'});}
+
+  // 3. Fatiga: favorito con más prórrogas acumuladas
+  const fatF=getFatiguePenalty(fav), fatU=getFatiguePenalty(und);
+  if(fatF>fatU+0.015){score+=15;reasons.push({w:'alto',t:fav+' llega con mayor fatiga acumulada por prórrogas (−'+(fatF*100).toFixed(1)+'% efectividad)'});}
+  else if(fatF>fatU+0.005){score+=7;reasons.push({w:'leve',t:fav+' presenta cierto desgaste físico por tiempo extra previo'});}
+
+  // 4. Bajas: favorito con ausencias en jugadores clave
+  const penF=getLineupPenalty(fav), penU=getLineupPenalty(und);
+  if(penF>penU+0.05){score+=20;reasons.push({w:'alto',t:fav+' tiene bajas importantes que reducen su efectividad real (−'+Math.round(penF*100)+'%)'});}
+  else if(penF>penU+0.02){score+=10;reasons.push({w:'medio',t:fav+' presenta ausencias relevantes (−'+Math.round(penF*100)+'%)'});}
+
+  // 5. ICC vs ELO: underdog mejor estructuralmente de lo que el mercado percibe
+  const iccF=getCachedICC(fav), iccU=getCachedICC(und);
+  const eloF=G.elo[fav]||1500, eloU=G.elo[und]||1500;
+  const eloGap=eloF-eloU, iccGap=iccF-iccU;
+  if(eloGap>100&&iccGap<5){score+=15;reasons.push({w:'alto',t:'El mercado sobrevalora a '+fav+': gap de rating='+Math.round(eloGap)+'pts pero diferencia real de calidad (ICC) es solo '+iccGap.toFixed(0)+' puntos'});}
+  else if(eloGap>70&&iccGap<10){score+=8;reasons.push({w:'medio',t:und+' es más competitivo estructuralmente de lo que el mercado sugiere'});}
+
+  // 6. Dark Horse — underdog con historial de superar expectativas
+  const dark=DARK[und]||0;
+  if(dark>=50){score+=12;reasons.push({w:'alto',t:und+' tiene perfil histórico de "caballo negro" confirmado (+'+dark+' factor sorpresa)'});}
+  else if(dark>=25){score+=6;reasons.push({w:'leve',t:und+' tiene historial de superar expectativas (+'+dark+')'});}
+
+  const sc=Math.min(100,score);
+  let vc,vl,vr;
+  if(!reasons.length||sc<15){vc='var(--green)';vl='✅ Favorito sólido';vr=fav+' es favorito sólido sin señales anómalas de sorpresa.';}
+  else if(sc<35){vc='var(--yellow)';vl='🟡 Señales débiles';vr='Hay factores menores que podrían beneficiar a '+und+', pero '+fav+' sigue siendo favorito.';}
+  else if(sc<55){vc='var(--orange)';vl='🟠 Riesgo real';vr='Considera la victoria de '+und+' — los factores muestran una brecha entre la percepción del mercado y la realidad del partido.';}
+  else{vc='var(--green)';vl='🟢 SORPRESA RECOMENDADA';vr='La suma de factores apunta a '+FLAG(und)+' '+und+' como apuesta de valor real. El mercado subestima sus posibilidades.';}
+
+  const wI=w=>w==='alto'?'🔴':w==='medio'?'🟡':'⚪';
+  let h='<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;margin-top:8px">';
+  h+='<div style="font-size:18px;font-weight:800;color:var(--gold);margin-bottom:8px">🔮 Sorpresa (Valor Sorpresa)</div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">';
+  h+='<span style="font-size:15px;color:var(--muted)">Favorito:</span><span style="font-size:18px;font-weight:800">'+FLAG(fav)+' '+fav+' <span style="color:var(--accent)">'+Math.round(favP*100)+'%</span></span>';
+  h+='<span style="font-size:15px;color:var(--muted)">Underdog:</span><span style="font-size:18px;font-weight:800">'+FLAG(und)+' '+und+' <span style="color:var(--orange)">'+Math.round(undP*100)+'%</span></span>';
+  h+='</div>';
+  h+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:15px;margin-bottom:3px"><span style="color:var(--muted)">Riesgo de sorpresa</span><span style="font-weight:800;color:'+vc+'">'+sc+'/100 — '+vl+'</span></div>';
+  h+='<div style="background:rgba(255,255,255,.08);border-radius:4px;height:8px"><div style="background:'+vc+';width:'+sc+'%;height:8px;border-radius:4px"></div></div></div>';
+  if(reasons.length) reasons.forEach(r=>{h+='<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span>'+wI(r.w)+'</span><span style="font-size:16px;line-height:1.4">'+r.t+'</span></div>';});
+  else h+='<div style="font-size:16px;color:var(--muted);padding:4px 0">Sin factores anómalos detectados.</div>';
+  h+='<div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,.05);border-radius:8px;border-left:3px solid '+vc+'"><span style="font-size:16px;line-height:1.4">'+vr+'</span></div>';
+  h+='<div style="font-size:13px;color:var(--muted);margin-top:5px">Factores: CHOKE histórico · Momentum · Fatiga · Bajas · ICC vs ELO · Dark horse. No garantiza resultado.</div>';
+  h+='</div>';
+  return h;
+}
+
+
 function buildBetHtml(pred,home,away){
   const pH=pred.pH,pD=pred.pD,pA=pred.pA;
   const xg=parseFloat(pred.xgH)+parseFloat(pred.xgA);
@@ -1872,16 +2090,165 @@ function buildBetHtml(pred,home,away){
 }
 
 
-const _renderedTabs=new Set();
 function showTab(el,name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   if(el) el.classList.add('active');
-  document.getElementById(`page-${name}`).classList.add('active');
-  if(name==='champ'){ renderChamp(); }
-  else if(name==='bracket'){ renderBracket(); }
-  else if(name==='duel'){ if(!_renderedTabs.has('duel')){ renderDuel(); _renderedTabs.add('duel'); } }
+  document.getElementById('page-'+name).classList.add('active');
+  if(name==='champ')     renderChamp();
+  else if(name==='hoy')  renderHoy();
+  else if(name==='duel') renderDuel();
+  else if(name==='comp') renderComparativa();
 }
+
+
+// ==================== COMPARATIVA DE MODELOS ====================
+// Muestra leaderboard de precisión de los 4 modelos vs resultados reales,
+// partido a partido desde el comienzo del torneo.
+function renderComparativa(){
+  const pg = document.getElementById('page-comp');
+  if(!pg) return;
+
+  // Obtener todos los partidos con resultado
+  const played = Object.entries(REAL_RESULTS)
+    .filter(([,r]) => r.played)
+    .map(([key, r]) => {
+      const [h, a] = key.split('-');
+      return {h, a, sh:r.h, sa:r.a, key};
+    });
+
+  if(!played.length){
+    pg.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">No hay resultados aún para comparar modelos.</div>';
+    return;
+  }
+
+  // Para cada partido, obtener predicción de los 4 modelos
+  const models = ['Principal (Integrado)','ELO (Historial)','ICC (Calidad)','Momentum (Forma)'];
+  const stats = {
+    'Principal (Integrado)': {hits:0, total:0, brier:0, matches:[]},
+    'ELO (Historial)':       {hits:0, total:0, brier:0, matches:[]},
+    'ICC (Calidad)':         {hits:0, total:0, brier:0, matches:[]},
+    'Momentum (Forma)':      {hits:0, total:0, brier:0, matches:[]}
+  };
+
+  played.forEach(m => {
+    let pred;
+    try { pred = ensemblePredict(m.h, m.a, null); } catch(e){ return; }
+    if(!pred) return;
+
+    const rH = m.sh, rA = m.sa;
+    let actual;
+    if(rH > rA)       actual = 'H';
+    else if(rH < rA)  actual = 'A';
+    else               actual = 'D';
+
+    // Probabilidades por modelo
+    const iccH = getCachedICC(m.h), iccA = getCachedICC(m.a);
+    const eloH = G.elo[m.h]||1500,  eloA = G.elo[m.a]||1500;
+    const momH = getCachedMomentum(m.h), momA = getCachedMomentum(m.a);
+
+    const pModels = {
+      'Principal (Integrado)': {pH:pred.pH, pD:pred.pD, pA:pred.pA},
+      'ELO (Historial)':       _mus_elo(eloH, eloA),
+      'ICC (Calidad)':         _mus_icc(iccH, iccA),
+      'Momentum (Forma)':      _mus_mom(momH, momA)
+    };
+
+    models.forEach(mod => {
+      const p = pModels[mod];
+      let predOut;
+      if(p.pH>=p.pA && p.pH>=p.pD)      predOut='H';
+      else if(p.pA>=p.pH && p.pA>=p.pD) predOut='A';
+      else                                predOut='D';
+
+      const hit = predOut===actual;
+      // Brier: (p_outcome - 1)^2 + others^2, simplified
+      const pActual = actual==='H'?p.pH: actual==='A'?p.pA: p.pD;
+      const brier = Math.pow(pActual-1,2) + Math.pow(actual==='H'?0:p.pH,2)
+                  + Math.pow(actual==='A'?0:p.pA,2) + Math.pow(actual==='D'?0:p.pD,2);
+
+      stats[mod].hits   += hit?1:0;
+      stats[mod].total  += 1;
+      stats[mod].brier  += brier/2; // half-Brier (0=perfect,1=worst)
+      stats[mod].matches.push({
+        key: m.key,
+        h: m.h, a: m.a,
+        sh: m.sh, sa: m.sa,
+        predOut, actual, hit,
+        pH:p.pH, pD:p.pD, pA:p.pA
+      });
+    });
+  });
+
+  // Sort models by accuracy desc
+  const sorted = models.slice().sort((a,b)=>{
+    const accA = stats[a].total?stats[a].hits/stats[a].total:0;
+    const accB = stats[b].total?stats[b].hits/stats[b].total:0;
+    return accB-accA;
+  });
+
+  let h = '<div style="padding:12px 0">';
+  h += '<div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:12px;padding:0 12px">📊 Comparativa de Modelos</div>';
+  h += '<div style="font-size:15px;color:var(--muted);margin-bottom:14px;padding:0 12px">';
+  h += 'Rendimiento real de cada modelo desde el partido 1 hasta hoy. '+played.length+' partidos con resultado.</div>';
+
+  // Leaderboard
+  h += '<div style="padding:0 8px;margin-bottom:16px">';
+  sorted.forEach((mod, idx) => {
+    const s = stats[mod];
+    const acc = s.total ? (s.hits/s.total*100).toFixed(1) : '0.0';
+    const brierAvg = s.total ? (s.brier/s.total).toFixed(3) : '—';
+    const medal = idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'4️⃣';
+    const barW = Math.round(parseFloat(acc));
+    const barC = idx===0?'var(--gold)':idx===1?'#aaa':idx===2?'#cd7f32':'var(--muted)';
+    h += '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">';
+    h += '<span style="font-size:19px;font-weight:800">'+medal+' '+mod+'</span>';
+    h += '<span style="font-size:18px;font-weight:800;color:'+barC+'">'+acc+'%</span>';
+    h += '</div>';
+    h += '<div style="background:rgba(255,255,255,.08);border-radius:4px;height:7px;margin-bottom:5px">';
+    h += '<div style="background:'+barC+';width:'+barW+'%;height:7px;border-radius:4px"></div></div>';
+    h += '<div style="display:flex;gap:14px;font-size:14px;color:var(--muted)">';
+    h += '<span>✅ '+s.hits+'/'+s.total+' aciertos</span>';
+    h += '<span>Brier: '+brierAvg+' <span style="font-size:12px">(menor=mejor)</span></span>';
+    h += '</div></div>';
+  });
+  h += '</div>';
+
+  // Match-by-match table
+  h += '<div style="padding:0 8px">';
+  h += '<div style="font-size:17px;font-weight:800;margin-bottom:8px;color:var(--text)">Partido a partido</div>';
+  h += '<div style="overflow-x:auto">';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:14px">';
+  h += '<thead><tr style="color:var(--muted);border-bottom:1px solid rgba(255,255,255,.1)">';
+  h += '<th style="text-align:left;padding:5px 6px;font-weight:600">Partido</th>';
+  h += '<th style="text-align:center;padding:5px 4px">Res.</th>';
+  sorted.forEach(mod=>{
+    h += '<th style="text-align:center;padding:5px 4px;font-size:13px">'+mod+'</th>';
+  });
+  h += '</tr></thead><tbody>';
+
+  // Use Principal model matches as reference (same set)
+  const refMatches = stats['Principal'].matches;
+  refMatches.forEach((rm, idx) => {
+    const row_bg = idx%2===0?'rgba(255,255,255,.02)':'transparent';
+    h += '<tr style="background:'+row_bg+';border-bottom:1px solid rgba(255,255,255,.04)">';
+    h += '<td style="padding:5px 6px;font-size:13px">'+FLAG(rm.h)+' '+rm.h+'<br><span style="font-size:12px;color:var(--muted)">vs '+FLAG(rm.a)+' '+rm.a+'</span></td>';
+    const rc=rm.actual==='H'?'var(--green)':rm.actual==='A'?'var(--orange)':'var(--yellow)';
+    const rl=rm.actual==='H'?rm.h:rm.actual==='A'?rm.a:'Empate';
+    h += '<td style="text-align:center;padding:5px 4px;font-size:13px;color:'+rc+'">'+rm.sh+'-'+rm.sa+'</td>';
+    sorted.forEach(mod => {
+      const mm = stats[mod].matches[idx];
+      const ok = mm && mm.hit;
+      h += '<td style="text-align:center;padding:5px 4px;font-size:17px">'+(ok?'✅':'❌')+'</td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div></div>';
+  h += '</div>';
+  pg.innerHTML = h;
+}
+
 
 // ==================== PROGRESO Y BOOT ====================
 function setProgress(p,msg){
@@ -2009,6 +2376,7 @@ function saveManualResult(){
   // Limpiar cachés y recalibrar ELO
   _clearStandings(); _clearPredCache(); invalidateCache('results');
   recalibrateELO();
+  renderHoy();
   renderDuel();
   renderChamp();
   showToast(`✅ ${savedKey.replace('-',' vs ')} — ${h}:${a} guardado`);
@@ -2095,8 +2463,9 @@ async function syncFromAPI(){
   try{
     // ESPN public scoreboard — FIFA World Cup 2026
     // Intentamos múltiples slugs que ESPN puede usar para el torneo
-    const espnSlugs=['fifa.world','fifa.worldcup','international.world','soccer.fifa'];
+    const espnSlugs=['fifa.world','fifa.worldcup','fifaworldcup','international.world','soccer.fifa','fifa.worldq'];
     let newResults=null;
+    // Intento 1: rango completo
     for(const slug of espnSlugs){
       try{
         const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=20260611-20261219&limit=500`;
@@ -2104,6 +2473,23 @@ async function syncFromAPI(){
         const parsed=parseESPNEvents(data.events||[]);
         if(Object.keys(parsed).length>0){ newResults=parsed; break; }
       }catch(e){}
+    }
+    // Intento 2: consultas por fecha individual (fallback si rango no funciona)
+    if(!newResults){
+      const allKoDates=['20260628','20260629','20260630','20260701','20260702','20260703',
+                        '20260704','20260705','20260706','20260707'];
+      const combined={};
+      let gotData=false;
+      for(const slug of espnSlugs.slice(0,3)){
+        for(const d of allKoDates){
+          try{
+            const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${d}`;
+            const data=await fetchWithProxies(url);
+            if(data?.events?.length){ Object.assign(combined, parseESPNEvents(data.events)); gotData=true; }
+          }catch(e){}
+        }
+        if(gotData){ newResults=combined; break; }
+      }
     }
     // TheSportsDB como respaldo (clave pública "3", sin auth)
     if(!newResults){
@@ -2124,11 +2510,16 @@ async function syncFromAPI(){
       throw new Error('No se encontraron resultados. ¿El torneo ya tiene partidos terminados?');
     }
     // FILTRO DE SEGURIDAD: solo aceptar resultados de partidos en fechas <= hoy
-    // Evita que la API marque como finalizados partidos futuros o de torneos equivocados
+    // Para fase de grupos: usar CALENDAR_MATCHES. Para KO: usar BRACKET_KO directamente.
     const validKeys=new Set();
     for(const [date,ms] of Object.entries(CALENDAR_MATCHES)){
-      if(date<=todayStr) for(const m of ms) validKeys.add(`${m.home}-${m.away}`);
+      if(date<=todayStr) for(const m of ms){
+        if(m.home!=='TBD'&&m.away!=='TBD') validKeys.add(`${m.home}-${m.away}`);
+      }
     }
+    // Agregar partidos KO conocidos de BRACKET_KO (incluso si CALENDAR_MATCHES tiene TBD)
+    const _koAll=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[]),...(BRACKET_KO.third||[])];
+    _koAll.forEach(m=>{ if(m.h!=='TBD'&&m.a!=='TBD') validKeys.add(`${m.h}-${m.a}`); });
     const safeResults={};
     for(const [k,v] of Object.entries(newResults)){
       if(validKeys.has(k)) safeResults[k]=v;
@@ -2138,8 +2529,10 @@ async function syncFromAPI(){
     Object.assign(REAL_RESULTS, safeResults, manual);
     _clearStandings(); _clearPredCache(); invalidateCache('results');
     recalibrateELO();
+    renderHoy();
     renderDuel();
     renderChamp();
+    if(document.getElementById('page-comp')?.classList.contains('active')) renderComparativa();
     const now=new Date();
     const ts=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     document.getElementById('syncStatus').textContent=`✓ ${ts}`;
@@ -2337,7 +2730,7 @@ async function syncFromESPN(){
 
   if(updated>0){
     invalidateCache('results');
-    renderBracket();
+    renderHoy();
   }
   if(btn){
     btn.textContent=updated>0?`✅ ${updated} resultados nuevos`:allEvents.length>0?'✔ Ya actualizado':'⚠️ API no disponible';
@@ -2386,193 +2779,140 @@ function fillBracketPredictions(){
   });
 }
 
-function renderBracket(){
-  // ── SOLUCIÓN DEFINITIVA: sync cascading REAL_RESULTS → BRACKET_KO → auto-avance ──
-  // Solo actualizar REAL_RESULTS para que todo lo demás se calcule solo.
-  const _syncScore=(m)=>{
-    if(m.h!=='TBD' && m.a!=='TBD'){
-      const real=REAL_RESULTS[`${m.h}-${m.a}`];
-      if(real?.played){
-        if(m.sh===null){m.sh=real.h; m.sa=real.a;}
-        if(real.penH!==undefined && m.pen_h===undefined){m.pen_h=real.penH; m.pen_a=real.penA;}
-        if(real.winnerTeam && !m.winnerTeam){m.winnerTeam=real.winnerTeam;}
+function renderHoy(){
+  // Cascade sync: fill BRACKET_KO team names from REAL_RESULTS
+  const _syncScore=m=>{
+    if(m.h!=='TBD'&&m.a!=='TBD'){
+      const r=REAL_RESULTS[m.h+'-'+m.a];
+      if(r?.played){
+        if(m.sh===null){m.sh=r.h;m.sa=r.a;}
+        if(r.penH!==undefined&&m.pen_h===undefined){m.pen_h=r.penH;m.pen_a=r.penA;}
+        if(r.winnerTeam&&!m.winnerTeam)m.winnerTeam=r.winnerTeam;
       }
     }
   };
-  const _winner=(m)=>{
-    if(m.sh===null) return null;
-    if(m.winnerTeam) return m.winnerTeam; // ganador confirmado por API (incluso en penales)
-    if(m.sh>m.sa) return m.h; if(m.sa>m.sh) return m.a;
-    if(m.pen_h!==undefined) return m.pen_h>m.pen_a?m.h:m.a;
+  const _winner=m=>{
+    if(m.sh===null)return null;
+    if(m.winnerTeam)return m.winnerTeam;
+    if(m.sh>m.sa)return m.h;
+    if(m.sa>m.sh)return m.a;
+    if(m.pen_h!==undefined)return m.pen_h>m.pen_a?m.h:m.a;
     return null;
   };
-  const _loser=(m)=>{ const w=_winner(m); return (w&&m.sh!==null)?(w===m.h?m.a:m.h):null; };
-  const _adv=(src0,src1,dst)=>{ if(!dst) return; const w0=_winner(src0),w1=_winner(src1); if(w0&&dst.h==='TBD')dst.h=w0; if(w1&&dst.a==='TBD')dst.a=w1; };
+  const _loser=m=>{ const w=_winner(m); return(w&&m.sh!==null)?(w===m.h?m.a:m.h):null; };
+  const _adv=(s0,s1,dst)=>{
+    if(!dst)return;
+    const w0=_winner(s0),w1=_winner(s1);
+    if(w0&&dst.h==='TBD')dst.h=w0;
+    if(w1&&dst.a==='TBD')dst.a=w1;
+  };
 
-  // 1. Sync R32 scores
+  fillBracketPredictions();
   BRACKET_KO.r32.forEach(_syncScore);
-  // 2. Avanzar R32→R16, sync R16
   for(let i=0;i<BRACKET_KO.r32.length;i+=2){
     _adv(BRACKET_KO.r32[i],BRACKET_KO.r32[i+1],BRACKET_KO.r16[i/2]);
     _syncScore(BRACKET_KO.r16[i/2]);
   }
-  // 3. Avanzar R16→QF, sync QF
   for(let i=0;i<BRACKET_KO.r16.length;i+=2){
     _adv(BRACKET_KO.r16[i],BRACKET_KO.r16[i+1],BRACKET_KO.qf[i/2]);
     _syncScore(BRACKET_KO.qf[i/2]);
   }
-  // 4. Avanzar QF→SF, sync SF
   for(let i=0;i<BRACKET_KO.qf.length;i+=2){
     _adv(BRACKET_KO.qf[i],BRACKET_KO.qf[i+1],BRACKET_KO.sf[i/2]);
     _syncScore(BRACKET_KO.sf[i/2]);
   }
-  // 5. Avanzar SF→Final + 3er puesto
   {
     const sf0=BRACKET_KO.sf[0],sf1=BRACKET_KO.sf[1],fs=BRACKET_KO.f[0],tp=BRACKET_KO.third[0];
     const fw0=_winner(sf0),fw1=_winner(sf1),fl0=_loser(sf0),fl1=_loser(sf1);
-    if(fw0&&fs&&fs.h==='TBD')fs.h=fw0; if(fw1&&fs&&fs.a==='TBD')fs.a=fw1;
-    if(fl0&&tp&&tp.h==='TBD')tp.h=fl0; if(fl1&&tp&&tp.a==='TBD')tp.a=fl1;
+    if(fw0&&fs&&fs.h==='TBD')fs.h=fw0;
+    if(fw1&&fs&&fs.a==='TBD')fs.a=fw1;
+    if(fl0&&tp&&tp.h==='TBD')tp.h=fl0;
+    if(fl1&&tp&&tp.a==='TBD')tp.a=fl1;
     _syncScore(fs); _syncScore(tp);
   }
-  fillBracketPredictions();
 
-  // ── SECCIÓN HOY ──
+  // Find today's matches across all rounds
+  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const d0=new Date(todayStr+'T12:00:00');
-  const MNAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const todayBD=`${MNAMES[d0.getMonth()]} ${d0.getDate()}`;
+  const todayBD=MN[d0.getMonth()]+' '+d0.getDate();
+
   const allSlots=[
-    ...BRACKET_KO.r32.map(m=>({...m,round:'R32'})),
-    ...BRACKET_KO.r16.map(m=>({...m,round:'Octavos'})),
-    ...BRACKET_KO.qf.map(m=>({...m,round:'Cuartos'})),
-    ...BRACKET_KO.sf.map(m=>({...m,round:'Semis'})),
-    ...(BRACKET_KO.f||[]).map(m=>({...m,round:'Final'})),
-    ...(BRACKET_KO.third||[]).map(m=>({...m,round:'3er Puesto'})),
+    ...BRACKET_KO.r32.map(m=>Object.assign({},m,{rnd:'R32'})),
+    ...BRACKET_KO.r16.map(m=>Object.assign({},m,{rnd:'Octavos'})),
+    ...BRACKET_KO.qf.map(m=>Object.assign({},m,{rnd:'Cuartos'})),
+    ...BRACKET_KO.sf.map(m=>Object.assign({},m,{rnd:'Semis'})),
+    ...(BRACKET_KO.f||[]).map(m=>Object.assign({},m,{rnd:'Final'})),
+    ...(BRACKET_KO.third||[]).map(m=>Object.assign({},m,{rnd:'3er Puesto'})),
   ];
-  const todaySlots=allSlots.filter(m=>m.date===todayBD);
-  let hoyHtml='';
-  if(todaySlots.length){
-    hoyHtml+=`<div class="stitle" style="margin:8px 0 6px">📅 Partidos de HOY — ${todayBD}</div>`;
-    todaySlots.forEach(m=>{
-      const played=m.sh!==null;
-      const hasBothTeams=m.h!=='TBD'&&m.a!=='TBD';
-      const pred=hasBothTeams?getCachedPrediction(m.h,m.a,m.group||null):null;
-      const real=played?REAL_RESULTS[`${m.h}-${m.a}`]:null;
-      const w=played?(()=>{if(m.winnerTeam)return m.winnerTeam;if(m.sh>m.sa)return m.h;if(m.sa>m.sh)return m.a;if(m.pen_h!==undefined)return m.pen_h>m.pen_a?m.h:m.a;return null;})():null;
-      hoyHtml+=`<div class="mcard-dual">
-        <div class="match-header">
-          <div class="tflg">${hasBothTeams?FLAG(m.h):''}</div>
-          <div class="tname">${m.h==='TBD'?'Por definir':m.h}</div>
-          <div style="font-size:18px;font-weight:900;padding:0 4px">vs</div>
-          <div class="tname" style="text-align:right">${m.a==='TBD'?'Por definir':m.a}</div>
-          <div class="tflg">${hasBothTeams?FLAG(m.a):''}</div>
-          <div class="match-group">${m.round} · ${m.time}</div>
-        </div>
-        ${played?`<div class="result-real" style="margin:6px 0"><div class="rscore">${m.sh} — ${m.sa}${m.pen_h!==undefined?` <span style='font-size:16px;color:var(--orange)'>(pen ${m.pen_h}–${m.pen_a})</span>`:''}</div><div class="rlabel">Resultado final ✅${w?' · Avanza: '+FLAG(w)+' '+w:''}</div></div>`
-          :hasBothTeams&&pred?`<div class="model-grid"><div class="model-box actual">
-            ${(()=>{const conf=Math.max(pred.pH,pred.pD,pred.pA);const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';const lbl=conf>=0.60?'Alta confianza':conf>=0.50?'Media':'⚠️ Baja';return `<div class="model-box-title">Predicción <span class="conf-badge ${cl}">${lbl}</span></div>`;})()}
-            <div class="model-probs-mini">
-              <div class="mprob-mini"><div class="mpv">${(pred.pH*100).toFixed(0)}%</div><div class="mlabel">${m.h.split(' ')[0]}</div></div>
-              <div class="mprob-mini"><div class="mpv">${(pred.pD*100).toFixed(0)}%</div><div class="mlabel">Emp</div></div>
-              <div class="mprob-mini"><div class="mpv">${(pred.pA*100).toFixed(0)}%</div><div class="mlabel">${m.a.split(' ')[0]}</div></div>
-            </div>
-            <div class="mscore-big">${pred.score}</div>
-            <div class="mscore-label">Marcador probable</div>
-            <div class="mscore">xG: ${pred.xgH} – ${pred.xgA}</div>
-          </div></div>${buildBetHtml(pred,m.h,m.a)}`
-          :`<div style="text-align:center;padding:12px;color:var(--muted);font-size:17px">Equipos por definir</div>`}
-      </div>`;
-    });
+  const slots=allSlots.filter(m=>m.date===todayBD);
+
+  const pg=document.getElementById('page-hoy');
+
+  if(!slots.length){
+    pg.innerHTML='<div class="card" style="text-align:center;padding:32px;color:var(--muted);font-size:18px">📭 Sin partidos hoy ('+todayBD+')</div>';
+    return;
   }
 
-  const ROUNDS=[
-    {id:'r32',label:'R32',    color:'var(--accent)', dates:'28 jun–3 jul', cls:'r32'},
-    {id:'r16',label:'Octavos',color:'var(--green)',  dates:'4–7 jul',      cls:'r16'},
-    {id:'qf', label:'Cuartos',color:'var(--gold)',   dates:'9–11 jul',     cls:'qf'},
-    {id:'sf', label:'Semis',  color:'var(--orange)', dates:'14–15 jul',    cls:'sf'},
-    {id:'f',  label:'Final',  color:'var(--red)',    dates:'19 jul',        cls:'f'},
-  ];
+  let html='<div class="stitle" style="margin:8px 0 10px">📅 Partidos de hoy — '+todayBD+'</div>';
 
-  // Auto-select the current active round (last round with any played match)
-  if(!window._bracketRound){
-    window._bracketRound='r32';
-    for(const r of ROUNDS){
-      if((BRACKET_KO[r.id]||[]).some(m=>m.sh!==null)) window._bracketRound=r.id;
-    }
-  }
-  const active=window._bracketRound;
-
-  // Tab buttons
-  let html=`<div class="bracket-wrap">${hoyHtml}<div class="bracket-tabs">`;
-  ROUNDS.forEach(r=>{
-    const on=r.id===active;
-    html+=`<button class="btab btab-${r.cls}${on?' active':''}" onclick="window._bracketRound='${r.id}';renderBracket()">${r.label}</button>`;
-  });
-  html+=`</div>`;
-  html+=`<div class="bracket-top-bar"><span style="font-size:16px;color:var(--muted);flex:1">${ROUNDS.find(r=>r.id===active)?.dates||''}</span><button id="sync-espn-btn" onclick="syncFromESPN()" style="padding:5px 12px;background:var(--accent);color:#000;border:none;border-radius:20px;font-size:16px;font-weight:800;cursor:pointer">🔄 Actualizar</button></div>`;
-  html+=`<div class="bracket-content">`;
-
-  // Matches for active round
-  const matchList=[...(BRACKET_KO[active]||[])];
-  // In Final tab also show 3rd place
-  if(active==='f'){
-    const tp=BRACKET_KO.third[0];
-    if(tp) matchList.push({...tp,_third:true});
-  }
-
-  matchList.forEach(m=>{
+  slots.forEach(function(m){
     const played=m.sh!==null;
-    const hasPen=played&&m.pen_h!==undefined;
-    const w=_winner(m);
-    const winH=w===m.h, winA=w===m.a;
-    const isFinal=active==='f'&&!m._third;
-    const isThird=m._third===true;
-    const isPred=!played&&m.pred===true;
+    const hasBoth=m.h!=='TBD'&&m.a!=='TBD';
+    const pred=(hasBoth&&!played)?getCachedPrediction(m.h,m.a,m.group||null):null;
+    const w=played?_winner(m):null;
 
-    const cls=`bmatch${played?' bm-played':''}${isFinal?' bm-final':''}${isThird?' bm-third':''}${isPred&&!isThird?' bm-pred':''}`;
-    html+=`<div class="${cls}">`;
+    html+='<div class="mcard-dual">';
 
-    // Label row
-    if(isFinal) html+=`<div class="bmatch-label" style="color:var(--gold)">🏆 Gran Final · ${m.date} · ${m.time}</div>`;
-    else if(isThird) html+=`<div class="bmatch-label" style="color:var(--teal)">🥉 Tercer Puesto · ${m.date} · ${m.time}</div>`;
+    // ─ Header ─
+    html+='<div class="match-header">';
+    html+='<div class="tflg">'+(hasBoth?FLAG(m.h):'')+'</div>';
+    html+='<div class="tname">'+(m.h==='TBD'?'Por definir':m.h)+'</div>';
+    html+='<div style="font-size:18px;font-weight:900;padding:0 4px">vs</div>';
+    html+='<div class="tname" style="text-align:right">'+(m.a==='TBD'?'Por definir':m.a)+'</div>';
+    html+='<div class="tflg">'+(hasBoth?FLAG(m.a):'')+'</div>';
+    html+='<div class="match-group">'+m.rnd+' · '+m.time+'</div>';
+    html+='</div>';
 
-    // Home
-    html+=`<div class="bmatch-team${played?(winH?' won':winA?' lost':''):''}">`;
-    html+=m.h==='TBD'?`<span class="bmatch-tbd">Por definir</span>`:`<span class="bmatch-name">${FLAG(m.h)} ${m.h}</span>`;
     if(played){
-      html+=`<div style="text-align:right"><span class="bmatch-score">${m.sh}</span>`;
-      if(hasPen) html+=`<span class="bmatch-pen">(${m.pen_h})</span>`;
-      html+=`</div>`;
+      // ─ Resultado final ─
+      const hasPen=m.pen_h!==undefined;
+      html+='<div class="result-real" style="margin:6px 0">';
+      html+='<div class="rscore">'+m.sh+' — '+m.sa+'</div>';
+      if(hasPen) html+='<div style="font-size:16px;color:var(--orange);margin:2px 0">Penales: '+m.pen_h+'–'+m.pen_a+'</div>';
+      html+='<div class="rlabel">Resultado final ✅'+(w?' · Avanza: '+FLAG(w)+' '+w:'')+'</div>';
+      html+='</div>';
+
+    } else if(!hasBoth){
+      // ─ TBD ─
+      html+='<div style="text-align:center;padding:14px;color:var(--muted);font-size:17px">⏳ Equipos por definir</div>';
+
+    } else if(pred){
+      // ─ Predicción ─
+      const conf=Math.max(pred.pH,pred.pD,pred.pA);
+      const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';
+      const lbl=conf>=0.60?'Alta confianza':conf>=0.50?'Confianza media':'⚠️ Baja confianza';
+      const hShort=m.h.split(' ')[0];
+      const aShort=m.a.split(' ')[0];
+
+      html+='<div class="model-grid"><div class="model-box actual">';
+      html+='<div class="model-box-title">Predicción <span class="conf-badge '+cl+'">'+lbl+'</span></div>';
+      html+='<div class="model-probs-mini">';
+      html+='<div class="mprob-mini"><div class="mpv">'+Math.round(pred.pH*100)+'%</div><div class="mlabel">'+hShort+'</div></div>';
+      html+='<div class="mprob-mini"><div class="mpv">'+Math.round(pred.pD*100)+'%</div><div class="mlabel">Emp</div></div>';
+      html+='<div class="mprob-mini"><div class="mpv">'+Math.round(pred.pA*100)+'%</div><div class="mlabel">'+aShort+'</div></div>';
+      html+='</div>';
+      html+='<div class="mscore-big">'+pred.score+'</div>';
+      html+='<div class="mscore-label">Marcador probable</div>';
+      html+='<div class="mscore">xG: '+pred.xgH+' – '+pred.xgA+'</div>';
+      html+='</div></div>';
+      html+=buildMusclesHtml(pred,m.h,m.a);
+      html+=buildSorpresaHtml(pred,m.h,m.a);
     }
-    html+=`</div>`;
 
-    html+=`<div class="bmatch-sep"></div>`;
-
-    // Away
-    html+=`<div class="bmatch-team${played?(winA?' won':winH?' lost':''):''}">`;
-    html+=m.a==='TBD'?`<span class="bmatch-tbd">Por definir</span>`:`<span class="bmatch-name">${FLAG(m.a)} ${m.a}</span>`;
-    if(played){
-      html+=`<div style="text-align:right"><span class="bmatch-score">${m.sa}</span>`;
-      if(hasPen) html+=`<span class="bmatch-pen">(${m.pen_a})</span>`;
-      html+=`</div>`;
-    }
-    html+=`</div>`;
-
-    // Meta row (non-final, non-third)
-    if(!isFinal&&!isThird){
-      html+=`<div class="bmatch-meta"><span>${m.date} · ${m.time}</span>`;
-      if(hasPen) html+=`<span style="color:var(--orange)">⚡ Penales</span>`;
-      else if(isPred) html+=`<span style="color:var(--teal)">📊 Predicción</span>`;
-      else if(played) html+=`<span style="color:var(--green)">✓ Finalizado</span>`;
-      html+=`</div>`;
-    }
-
-    html+=`</div>`;
+    html+='</div>'; // mcard-dual
   });
 
-  if(!matchList.length) html+=`<div style="text-align:center;padding:40px;color:var(--muted)">Sin partidos en esta ronda aún</div>`;
-
-  html+=`</div></div>`;
-  document.getElementById('page-bracket').innerHTML=html;
+  pg.innerHTML=html;
 }
 
 boot();
