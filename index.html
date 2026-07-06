@@ -1343,6 +1343,13 @@ function getIncentiveDrawAdj(home,away,group){
 let _PRED_CACHE={};
 function _clearPredCache(){ for(const k in _PRED_CACHE) delete _PRED_CACHE[k]; }
 
+function safePredict(home, away, grp) {
+  if (!home || !away || home === 'TBD' || away === 'TBD' || !ALL_TEAMS.includes(home) || !ALL_TEAMS.includes(away)) {
+    return {pH:0.33, pD:0.34, pA:0.33, score:'? - ?', xgH:'?', xgA:'?'};
+  }
+  return ensemblePredict(home, away, grp);
+}
+
 function ensemblePredict(h,a,grp=''){
   const ckey=`E:${h}:${a}:${grp}`;
   if(_PRED_CACHE[ckey]) return _PRED_CACHE[ckey];
@@ -1382,7 +1389,7 @@ function ensemblePredict(h,a,grp=''){
     const sc=(1-pD)/(pH+pA);
     pH*=sc; pA*=sc;
   }
-  if(grp){
+  if(grp && grp.length===1){
     const incAdj=getIncentiveDrawAdj(h,a,grp);
     if(incAdj!==0){
       pD=Math.min(0.70,Math.max(0,pD+incAdj));
@@ -1397,7 +1404,7 @@ function ensemblePredict(h,a,grp=''){
 }
 
 // ==================== MONTE CARLO CONDICIONADO ====================
-async function runMC(N, modelo, cb){
+async function runMC(N, cb){
   // Construir lista de partidos de grupos con sus grupos
   const groupMatches = [];
   for(const [date, ms] of Object.entries(CALENDAR_MATCHES)){
@@ -1409,18 +1416,6 @@ async function runMC(N, modelo, cb){
       }
     }
   }
-  // Partidos KO (todos los del bracket, sin grupo)
-  const koMatches = [];
-  const allKORounds = ['r32','r16','qf','sf','third','f'];
-  allKORounds.forEach(round => {
-    (BRACKET_KO[round]||[]).forEach(m => {
-      if(m.h!=='TBD' && m.a!=='TBD'){
-        const key = m.h+'-'+m.a;
-        const real = REAL_RESULTS[key];
-        koMatches.push({home:m.h, away:m.a, group:'KO', real, date:m.date});
-      }
-    });
-  });
 
   let champ={}; ALL_TEAMS.forEach(t=>champ[t]=0);
   for(let sim=0; sim<N; sim++){
@@ -1429,14 +1424,12 @@ async function runMC(N, modelo, cb){
     ALL_TEAMS.forEach(t=>pts[t]=0);
     for(const gm of groupMatches){
       if(gm.real && gm.real.played){
-        // Resultado real
         const r = gm.real;
         if(r.h>r.a) pts[gm.home]+=3;
         else if(r.h<r.a) pts[gm.away]+=3;
         else { pts[gm.home]+=1; pts[gm.away]+=1; }
       } else {
-        // Simular
-        const p = ensemblePredict(gm.home, gm.away, gm.group);
+        const p = safePredict(gm.home, gm.away, gm.group);
         const rnd = Math.random();
         if(rnd < p.pH) pts[gm.home]+=3;
         else if(rnd < p.pH+p.pD){ pts[gm.home]+=1; pts[gm.away]+=1; }
@@ -1448,7 +1441,6 @@ async function runMC(N, modelo, cb){
     for(const [g, eqs] of Object.entries(GRUPOS)){
       let ord = eqs.slice().sort((a,b)=> {
         if(pts[b]!==pts[a]) return pts[b]-pts[a];
-        // Desempate simple: gd no calculado, usar sort por nombre para determinismo
         return a.localeCompare(b);
       });
       adv.push(ord[0], ord[1]);
@@ -1456,33 +1448,16 @@ async function runMC(N, modelo, cb){
     }
     terceros.sort((a,b)=>b.pts-a.pts);
     adv.push(...terceros.slice(0,8).map(x=>x.t));
-
-    // Asegurar que adv tenga al menos 32 elementos
     while(adv.length<32) adv.push('TBD');
 
-    // Armar bracket en orden: usar BRACKET_KO como guía, pero asignar equipos reales según adv
-    // Seeding: usar el orden de adv (1A,2A,1B,2B,...) que es el estándar.
-    // Pero para simplicidad, usamos el mismo orden de BRACKET_KO.r32 pero reemplazando TBD por adv
-    let bracket = [];
-    // Primero, los 32 equipos ya clasificados (adv) en un array
-    const bracketTeams = adv.slice(0,32);
-    // Asignar a los slots de R32 según el orden original (pares fijos)
-    // Para simplificar, usamos el orden de bracketTeams como 1-32
-    // Pero debemos respetar los enfrentamientos fijos de la tabla real.
-    // Mejor: usar los enfrentamientos definidos en BRACKET_KO.r32, pero reemplazando los equipos fijos
-    // por los que realmente clasificaron según el orden de adv.
-    // Dado que no tenemos un seeding exacto, usamos una aproximación: ordenar adv por algún criterio y asignar.
-    // Para mantener consistencia, asignamos directamente según el orden de clasificación:
-    // Los primeros 32 equipos (adv) se emparejan en el orden dado por el bracket real.
-    // Esto es una simplificación, pero suficiente.
+    // Armar bracket R32 según el orden fijo pero reemplazando con clasificados reales
     let bracketR32 = BRACKET_KO.r32.map((slot, idx) => {
-      // Tomamos el equipo de adv en la posición idx (si existe)
       const h = adv[idx*2] || 'TBD';
       const a = adv[idx*2+1] || 'TBD';
       return {h, a, sh:null, sa:null};
     });
 
-    // Ahora simular R32
+    // Simular R32
     let r32winners = bracketR32.map(slot => {
       if(slot.h==='TBD'||slot.a==='TBD') return null;
       const key = slot.h+'-'+slot.a;
@@ -1490,11 +1465,10 @@ async function runMC(N, modelo, cb){
       if(real && real.played){
         return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
       }
-      const p = ensemblePredict(slot.h, slot.a, 'KO');
+      const p = safePredict(slot.h, slot.a, 'KO');
       const rnd = Math.random();
       if(rnd < p.pH) return slot.h;
       if(rnd < p.pH+p.pD){
-        // Penales: usar clutch
         const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
         return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
       }
@@ -1503,8 +1477,8 @@ async function runMC(N, modelo, cb){
 
     // R16
     let r16Slots = BRACKET_KO.r16.map((slot, idx) => {
-      const h = r32winners[idx*2] || slot.h;
-      const a = r32winners[idx*2+1] || slot.a;
+      const h = r32winners[idx*2] || 'TBD';
+      const a = r32winners[idx*2+1] || 'TBD';
       return {h, a, sh:null, sa:null};
     });
     let r16winners = r16Slots.map(slot => {
@@ -1514,7 +1488,7 @@ async function runMC(N, modelo, cb){
       if(real && real.played){
         return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
       }
-      const p = ensemblePredict(slot.h, slot.a, 'KO');
+      const p = safePredict(slot.h, slot.a, 'KO');
       const rnd = Math.random();
       if(rnd < p.pH) return slot.h;
       if(rnd < p.pH+p.pD){
@@ -1526,8 +1500,8 @@ async function runMC(N, modelo, cb){
 
     // QF
     let qfSlots = BRACKET_KO.qf.map((slot, idx) => {
-      const h = r16winners[idx*2] || slot.h;
-      const a = r16winners[idx*2+1] || slot.a;
+      const h = r16winners[idx*2] || 'TBD';
+      const a = r16winners[idx*2+1] || 'TBD';
       return {h, a, sh:null, sa:null};
     });
     let qfWinners = qfSlots.map(slot => {
@@ -1537,7 +1511,7 @@ async function runMC(N, modelo, cb){
       if(real && real.played){
         return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
       }
-      const p = ensemblePredict(slot.h, slot.a, 'KO');
+      const p = safePredict(slot.h, slot.a, 'KO');
       const rnd = Math.random();
       if(rnd < p.pH) return slot.h;
       if(rnd < p.pH+p.pD){
@@ -1549,8 +1523,8 @@ async function runMC(N, modelo, cb){
 
     // SF
     let sfSlots = BRACKET_KO.sf.map((slot, idx) => {
-      const h = qfWinners[idx*2] || slot.h;
-      const a = qfWinners[idx*2+1] || slot.a;
+      const h = qfWinners[idx*2] || 'TBD';
+      const a = qfWinners[idx*2+1] || 'TBD';
       return {h, a, sh:null, sa:null};
     });
     let sfWinners = sfSlots.map(slot => {
@@ -1560,7 +1534,7 @@ async function runMC(N, modelo, cb){
       if(real && real.played){
         return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
       }
-      const p = ensemblePredict(slot.h, slot.a, 'KO');
+      const p = safePredict(slot.h, slot.a, 'KO');
       const rnd = Math.random();
       if(rnd < p.pH) return slot.h;
       if(rnd < p.pH+p.pD){
@@ -1580,7 +1554,7 @@ async function runMC(N, modelo, cb){
       if(real && real.played){
         champion = real.h>real.a?finalH:real.h<real.a?finalA: (real.penH!==undefined? (real.penH>real.penA?finalH:finalA): null);
       } else {
-        const p = ensemblePredict(finalH, finalA, 'KO');
+        const p = safePredict(finalH, finalA, 'KO');
         const rnd = Math.random();
         if(rnd < p.pH) champion = finalH;
         else if(rnd < p.pH+p.pD){
@@ -1591,12 +1565,12 @@ async function runMC(N, modelo, cb){
     }
     if(champion) champ[champion] = (champ[champion]||0)+1;
 
-    // Limpiar caché cada 100 iteraciones para no saturar memoria
-    if((sim+1)%100===0){
+    // Limpiar caché y actualizar progreso cada 50 iteraciones para no bloquear UI
+    if((sim+1)%50===0){
       _clearPredCache();
       const pct=Math.round((sim+1)/N*100);
       setProgress(20+pct*0.7,`Simulando ${sim+1}/${N}`);
-      await new Promise(r=>setTimeout(r,5));
+      await new Promise(r=>setTimeout(r,10));
     }
   }
   let res={}; ALL_TEAMS.forEach(t=>res[t]=+((champ[t]||0)/N*100).toFixed(2));
@@ -1643,7 +1617,7 @@ function renderDuel(){
     if(!real.played) continue;
     const [h,a]=key.split('-');
     const ro=realOutcome(real);
-    const pa=ensemblePredict(h,a);
+    const pa=safePredict(h,a);
     const oa=predOutcome(pa);
     const aOk=oa===ro;
     histHtml+=`<div class="trow" style="font-size:18px">
@@ -1747,7 +1721,7 @@ function renderComparativa(){
   played.forEach(m => {
     if(!m.h || !m.a || m.h===m.a) return;
     let pred;
-    try { pred = getCachedPrediction(m.h, m.a, null); } catch(e){ return; }
+    try { pred = safePredict(m.h, m.a, null); } catch(e){ return; }
     if(!pred || typeof pred.pH!=='number') return;
 
     const rH = m.sh, rA = m.sa;
@@ -2089,7 +2063,7 @@ function renderHoy(){
     }
     const played=m.sh!==null;
     const hasBoth=m.h!=='TBD'&&m.a!=='TBD';
-    const pred=(hasBoth&&!played)?getCachedPrediction(m.h,m.a,m.group||null):null;
+    const pred=(hasBoth&&!played)?safePredict(m.h,m.a,m.group||null):null;
     const w=played?(()=>{if(m.sh>m.sa)return m.h;if(m.sa>m.sh)return m.a;if(m.pen_h!==undefined)return m.pen_h>m.pen_a?m.h:m.a;return null;})():null;
 
     html+='<div class="mcard-dual">';
@@ -2175,8 +2149,8 @@ async function boot(){
     loadSavedResults();
     setProgress(5,'Inicializando ELO…'); initElo();
     setProgress(10,'Recalculando brackets…'); updateBrackets();
-    setProgress(15,'Monte Carlo — Modelo Actual (500)…');
-    await runMC(500, 'actual', res => { G.mc = res; });
+    setProgress(15,'Monte Carlo — Modelo Actual (200)…');
+    await runMC(200, res => { G.mc = res; });
     setProgress(100,'¡Listo!');
     document.getElementById('statusDot').className = 'sdot ok';
     document.getElementById('modelScore').innerText = '✓ OK';
