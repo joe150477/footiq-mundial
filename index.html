@@ -1652,7 +1652,8 @@ function renderDuel(){
   const pending=koRounds.filter(m=>{
     if(m.sh!==null) return false;
     if(m.h==='TBD'||m.a==='TBD') return false;
-    const [mon,day]=m.date.split(' ');
+    const eff=MATCH_DATES[m.h+'-'+m.a]||m.date;
+    const [mon,day]=eff.split(' ');
     const mi=MN2.indexOf(mon);
     if(mi<0) return false;
     const mDate=new Date(2026,mi,parseInt(day));
@@ -1660,7 +1661,7 @@ function renderDuel(){
   });
   let pendHtml='';
   if(pending.length){
-    pendHtml='<div class="stitle" style="margin-top:10px;color:var(--orange)">⏳ '+pending.length+' partido(s) KO sin resultado — toca ✏️ para ingresar</div>'+
+    pendHtml='<div class="stitle" style="margin-top:10px;color:var(--orange)">⏳ '+pending.length+' partido(s) KO por sincronizar — se actualizan solos con 🔄 (o ✏️ manual)</div>'+
       '<div class="card" style="padding:8px 12px">';
     pending.forEach(m=>{
       pendHtml+='<div class="trow" style="font-size:17px">'+
@@ -2050,6 +2051,8 @@ function renderHoy(){
     ...(BRACKET_KO.f||[]).map(m=>Object.assign({},m,{rnd:'Final'})),
     ...(BRACKET_KO.third||[]).map(m=>Object.assign({},m,{rnd:'3er Puesto'})),
   ];
+  // Sobrescribir la fecha del cuadro con la fecha REAL de ESPN cuando exista
+  allSlots.forEach(m=>{ const d=MATCH_DATES[m.h+'-'+m.a]; if(d) m.date=d; });
   const d0y=new Date(todayStr+'T12:00:00');
   d0y.setDate(d0y.getDate()-1);
   const MNy=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2282,9 +2285,16 @@ async function fetchJSON(url, timeoutMs=7000){
 }
 
 async function fetchWithProxies(url){
-  try{ return await fetchJSON(url, 5000); }catch(e){}
-  try{ return await fetchJSON(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 8000); }catch(e){}
-  return await fetchJSON(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 8000);
+  const enc=encodeURIComponent(url);
+  const tries=[
+    ()=>fetchJSON(`https://api.allorigins.win/raw?url=${enc}`, 12000),
+    async ()=>{ const w=await fetchJSON(`https://api.allorigins.win/get?url=${enc}`, 12000); return JSON.parse(w.contents); },
+    ()=>fetchJSON(`https://api.codetabs.com/v1/proxy/?quest=${enc}`, 12000),
+    ()=>fetchJSON(url, 6000),
+  ];
+  let lastErr;
+  for(const t of tries){ try{ return await t(); }catch(e){ lastErr=e; } }
+  throw lastErr||new Error('proxies');
 }
 
 function parseESPNEvents(events){
@@ -2293,7 +2303,9 @@ function parseESPNEvents(events){
     const comp=ev.competitions?.[0];
     if(!comp) continue;
     const status=comp.status?.type?.name||'';
-    if(status!=='STATUS_FINAL'&&status!=='STATUS_FULL_TIME') continue;
+    const done=comp.status?.type?.completed===true ||
+      ['STATUS_FINAL','STATUS_FULL_TIME','STATUS_FINAL_PEN','STATUS_FINAL_AET'].includes(status);
+    if(!done) continue;
     const home=comp.competitors?.find(c=>c.homeAway==='home');
     const away=comp.competitors?.find(c=>c.homeAway==='away');
     if(!home||!away) continue;
@@ -2303,9 +2315,32 @@ function parseESPNEvents(events){
     const hG=parseInt(home.score??'-1');
     const aG=parseInt(away.score??'-1');
     if(isNaN(hG)||isNaN(aG)||hG<0) continue;
-    results[`${h}-${a}`]={h:hG,a:aG,played:true};
+    const rec={h:hG,a:aG,played:true};
+    const phG=parseInt(home.shootoutScore), paG=parseInt(away.shootoutScore);
+    if(!isNaN(phG)&&!isNaN(paG)&&(phG>0||paG>0)){ rec.penH=phG; rec.penA=paG; }
+    results[`${h}-${a}`]=rec;
   }
   return results;
+}
+
+// Fecha real de cada partido según ESPN (jugado o programado) -> "Mon D"
+let MATCH_DATES = {};
+const _MN_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function indexFixtureDates(events){
+  for(const ev of (events||[])){
+    const comp=ev.competitions?.[0]; if(!comp) continue;
+    const home=comp.competitors?.find(c=>c.homeAway==='home');
+    const away=comp.competitors?.find(c=>c.homeAway==='away');
+    if(!home||!away) continue;
+    const h=mapESPNName(home.team?.displayName||home.team?.shortDisplayName||'');
+    const a=mapESPNName(away.team?.displayName||away.team?.shortDisplayName||'');
+    if(!ALL_TEAMS.includes(h)||!ALL_TEAMS.includes(a)) continue;
+    // ev.date viene en UTC; convertir a la hora LOCAL del dispositivo (igual que todayStr)
+    const dt=new Date(ev.date||''); if(isNaN(dt.getTime())) continue;
+    const label=_MN_ABBR[dt.getMonth()]+' '+dt.getDate();
+    MATCH_DATES[`${h}-${a}`]=label;
+    MATCH_DATES[`${a}-${h}`]=label;
+  }
 }
 
 async function syncFromAPI(){
@@ -2313,64 +2348,44 @@ async function syncFromAPI(){
   btn.classList.add('syncing');
   document.getElementById('syncStatus').textContent='Buscando...';
   try{
-    const espnSlugs=['fifa.world','fifa.worldcup','fifaworldcup','international.world','soccer.fifa','fifa.worldq','soccer.fifa.world','mens.worldcup'];
+    // ESPN oficial (mismo dato que la página del cuadro), vía proxy CORS.
+    const base='https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard';
     let newResults=null;
-    for(const slug of espnSlugs){
-      try{
-        const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=20260611-20261219&limit=500`;
-        const data=await fetchWithProxies(url);
-        const parsed=parseESPNEvents(data.events||[]);
-        if(Object.keys(parsed).length>0){ newResults=parsed; break; }
-      }catch(e){}
-    }
+    // 1) una sola petición amplia de todo el torneo
+    try{
+      const data=await fetchWithProxies(`${base}?dates=20260611-20260720&limit=500`);
+      indexFixtureDates(data.events||[]);
+      const parsed=parseESPNEvents(data.events||[]);
+      if(Object.keys(parsed).length>0) newResults=parsed;
+    }catch(e){}
+    // 2) fallback: dividir en dos ventanas más ligeras
     if(!newResults){
-      const allKoDates=['20260628','20260629','20260630','20260701','20260702','20260703',
-                        '20260704','20260705','20260706','20260707'];
       const combined={};
-      let gotData=false;
-      for(const slug of espnSlugs.slice(0,3)){
-        for(const d of allKoDates){
-          try{
-            const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${d}`;
-            const data=await fetchWithProxies(url);
-            if(data?.events?.length){ Object.assign(combined, parseESPNEvents(data.events)); gotData=true; }
-          }catch(e){}
-        }
-        if(gotData){ newResults=combined; break; }
+      for(const rng of ['20260611-20260627','20260628-20260720']){
+        try{
+          const data=await fetchWithProxies(`${base}?dates=${rng}&limit=300`);
+          indexFixtureDates(data.events||[]);
+          Object.assign(combined, parseESPNEvents(data.events||[]));
+        }catch(e){}
       }
-    }
-    if(!newResults){
-      const url='https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4328&s=2026';
-      const data=await fetchWithProxies(url);
-      const events=(data.events||[]).map(e=>({
-        competitions:[{
-          status:{type:{name:e.strStatus==='Match Finished'?'STATUS_FINAL':''}},
-          competitors:[
-            {homeAway:'home',team:{displayName:e.strHomeTeam},score:e.intHomeScore},
-            {homeAway:'away',team:{displayName:e.strAwayTeam},score:e.intAwayScore},
-          ]
-        }]
-      }));
-      newResults=parseESPNEvents(events);
+      if(Object.keys(combined).length>0) newResults=combined;
     }
     if(!newResults||Object.keys(newResults).length===0){
-      throw new Error('No se encontraron resultados. ¿El torneo ya tiene partidos terminados?');
+      throw new Error('ESPN no respondió (proxy caído o sin conexión)');
     }
-    // Filtrar solo partidos válidos (fechas <= hoy)
-    const validKeys=new Set();
-    for(const [date,ms] of Object.entries(CALENDAR_MATCHES)){
-      if(date<=todayStr) for(const m of ms){
-        if(m.home!=='TBD'&&m.away!=='TBD') validKeys.add(`${m.home}-${m.away}`);
-      }
-    }
-    const _koAll=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[]),...(BRACKET_KO.third||[])];
-    _koAll.forEach(m=>{ if(m.h!=='TBD'&&m.a!=='TBD') validKeys.add(`${m.h}-${m.a}`); });
+    // Aceptar cualquier partido jugado entre dos selecciones reales del torneo
     const safeResults={};
     for(const [k,v] of Object.entries(newResults)){
-      if(validKeys.has(k)) safeResults[k]=v;
+      const parts=k.split('-');
+      let ok=false;
+      for(let i=1;i<parts.length;i++){
+        if(ALL_TEAMS.includes(parts.slice(0,i).join('-'))&&ALL_TEAMS.includes(parts.slice(i).join('-'))){ ok=true; break; }
+      }
+      if(ok) safeResults[k]=v;
     }
     const manual=JSON.parse(localStorage.getItem('footiq_results')||'{}');
     Object.assign(REAL_RESULTS, safeResults, manual);
+    updateBrackets();
     refreshAll();
     const now=new Date();
     const ts=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -2378,7 +2393,7 @@ async function syncFromAPI(){
     showToast(`✅ ${Object.keys(REAL_RESULTS).length} resultados actualizados`);
   }catch(e){
     document.getElementById('syncStatus').textContent='⚠';
-    showToast('⚠ Sin datos en línea — usa ✏️ para ingresar manualmente', false);
+    showToast('⚠ No se pudo conectar a ESPN ahora — toca 🔄 para reintentar', false);
     console.warn('FootIQ auto-sync:',e.message);
   }finally{
     btn.classList.remove('syncing');
