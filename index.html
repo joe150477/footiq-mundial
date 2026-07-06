@@ -862,7 +862,14 @@ const ELO_PRE = {'Argentina':1950,'France':1930,'Spain':1900,'England':1900,'Bra
   'Paraguay':1580,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1660,'Switzerland':1690};
 
 // ==================== BRACKET KO ====================
-let BRACKET_KO = {
+// Inicialización segura: si no existe, crear estructura vacía
+if (typeof BRACKET_KO === 'undefined' || !BRACKET_KO || !BRACKET_KO.r32) {
+  var BRACKET_KO = {
+    r32: [], r16: [], qf: [], sf: [], third: [], f: []
+  };
+}
+// Ahora completamos con los datos reales (esto ya está definido arriba, pero por si acaso)
+BRACKET_KO = {
   r32:[
     {h:'Germany',       a:'Paraguay',    sh:1,sa:1,pen_h:3,pen_a:4,date:'Jun 29',time:'15:30'},
     {h:'France',        a:'Sweden',      sh:null,sa:null,date:'Jun 30',time:'16:00'},
@@ -911,151 +918,156 @@ let BRACKET_KO = {
 
 // ==================== ACTUALIZACIÓN DE BRACKETS ====================
 function updateBrackets(){
-  // 1. Sincronizar sh/sa de R32 con REAL_RESULTS
-  BRACKET_KO.r32.forEach(m => {
-    if(m.h!=='TBD' && m.a!=='TBD'){
-      const key = m.h+'-'+m.a;
-      const r = REAL_RESULTS[key];
-      if(r && r.played){
-        m.sh = r.h;
-        m.sa = r.a;
-        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+  try {
+    // 1. Sincronizar sh/sa de R32 con REAL_RESULTS
+    BRACKET_KO.r32.forEach(m => {
+      if(m.h!=='TBD' && m.a!=='TBD'){
+        const key = m.h+'-'+m.a;
+        const r = REAL_RESULTS[key];
+        if(r && r.played){
+          m.sh = r.h;
+          m.sa = r.a;
+          if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+        }
       }
-    }
-  });
+    });
 
-  // 2. Función auxiliar para obtener ganador/perdedor
-  function winner(m){
-    if(m.sh===null) return null;
-    if(m.sh>m.sa) return m.h;
-    if(m.sa>m.sh) return m.a;
-    if(m.pen_h!==undefined) return m.pen_h>m.pen_a ? m.h : m.a;
-    return null;
-  }
-  function loser(m){
-    const w = winner(m);
-    if(!w || m.sh===null) return null;
-    return w===m.h ? m.a : m.h;
-  }
+    function winner(m){
+      if(m.sh===null) return null;
+      if(m.sh>m.sa) return m.h;
+      if(m.sa>m.sh) return m.a;
+      if(m.pen_h!==undefined) return m.pen_h>m.pen_a ? m.h : m.a;
+      return null;
+    }
+    function loser(m){
+      const w = winner(m);
+      if(!w || m.sh===null) return null;
+      return w===m.h ? m.a : m.h;
+    }
 
-  // 3. Propagar R32 → R16
-  for(let i=0;i<BRACKET_KO.r32.length;i+=2){
-    const idx = i/2;
-    if(idx < BRACKET_KO.r16.length){
-      const w = winner(BRACKET_KO.r32[i]);
-      const w2 = winner(BRACKET_KO.r32[i+1]);
-      if(w) BRACKET_KO.r16[idx].h = w;
-      if(w2) BRACKET_KO.r16[idx].a = w2;
-    }
-  }
-  // 4. Sincronizar R16 con REAL_RESULTS (si ya jugado)
-  BRACKET_KO.r16.forEach(m => {
-    if(m.h!=='TBD' && m.a!=='TBD'){
-      const key = m.h+'-'+m.a;
-      const r = REAL_RESULTS[key];
-      if(r && r.played){
-        m.sh = r.h;
-        m.sa = r.a;
-        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+    // Propagar R32 → R16
+    for(let i=0;i<BRACKET_KO.r32.length;i+=2){
+      const idx = i/2;
+      if(idx < BRACKET_KO.r16.length){
+        const w = winner(BRACKET_KO.r32[i]);
+        const w2 = winner(BRACKET_KO.r32[i+1]);
+        if(w) BRACKET_KO.r16[idx].h = w;
+        if(w2) BRACKET_KO.r16[idx].a = w2;
       }
     }
-  });
+    BRACKET_KO.r16.forEach(m => {
+      if(m.h!=='TBD' && m.a!=='TBD'){
+        const key = m.h+'-'+m.a;
+        const r = REAL_RESULTS[key];
+        if(r && r.played){
+          m.sh = r.h;
+          m.sa = r.a;
+          if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+        }
+      }
+    });
 
-  // 5. Propagar R16 → QF
-  for(let i=0;i<BRACKET_KO.r16.length;i+=2){
-    const idx = i/2;
-    if(idx < BRACKET_KO.qf.length){
-      const w = winner(BRACKET_KO.r16[i]);
-      const w2 = winner(BRACKET_KO.r16[i+1]);
-      if(w) BRACKET_KO.qf[idx].h = w;
-      if(w2) BRACKET_KO.qf[idx].a = w2;
-    }
-  }
-  BRACKET_KO.qf.forEach(m => {
-    if(m.h!=='TBD' && m.a!=='TBD'){
-      const key = m.h+'-'+m.a;
-      const r = REAL_RESULTS[key];
-      if(r && r.played){
-        m.sh = r.h;
-        m.sa = r.a;
-        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+    // Propagar R16 → QF
+    for(let i=0;i<BRACKET_KO.r16.length;i+=2){
+      const idx = i/2;
+      if(idx < BRACKET_KO.qf.length){
+        const w = winner(BRACKET_KO.r16[i]);
+        const w2 = winner(BRACKET_KO.r16[i+1]);
+        if(w) BRACKET_KO.qf[idx].h = w;
+        if(w2) BRACKET_KO.qf[idx].a = w2;
       }
     }
-  });
+    BRACKET_KO.qf.forEach(m => {
+      if(m.h!=='TBD' && m.a!=='TBD'){
+        const key = m.h+'-'+m.a;
+        const r = REAL_RESULTS[key];
+        if(r && r.played){
+          m.sh = r.h;
+          m.sa = r.a;
+          if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+        }
+      }
+    });
 
-  // 6. Propagar QF → SF
-  for(let i=0;i<BRACKET_KO.qf.length;i+=2){
-    const idx = i/2;
-    if(idx < BRACKET_KO.sf.length){
-      const w = winner(BRACKET_KO.qf[i]);
-      const w2 = winner(BRACKET_KO.qf[i+1]);
-      if(w) BRACKET_KO.sf[idx].h = w;
-      if(w2) BRACKET_KO.sf[idx].a = w2;
-    }
-  }
-  BRACKET_KO.sf.forEach(m => {
-    if(m.h!=='TBD' && m.a!=='TBD'){
-      const key = m.h+'-'+m.a;
-      const r = REAL_RESULTS[key];
-      if(r && r.played){
-        m.sh = r.h;
-        m.sa = r.a;
-        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+    // Propagar QF → SF
+    for(let i=0;i<BRACKET_KO.qf.length;i+=2){
+      const idx = i/2;
+      if(idx < BRACKET_KO.sf.length){
+        const w = winner(BRACKET_KO.qf[i]);
+        const w2 = winner(BRACKET_KO.qf[i+1]);
+        if(w) BRACKET_KO.sf[idx].h = w;
+        if(w2) BRACKET_KO.sf[idx].a = w2;
       }
     }
-  });
+    BRACKET_KO.sf.forEach(m => {
+      if(m.h!=='TBD' && m.a!=='TBD'){
+        const key = m.h+'-'+m.a;
+        const r = REAL_RESULTS[key];
+        if(r && r.played){
+          m.sh = r.h;
+          m.sa = r.a;
+          if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+        }
+      }
+    });
 
-  // 7. Propagar SF → Final y Tercer puesto
-  if(BRACKET_KO.sf.length>=2){
-    const w1 = winner(BRACKET_KO.sf[0]);
-    const w2 = winner(BRACKET_KO.sf[1]);
-    const l1 = loser(BRACKET_KO.sf[0]);
-    const l2 = loser(BRACKET_KO.sf[1]);
-    if(w1 && BRACKET_KO.f[0]) BRACKET_KO.f[0].h = w1;
-    if(w2 && BRACKET_KO.f[0]) BRACKET_KO.f[0].a = w2;
-    if(l1 && BRACKET_KO.third[0]) BRACKET_KO.third[0].h = l1;
-    if(l2 && BRACKET_KO.third[0]) BRACKET_KO.third[0].a = l2;
+    // Propagar SF → Final y Tercer puesto
+    if(BRACKET_KO.sf.length>=2){
+      const w1 = winner(BRACKET_KO.sf[0]);
+      const w2 = winner(BRACKET_KO.sf[1]);
+      const l1 = loser(BRACKET_KO.sf[0]);
+      const l2 = loser(BRACKET_KO.sf[1]);
+      if(w1 && BRACKET_KO.f[0]) BRACKET_KO.f[0].h = w1;
+      if(w2 && BRACKET_KO.f[0]) BRACKET_KO.f[0].a = w2;
+      if(l1 && BRACKET_KO.third[0]) BRACKET_KO.third[0].h = l1;
+      if(l2 && BRACKET_KO.third[0]) BRACKET_KO.third[0].a = l2;
+    }
+    BRACKET_KO.f.forEach(m => {
+      if(m.h!=='TBD' && m.a!=='TBD'){
+        const key = m.h+'-'+m.a;
+        const r = REAL_RESULTS[key];
+        if(r && r.played){
+          m.sh = r.h;
+          m.sa = r.a;
+          if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+        }
+      }
+    });
+    BRACKET_KO.third.forEach(m => {
+      if(m.h!=='TBD' && m.a!=='TBD'){
+        const key = m.h+'-'+m.a;
+        const r = REAL_RESULTS[key];
+        if(r && r.played){
+          m.sh = r.h;
+          m.sa = r.a;
+          if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+        }
+      }
+    });
+  } catch(e) {
+    console.warn('Error actualizando brackets:', e);
   }
-  BRACKET_KO.f.forEach(m => {
-    if(m.h!=='TBD' && m.a!=='TBD'){
-      const key = m.h+'-'+m.a;
-      const r = REAL_RESULTS[key];
-      if(r && r.played){
-        m.sh = r.h;
-        m.sa = r.a;
-        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
-      }
-    }
-  });
-  BRACKET_KO.third.forEach(m => {
-    if(m.h!=='TBD' && m.a!=='TBD'){
-      const key = m.h+'-'+m.a;
-      const r = REAL_RESULTS[key];
-      if(r && r.played){
-        m.sh = r.h;
-        m.sa = r.a;
-        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
-      }
-    }
-  });
 }
 
 // ==================== REFRESH ALL ====================
 function refreshAll(){
-  updateBrackets();
-  _clearStandings();
-  invalidateCache('all');
-  recalibrateELO();
-  // Re-render pestañas activas
-  const active = document.querySelector('.page.active');
-  if(active){
-    const id = active.id.replace('page-','');
-    if(id==='champ') renderChamp();
-    else if(id==='hoy') renderHoy();
-    else if(id==='duel') renderDuel();
-    else if(id==='comp') renderComparativa();
+  try {
+    updateBrackets();
+    _clearStandings();
+    invalidateCache('all');
+    recalibrateELO();
+    const active = document.querySelector('.page.active');
+    if(active){
+      const id = active.id.replace('page-','');
+      if(id==='champ') renderChamp();
+      else if(id==='hoy') renderHoy();
+      else if(id==='duel') renderDuel();
+      else if(id==='comp') renderComparativa();
+    }
+    updateModelScore();
+  } catch(e) {
+    console.warn('Error en refreshAll:', e);
   }
-  updateModelScore();
 }
 
 function updateModelScore(){
@@ -1405,176 +1417,183 @@ function ensemblePredict(h,a,grp=''){
 
 // ==================== MONTE CARLO CONDICIONADO ====================
 async function runMC(N, cb){
-  // Construir lista de partidos de grupos con sus grupos
-  const groupMatches = [];
-  for(const [date, ms] of Object.entries(CALENDAR_MATCHES)){
-    for(const m of ms){
-      if(m.group && m.group.length===1 && m.home!=='TBD' && m.away!=='TBD'){
-        const key = m.home+'-'+m.away;
-        const real = REAL_RESULTS[key];
-        groupMatches.push({home:m.home, away:m.away, group:m.group, real, date});
+  try {
+    // Construir lista de partidos de grupos con sus grupos
+    const groupMatches = [];
+    for(const [date, ms] of Object.entries(CALENDAR_MATCHES)){
+      for(const m of ms){
+        if(m.group && m.group.length===1 && m.home!=='TBD' && m.away!=='TBD'){
+          const key = m.home+'-'+m.away;
+          const real = REAL_RESULTS[key];
+          groupMatches.push({home:m.home, away:m.away, group:m.group, real, date});
+        }
       }
     }
-  }
 
-  let champ={}; ALL_TEAMS.forEach(t=>champ[t]=0);
-  for(let sim=0; sim<N; sim++){
-    // Simular fase de grupos (solo partidos no jugados)
-    let pts={};
-    ALL_TEAMS.forEach(t=>pts[t]=0);
-    for(const gm of groupMatches){
-      if(gm.real && gm.real.played){
-        const r = gm.real;
-        if(r.h>r.a) pts[gm.home]+=3;
-        else if(r.h<r.a) pts[gm.away]+=3;
-        else { pts[gm.home]+=1; pts[gm.away]+=1; }
-      } else {
-        const p = safePredict(gm.home, gm.away, gm.group);
-        const rnd = Math.random();
-        if(rnd < p.pH) pts[gm.home]+=3;
-        else if(rnd < p.pH+p.pD){ pts[gm.home]+=1; pts[gm.away]+=1; }
-        else pts[gm.away]+=3;
+    let champ={}; ALL_TEAMS.forEach(t=>champ[t]=0);
+    for(let sim=0; sim<N; sim++){
+      // Simular fase de grupos (solo partidos no jugados)
+      let pts={};
+      ALL_TEAMS.forEach(t=>pts[t]=0);
+      for(const gm of groupMatches){
+        if(gm.real && gm.real.played){
+          const r = gm.real;
+          if(r.h>r.a) pts[gm.home]+=3;
+          else if(r.h<r.a) pts[gm.away]+=3;
+          else { pts[gm.home]+=1; pts[gm.away]+=1; }
+        } else {
+          const p = safePredict(gm.home, gm.away, gm.group);
+          const rnd = Math.random();
+          if(rnd < p.pH) pts[gm.home]+=3;
+          else if(rnd < p.pH+p.pD){ pts[gm.home]+=1; pts[gm.away]+=1; }
+          else pts[gm.away]+=3;
+        }
       }
-    }
-    // Clasificar grupos
-    let adv=[], terceros=[];
-    for(const [g, eqs] of Object.entries(GRUPOS)){
-      let ord = eqs.slice().sort((a,b)=> {
-        if(pts[b]!==pts[a]) return pts[b]-pts[a];
-        return a.localeCompare(b);
+      // Clasificar grupos
+      let adv=[], terceros=[];
+      for(const [g, eqs] of Object.entries(GRUPOS)){
+        let ord = eqs.slice().sort((a,b)=> {
+          if(pts[b]!==pts[a]) return pts[b]-pts[a];
+          return a.localeCompare(b);
+        });
+        adv.push(ord[0], ord[1]);
+        terceros.push({t:ord[2], pts:pts[ord[2]]||0});
+      }
+      terceros.sort((a,b)=>b.pts-a.pts);
+      adv.push(...terceros.slice(0,8).map(x=>x.t));
+      while(adv.length<32) adv.push('TBD');
+
+      // Armar bracket R32 según el orden fijo pero reemplazando con clasificados reales
+      let bracketR32 = BRACKET_KO.r32.map((slot, idx) => {
+        const h = adv[idx*2] || 'TBD';
+        const a = adv[idx*2+1] || 'TBD';
+        return {h, a, sh:null, sa:null};
       });
-      adv.push(ord[0], ord[1]);
-      terceros.push({t:ord[2], pts:pts[ord[2]]||0});
-    }
-    terceros.sort((a,b)=>b.pts-a.pts);
-    adv.push(...terceros.slice(0,8).map(x=>x.t));
-    while(adv.length<32) adv.push('TBD');
 
-    // Armar bracket R32 según el orden fijo pero reemplazando con clasificados reales
-    let bracketR32 = BRACKET_KO.r32.map((slot, idx) => {
-      const h = adv[idx*2] || 'TBD';
-      const a = adv[idx*2+1] || 'TBD';
-      return {h, a, sh:null, sa:null};
-    });
-
-    // Simular R32
-    let r32winners = bracketR32.map(slot => {
-      if(slot.h==='TBD'||slot.a==='TBD') return null;
-      const key = slot.h+'-'+slot.a;
-      const real = REAL_RESULTS[key];
-      if(real && real.played){
-        return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
-      }
-      const p = safePredict(slot.h, slot.a, 'KO');
-      const rnd = Math.random();
-      if(rnd < p.pH) return slot.h;
-      if(rnd < p.pH+p.pD){
-        const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
-        return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
-      }
-      return slot.a;
-    });
-
-    // R16
-    let r16Slots = BRACKET_KO.r16.map((slot, idx) => {
-      const h = r32winners[idx*2] || 'TBD';
-      const a = r32winners[idx*2+1] || 'TBD';
-      return {h, a, sh:null, sa:null};
-    });
-    let r16winners = r16Slots.map(slot => {
-      if(slot.h==='TBD'||slot.a==='TBD') return null;
-      const key = slot.h+'-'+slot.a;
-      const real = REAL_RESULTS[key];
-      if(real && real.played){
-        return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
-      }
-      const p = safePredict(slot.h, slot.a, 'KO');
-      const rnd = Math.random();
-      if(rnd < p.pH) return slot.h;
-      if(rnd < p.pH+p.pD){
-        const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
-        return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
-      }
-      return slot.a;
-    });
-
-    // QF
-    let qfSlots = BRACKET_KO.qf.map((slot, idx) => {
-      const h = r16winners[idx*2] || 'TBD';
-      const a = r16winners[idx*2+1] || 'TBD';
-      return {h, a, sh:null, sa:null};
-    });
-    let qfWinners = qfSlots.map(slot => {
-      if(slot.h==='TBD'||slot.a==='TBD') return null;
-      const key = slot.h+'-'+slot.a;
-      const real = REAL_RESULTS[key];
-      if(real && real.played){
-        return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
-      }
-      const p = safePredict(slot.h, slot.a, 'KO');
-      const rnd = Math.random();
-      if(rnd < p.pH) return slot.h;
-      if(rnd < p.pH+p.pD){
-        const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
-        return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
-      }
-      return slot.a;
-    });
-
-    // SF
-    let sfSlots = BRACKET_KO.sf.map((slot, idx) => {
-      const h = qfWinners[idx*2] || 'TBD';
-      const a = qfWinners[idx*2+1] || 'TBD';
-      return {h, a, sh:null, sa:null};
-    });
-    let sfWinners = sfSlots.map(slot => {
-      if(slot.h==='TBD'||slot.a==='TBD') return null;
-      const key = slot.h+'-'+slot.a;
-      const real = REAL_RESULTS[key];
-      if(real && real.played){
-        return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
-      }
-      const p = safePredict(slot.h, slot.a, 'KO');
-      const rnd = Math.random();
-      if(rnd < p.pH) return slot.h;
-      if(rnd < p.pH+p.pD){
-        const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
-        return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
-      }
-      return slot.a;
-    });
-
-    // Final
-    let finalH = sfWinners[0] || 'TBD';
-    let finalA = sfWinners[1] || 'TBD';
-    let champion = null;
-    if(finalH!=='TBD' && finalA!=='TBD'){
-      const key = finalH+'-'+finalA;
-      const real = REAL_RESULTS[key];
-      if(real && real.played){
-        champion = real.h>real.a?finalH:real.h<real.a?finalA: (real.penH!==undefined? (real.penH>real.penA?finalH:finalA): null);
-      } else {
-        const p = safePredict(finalH, finalA, 'KO');
+      // Simular R32
+      let r32winners = bracketR32.map(slot => {
+        if(slot.h==='TBD'||slot.a==='TBD') return null;
+        const key = slot.h+'-'+slot.a;
+        const real = REAL_RESULTS[key];
+        if(real && real.played){
+          return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
+        }
+        const p = safePredict(slot.h, slot.a, 'KO');
         const rnd = Math.random();
-        if(rnd < p.pH) champion = finalH;
-        else if(rnd < p.pH+p.pD){
-          const c1=(CLUTCH[finalH]||65)/100, c2=(CLUTCH[finalA]||65)/100;
-          champion = Math.random() < (0.5+(c1-c2)*0.3) ? finalH : finalA;
-        } else champion = finalA;
+        if(rnd < p.pH) return slot.h;
+        if(rnd < p.pH+p.pD){
+          const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
+          return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
+        }
+        return slot.a;
+      });
+
+      // R16
+      let r16Slots = BRACKET_KO.r16.map((slot, idx) => {
+        const h = r32winners[idx*2] || 'TBD';
+        const a = r32winners[idx*2+1] || 'TBD';
+        return {h, a, sh:null, sa:null};
+      });
+      let r16winners = r16Slots.map(slot => {
+        if(slot.h==='TBD'||slot.a==='TBD') return null;
+        const key = slot.h+'-'+slot.a;
+        const real = REAL_RESULTS[key];
+        if(real && real.played){
+          return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
+        }
+        const p = safePredict(slot.h, slot.a, 'KO');
+        const rnd = Math.random();
+        if(rnd < p.pH) return slot.h;
+        if(rnd < p.pH+p.pD){
+          const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
+          return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
+        }
+        return slot.a;
+      });
+
+      // QF
+      let qfSlots = BRACKET_KO.qf.map((slot, idx) => {
+        const h = r16winners[idx*2] || 'TBD';
+        const a = r16winners[idx*2+1] || 'TBD';
+        return {h, a, sh:null, sa:null};
+      });
+      let qfWinners = qfSlots.map(slot => {
+        if(slot.h==='TBD'||slot.a==='TBD') return null;
+        const key = slot.h+'-'+slot.a;
+        const real = REAL_RESULTS[key];
+        if(real && real.played){
+          return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
+        }
+        const p = safePredict(slot.h, slot.a, 'KO');
+        const rnd = Math.random();
+        if(rnd < p.pH) return slot.h;
+        if(rnd < p.pH+p.pD){
+          const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
+          return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
+        }
+        return slot.a;
+      });
+
+      // SF
+      let sfSlots = BRACKET_KO.sf.map((slot, idx) => {
+        const h = qfWinners[idx*2] || 'TBD';
+        const a = qfWinners[idx*2+1] || 'TBD';
+        return {h, a, sh:null, sa:null};
+      });
+      let sfWinners = sfSlots.map(slot => {
+        if(slot.h==='TBD'||slot.a==='TBD') return null;
+        const key = slot.h+'-'+slot.a;
+        const real = REAL_RESULTS[key];
+        if(real && real.played){
+          return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
+        }
+        const p = safePredict(slot.h, slot.a, 'KO');
+        const rnd = Math.random();
+        if(rnd < p.pH) return slot.h;
+        if(rnd < p.pH+p.pD){
+          const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
+          return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
+        }
+        return slot.a;
+      });
+
+      // Final
+      let finalH = sfWinners[0] || 'TBD';
+      let finalA = sfWinners[1] || 'TBD';
+      let champion = null;
+      if(finalH!=='TBD' && finalA!=='TBD'){
+        const key = finalH+'-'+finalA;
+        const real = REAL_RESULTS[key];
+        if(real && real.played){
+          champion = real.h>real.a?finalH:real.h<real.a?finalA: (real.penH!==undefined? (real.penH>real.penA?finalH:finalA): null);
+        } else {
+          const p = safePredict(finalH, finalA, 'KO');
+          const rnd = Math.random();
+          if(rnd < p.pH) champion = finalH;
+          else if(rnd < p.pH+p.pD){
+            const c1=(CLUTCH[finalH]||65)/100, c2=(CLUTCH[finalA]||65)/100;
+            champion = Math.random() < (0.5+(c1-c2)*0.3) ? finalH : finalA;
+          } else champion = finalA;
+        }
+      }
+      if(champion) champ[champion] = (champ[champion]||0)+1;
+
+      // Limpiar caché y actualizar progreso cada 50 iteraciones para no bloquear UI
+      if((sim+1)%50===0){
+        _clearPredCache();
+        const pct=Math.round((sim+1)/N*100);
+        setProgress(20+pct*0.7,`Simulando ${sim+1}/${N}`);
+        await new Promise(r=>setTimeout(r,10));
       }
     }
-    if(champion) champ[champion] = (champ[champion]||0)+1;
-
-    // Limpiar caché y actualizar progreso cada 50 iteraciones para no bloquear UI
-    if((sim+1)%50===0){
-      _clearPredCache();
-      const pct=Math.round((sim+1)/N*100);
-      setProgress(20+pct*0.7,`Simulando ${sim+1}/${N}`);
-      await new Promise(r=>setTimeout(r,10));
-    }
+    let res={}; ALL_TEAMS.forEach(t=>res[t]=+((champ[t]||0)/N*100).toFixed(2));
+    cb(res);
+  } catch(e) {
+    console.warn('Error en simulación Monte Carlo:', e);
+    // Devolver resultado vacío para no romper la app
+    let res={}; ALL_TEAMS.forEach(t=>res[t]=0);
+    cb(res);
   }
-  let res={}; ALL_TEAMS.forEach(t=>res[t]=+((champ[t]||0)/N*100).toFixed(2));
-  cb(res);
 }
 
 // ==================== RENDERIZADO ====================
@@ -2143,26 +2162,48 @@ function updateColTime(){
 }
 setInterval(updateColTime, 1000);
 
+// Carga segura de resultados guardados
+function loadSavedResults(){
+  try {
+    const saved = localStorage.getItem('footiq_results');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      for (const [k, v] of Object.entries(parsed)) {
+        REAL_RESULTS[k] = v;
+      }
+    }
+  } catch (e) {
+    console.warn('Error al cargar resultados guardados:', e);
+    try { localStorage.removeItem('footiq_results'); } catch (ex) {}
+  }
+}
+
 async function boot(){
   try {
     updateColTime();
     loadSavedResults();
-    setProgress(5,'Inicializando ELO…'); initElo();
-    setProgress(10,'Recalculando brackets…'); updateBrackets();
-    setProgress(15,'Monte Carlo — Modelo Actual (200)…');
+    setProgress(5, 'Inicializando ELO…');
+    initElo();
+    setProgress(10, 'Recalculando brackets…');
+    updateBrackets();
+    setProgress(15, 'Monte Carlo — Modelo Actual (200)…');
     await runMC(200, res => { G.mc = res; });
-    setProgress(100,'¡Listo!');
+    setProgress(100, '¡Listo!');
     document.getElementById('statusDot').className = 'sdot ok';
     document.getElementById('modelScore').innerText = '✓ OK';
-    setTimeout(() => {
-      document.getElementById('overlay').classList.add('gone');
-      refreshAll();
-      setTimeout(() => syncFromAPI(), 1200);
-    }, 200);
+    document.getElementById('overlay').classList.add('gone');
+    refreshAll();
+    setTimeout(() => syncFromAPI(), 1200);
   } catch (e) {
+    // Mostrar error en overlay y ocultarlo para que se vea la app
     document.getElementById('stepMsg').innerText = '❌ Error: ' + e.message;
-    document.getElementById('ovSub').innerHTML = 'Error al cargar. <button onclick="location.reload()" style="background:var(--accent);border:none;border-radius:6px;padding:6px 14px;color:#000;font-weight:700;cursor:pointer;margin-top:10px">Recargar</button>';
+    document.getElementById('ovSub').innerHTML = 'Error al cargar los datos. ' +
+      '<button onclick="location.reload()" style="background:var(--accent);border:none;border-radius:6px;padding:6px 14px;color:#000;font-weight:700;cursor:pointer;margin-top:10px">Recargar</button>';
     console.error('FootIQ boot error:', e);
+    // Ocultar overlay para que el usuario pueda ver la interfaz
+    document.getElementById('overlay').classList.add('gone');
+    // Intentar refrescar con lo que se pueda
+    try { refreshAll(); } catch(ex) {}
   }
 }
 
@@ -2209,15 +2250,6 @@ function saveManualResult(){
   refreshAll();
   showToast(`✅ ${savedKey.replace('-',' vs ')} — ${h}:${a} guardado`);
   _resultModalKey = null;
-}
-
-function loadSavedResults(){
-  try{
-    const saved = JSON.parse(localStorage.getItem('footiq_results')||'{}');
-    for(const [k,v] of Object.entries(saved)){
-      REAL_RESULTS[k] = v;
-    }
-  }catch(e){}
 }
 
 function openSettings(){ document.getElementById('settingsModal').classList.remove('gone'); }
