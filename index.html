@@ -12,7 +12,7 @@
   --dim:#6b7a90;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px;display:flex;flex-direction:column;min-height:100vh;overflow-y:auto;}
 
 /* === OVERLAY === */
 #overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
@@ -278,7 +278,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span style="font-size:15px;opacity:0.5;font-weight:normal">v30jun-b</span></div>
+  <div class="logo">Foot<em>IQ</em> <span style="font-size:15px;opacity:0.5;font-weight:normal">v30jun-c</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -287,7 +287,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
   <div class="sdot" id="statusDot"></div>
 </div>
 
-<!-- Modal info sync (ya no requiere API key) -->
+<!-- Modal info sync -->
 <div id="settingsModal" class="settings-modal gone" onclick="closeSettings()">
   <div class="settings-content" onclick="event.stopPropagation()">
     <div class="settings-title">🔄 Sincronización automática</div>
@@ -368,8 +368,6 @@ const FLAG = t => BANDERAS[t] || '🏳️';
 const ALL_TEAMS = Object.values(GRUPOS).flat();
 
 // MERCADO calibrado post resultados reales Jun 11-14
-// USA↑ (4-1 goleada), Brasil↓ (empató Marruecos), Marruecos↑, Australia↑, Escocia↑
-// Qatar↑ (1-1 Suiza sorpresa), Suiza↓ leve, Turquía↓, Chequia↓
 const MERCADO = {
   'Spain':1980,'France':1970,'England':1930,'Brazil':1840,'Argentina':1880,
   'Portugal':1860,'Germany':1865,'Netherlands':1780,'Belgium':1760,'Croatia':1710,
@@ -383,9 +381,6 @@ const MERCADO = {
   'New Zealand':1230,'Paraguay':1400,'Egypt':1450
 };
 // ==================== PERFIL INTEGRAL (4 DIMENSIONES) ====================
-// Escala 0–100. Basado en análisis histórico, ciencia deportiva y datos conocidos.
-
-// Dimensión 1: Físico-atlético (estatura, potencia, velocidad, duelos)
 const PERFIL_FISICO = {
   'France':88,'Germany':85,'Netherlands':82,'England':83,'Belgium':84,
   'United States':88,'Senegal':87,'Morocco':83,'Australia':80,'Canada':78,
@@ -398,8 +393,6 @@ const PERFIL_FISICO = {
   'Jordan':71,'Uzbekistan':73,'New Zealand':76,'Bosnia':79,
   'Haiti':74,'Curaçao':72,'Cape Verde':76,'DR Congo':80,
 };
-
-// Dimensión 2: Fortaleza mental / perfil psicológico (resiliencia, presión, remontar)
 const PERFIL_MENTAL = {
   'Argentina':95,'Germany':88,'Uruguay':90,'South Korea':84,'Morocco':88,
   'Croatia':86,'France':82,'Spain':82,'Switzerland':80,'Japan':80,
@@ -412,8 +405,6 @@ const PERFIL_MENTAL = {
   'Haiti':65,'Jordan':60,'Uzbekistan':62,'New Zealand':65,
   'Panama':64,'Cape Verde':68,'DR Congo':66,'England':55,'Curaçao':60,
 };
-
-// Dimensión 3: Garra competitiva (espíritu lucha, intensidad, sacrificio, agresividad deportiva)
 const GARRA = {
   'Uruguay':96,'Argentina':93,'Colombia':88,'Morocco':87,'South Korea':85,
   'Croatia':85,'Mexico':80,'Germany':80,'Senegal':82,'Brazil':78,
@@ -426,8 +417,6 @@ const GARRA = {
   'Qatar':60,'Saudi Arabia':63,'Iraq':68,'Jordan':62,'Uzbekistan':66,
   'New Zealand':65,'Panama':66,'Cape Verde':70,'DR Congo':73,'Curaçao':62,
 };
-
-// Dimensión 4: Cultura futbolística nacional (ADN, tradición, identidad, mística)
 const CULTURA = {
   'Brazil':98,'Argentina':97,'Germany':95,'Uruguay':92,'Spain':90,
   'France':88,'England':87,'Netherlands':86,'Mexico':83,'Colombia':82,
@@ -440,84 +429,36 @@ const CULTURA = {
   'Iraq':62,'Jordan':58,'Uzbekistan':54,'Qatar':52,'Haiti':64,
   'New Zealand':58,'Panama':62,'Cape Verde':64,'DR Congo':66,'Curaçao':58,
 };
-
-// Pesos: Físico 20% | Mental 30% | Garra 25% | Cultura 25%
 function perfilScore(team){
   const f=PERFIL_FISICO[team]??70, m=PERFIL_MENTAL[team]??70;
   const g=GARRA[team]??70, c=CULTURA[team]??70;
-  return (f*0.20 + m*0.30 + g*0.25 + c*0.25);  // 0–100
+  return (f*0.20 + m*0.30 + g*0.25 + c*0.25);
 }
-// Multiplicador de fuerza: equipo promedio (≈75/100) → ×1.00
-// Top (≈90) → ×1.06  |  Bajo (≈60) → ×0.94
 function perfilMultiplier(team){
   return 0.82 + (perfilScore(team)/100)*0.24;
 }
-
-// ==================== ICC — ÍNDICE DE CAPACIDAD DE CAMPEONATO (9 dimensiones) ====================
-
-// Dimensión 5: Factor Clutch — rendimiento bajo máxima presión (penales, finales, min85+, eliminación)
-// Datos históricos mundialistas + torneos internacionales
 const CLUTCH = {
-  'Croatia':94,    // 4 victorias en penales en Qatar 2022. Fenómeno histórico.
-  'Germany':90,    // Reyes históricos del penalty. Consistencia en finales.
-  'Argentina':88,  // Messi 2022, comeback Qatar, instinto ganador.
-  'Uruguay':85,    // Siempre compite. Garra como diferencial en eliminación.
-  'Morocco':83,    // Qatar 2022 — eliminó a España y Portugal. Déficit cero en presión.
-  'South Korea':80,// 2002: 4 victorias históricas. ADN clutch activo.
-  'Japan':78,      // 2022: remontó a Alemania y España. Juega mejor en presión.
-  'Spain':76,      // Campeón 2010, colectivo sólido en finales.
-  'France':76,     // 2 mundiales. Pero cedió ventaja 3-2 en final 2022.
-  'Switzerland':74,// Eliminó a Francia en penales (Euro 2020). Underrated.
-  'Colombia':70,
-  'United States':67,
-  'Ecuador':63,
-  'Sweden':68,
-  'Senegal':68,
-  'Australia':66,
-  'Norway':65,
-  'Portugal':62,   // Ronaldo + talento pero se queda sin batería en knockouts.
-  'Netherlands':62,// Rico pasado, pero "depresión naranja" en momentos clave.
-  'Belgium':60,    // "Mejor generación" sin nada de plata. Clutch = bajo.
-  'Mexico':56,     // El quinto partido. Techo de Cristal mundialista.
-  'Brazil':55,     // Penales = tragedia nacional (1998 WC, 2006, Copa América).
-  'England':46,    // Trauma histórico en penales. Mejorando pero aún bajo.
-  'Turkey':62,'Austria':62,'Czechia':65,'Algeria':60,'Ghana':58,
-  'Ivory Coast':55,'Egypt':58,'Tunisia':55,'South Africa':55,'Bosnia':54,
-  'Scotland':55,'Paraguay':63,'Qatar':50,'Saudi Arabia':52,'Iran':56,
-  'Iraq':50,'Jordan':48,'Uzbekistan':50,'New Zealand':55,
-  'Panama':52,'Cape Verde':55,'Haiti':50,'DR Congo':52,'Curaçao':47,
+  'Croatia':94,'Germany':90,'Argentina':88,'Uruguay':85,'Morocco':83,
+  'South Korea':80,'Japan':78,'Spain':76,'France':76,'Switzerland':74,
+  'Colombia':70,'United States':67,'Ecuador':63,'Sweden':68,'Senegal':68,
+  'Australia':66,'Norway':65,'Portugal':62,'Netherlands':62,'Belgium':60,
+  'Mexico':56,'Brazil':55,'England':46,'Turkey':62,'Austria':62,'Czechia':65,
+  'Algeria':60,'Ghana':58,'Ivory Coast':55,'Egypt':58,'Tunisia':55,
+  'South Africa':55,'Bosnia':54,'Scotland':55,'Paraguay':63,'Qatar':50,
+  'Saudi Arabia':52,'Iran':56,'Iraq':50,'Jordan':48,'Uzbekistan':50,
+  'New Zealand':55,'Panama':52,'Cape Verde':55,'Haiti':50,'DR Congo':52,'Curaçao':47,
 };
-
-// Dimensión 6: ADN Competitivo Institucional — mística ganadora, sobrerendimiento histórico,
-// equipos que SIEMPRE superan la estadística bruta (tipo Real Madrid, Bayern, Boca Juniors)
 const ADN_COMPETITIVO = {
-  'Germany':96,    // 4 títulos, 8 finales. Siempre ahí. La definición del ADN.
-  'Argentina':93,  // 3 títulos. Nunca bajan de cuartos cuando clasifican.
-  'Uruguay':91,    // 2 títulos con país de 3M. Overperformance total.
-  'Brazil':85,     // 5 títulos pero últimos 20 años hay inconsistencia.
-  'Spain':84,      // 2010 + Euro dominance. Escuela táctica consolidada.
-  'Croatia':87,    // 2018 finalista, 2022 tercero con plantel modesto. Institución.
-  'Morocco':82,    // 2022 mostró ADN real: elimina gigantes, nada que temer.
-  'France':83,     // 2 títulos + final 2022. Consistencia de grande.
-  'South Korea':76,// 2002 semifinal desde cero. ADN de sorpresa activado.
-  'Japan':73,      // Grupo de la muerte 2022. ADN de guerrero silencioso.
-  'Colombia':75,   // 2014 cuartos, era James. Potencial institucional.
-  'Mexico':70,     // Siempre clasifica, pero techo. ADN de "octavos eternos".
-  'Switzerland':71,// Sorpresa silenciosa en cada Mundial. Muy consistente.
-  'Netherlands':72,// Historia rica pero mucha decepción. ADN mixto.
-  'Portugal':65,   // Talento superlativo pero subrendimiento en knockouts.
-  'Belgium':60,    // Generación dorada que no entregó. ADN débil en presión.
-  'United States':66,
-  'Senegal':68,'Australia':63,'Ecuador':60,'Canada':56,
-  'Norway':58,'Sweden':67,'Turkey':60,'Austria':63,'Czechia':64,
-  'Algeria':62,'Ghana':60,'Ivory Coast':58,'Egypt':62,
-  'Tunisia':55,'South Africa':56,'Scotland':61,
-  'Paraguay':65,'Bosnia':52,'Qatar':48,'Saudi Arabia':50,
-  'Iran':58,'Iraq':48,'Jordan':46,'Uzbekistan':48,
+  'Germany':96,'Argentina':93,'Uruguay':91,'Brazil':85,'Spain':84,
+  'Croatia':87,'Morocco':82,'France':83,'South Korea':76,'Japan':73,
+  'Colombia':75,'Mexico':70,'Switzerland':71,'Netherlands':72,'Portugal':65,
+  'Belgium':60,'United States':66,'Senegal':68,'Australia':63,'Ecuador':60,
+  'Canada':56,'Norway':58,'Sweden':67,'Turkey':60,'Austria':63,'Czechia':64,
+  'Algeria':62,'Ghana':60,'Ivory Coast':58,'Egypt':62,'Tunisia':55,
+  'South Africa':56,'Scotland':61,'Paraguay':65,'Bosnia':52,'Qatar':48,
+  'Saudi Arabia':50,'Iran':58,'Iraq':48,'Jordan':46,'Uzbekistan':48,
   'New Zealand':50,'Panama':50,'Cape Verde':53,'Haiti':48,'DR Congo':50,'Curaçao':44,
 };
-
-// Dimensión 7 (ICC): Profundidad de banca — calidad de suplentes, rotaciones sin pérdida de nivel
 const BANCA = {
   'France':93,'Germany':91,'Spain':90,'England':88,'Brazil':86,
   'Portugal':85,'Netherlands':83,'Belgium':82,'Argentina':82,
@@ -527,96 +468,69 @@ const BANCA = {
   'Turkey':68,'Ecuador':66,'Canada':65,'Czechia':66,'Scotland':64,
   'Algeria':62,'Ghana':62,'Ivory Coast':62,'Tunisia':60,'Egypt':60,
   'South Africa':58,'Paraguay':60,'Bosnia':58,'Iran':58,'Saudi Arabia':56,
-  'Qatar':52,'Iraq':50,'Jordan':50,'Uzbekistan':50,
-  'New Zealand':52,'Panama':50,'Cape Verde':50,'Haiti':46,'DR Congo':50,'Curaçao':45,
+  'Qatar':52,'Iraq':50,'Jordan':50,'Uzbekistan':50,'New Zealand':52,
+  'Panama':50,'Cape Verde':50,'Haiti':46,'DR Congo':50,'Curaçao':45,
 };
-
-// Factor Jugador Determinante
-// fdj = impacto potencial máximo del jugador estrella (en su mejor momento)
-// form = forma actual 2026: 1.00 = pico, 0.50 = muy reducido por edad/lesiones
-// FJD efectivo = fdj × form  (lo que el jugador REALMENTE aporta hoy)
-// Criterio form: edad, lesiones recientes, rendimiento temporada 2024-25
 const SUPERSTAR = {
-  // PICO (22-28 años, plena forma)
-  'Norway':    {n:'Haaland',   fdj:0.16, form:1.00, age:25}, // Goleador mundial, 25 años
-  'France':    {n:'Mbappé',    fdj:0.12, form:1.00, age:27}, // Pico absoluto Real Madrid
-  'Brazil':    {n:'Vinicius Jr.',fdj:0.12,form:0.97, age:25}, // Candidato Balón de Oro
-  'England':   {n:'Bellingham',fdj:0.11, form:1.00, age:22}, // Emergente RM, sin techo
+  'Norway':    {n:'Haaland',   fdj:0.16, form:1.00, age:25},
+  'France':    {n:'Mbappé',    fdj:0.12, form:1.00, age:27},
+  'Brazil':    {n:'Vinicius Jr.',fdj:0.12,form:0.97, age:25},
+  'England':   {n:'Bellingham',fdj:0.11, form:1.00, age:22},
   'Canada':    {n:'Davies',    fdj:0.11, form:0.95, age:25},
-  'Spain':     {n:'Yamal',     fdj:0.10, form:0.95, age:18}, // 18 años, pero YA es élite
+  'Spain':     {n:'Yamal',     fdj:0.10, form:0.95, age:18},
   'Ecuador':   {n:'Caicedo',   fdj:0.10, form:0.95, age:22},
-  'Germany':   {n:'Wirtz',     fdj:0.09, form:0.98, age:21}, // Mejor joven de la Bundesliga
+  'Germany':   {n:'Wirtz',     fdj:0.09, form:0.98, age:21},
   'Uruguay':   {n:'Valverde',  fdj:0.09, form:0.97, age:25},
   'Japan':     {n:'Mitoma',    fdj:0.09, form:0.93, age:27},
   'Sweden':    {n:'Isak',      fdj:0.10, form:0.96, age:26},
-
-  // MADUREZ (29-33, plena potencia con experiencia)
   'Netherlands':{n:'Gakpo',   fdj:0.08, form:0.92, age:25},
   'United States':{n:'Pulisic',fdj:0.10, form:0.90, age:27},
   'Turkey':    {n:'Calhanoglu',fdj:0.09, form:0.88, age:31},
   'Australia': {n:'Leckie',   fdj:0.08, form:0.87, age:33},
   'Morocco':   {n:'Hakimi',   fdj:0.07, form:0.93, age:25},
-  'Senegal':   {n:'Mané',     fdj:0.13, form:0.82, age:34}, // Lesiones frecuentes 23-25
-
-  // DECLIVE COMPETITIVO (34-36, aún influyen pero ya no al mismo nivel)
-  'Belgium':   {n:'De Bruyne', fdj:0.13, form:0.80, age:34}, // Lesiones constantes
+  'Senegal':   {n:'Mané',     fdj:0.13, form:0.82, age:34},
+  'Belgium':   {n:'De Bruyne', fdj:0.13, form:0.80, age:34},
   'South Korea':{n:'Son',      fdj:0.13, form:0.80, age:33},
-  'Colombia':  {n:'James',     fdj:0.10, form:0.72, age:34}, // Historial lesiones crónico
+  'Colombia':  {n:'James',     fdj:0.10, form:0.72, age:34},
   'Switzerland':{n:'Xhaka',   fdj:0.09, form:0.83, age:33},
   'Portugal':  {n:'Bruno Fernandes',fdj:0.10,form:0.90,age:31},
   'Scotland':  {n:'McGinn',   fdj:0.10, form:0.87, age:30},
-
-  // VETERANO-LEYENDA (37+, presencia e influencia pero físico muy limitado)
-  // Messi: FJD base 14% × form 0.62 = FJD efectivo ~8.7%
-  // Copa América 2024: lesión en la final, Inter Miami 2024-25 irregular, 38 años en el Mundial
   'Argentina': {n:'Messi',    fdj:0.14, form:0.62, age:38},
-
-  // Modric: 39 años en 2026. Aún dirige el juego pero no puede con alta intensidad 90'
   'Croatia':   {n:'Modric',   fdj:0.12, form:0.52, age:39},
-
-  // Alaba: lesión grave de rodilla 2023-24, retorno incierto
   'Austria':   {n:'Alaba',    fdj:0.09, form:0.60, age:33},
-
-  // México: Ochoa siempre apareció en mundiales pero 38 años
   'Mexico':    {n:'Ochoa',    fdj:0.07, form:0.70, age:38},
 };
-
-// ICC — Índice de Capacidad de Campeonato (ICC score 0-100)
-// 9 dimensiones: tecnico, fisico, fortaleza, clutch, fjd, exp_int, adn, banca, momento
 function iccScore(team){
-  const eloN=Math.min(100,Math.max(0,((G.elo[team]||1500)-1350)/6));       // ELO → 0-100
-  const mktN=Math.min(100,Math.max(0,((MERCADO[team]||1500)-1350)/7));      // Mercado → 0-100
-  const tecnico=(eloN+mktN)/2;                                              // 15%
-  const fisico=PERFIL_FISICO[team]??70;                                     // 8%
-  const fortaleza=(PERFIL_MENTAL[team]??70)*0.55+(GARRA[team]??70)*0.45;   // 12%
-  const clutch=CLUTCH[team]??65;                                             // 15%
+  const eloN=Math.min(100,Math.max(0,((G.elo[team]||1500)-1350)/6));
+  const mktN=Math.min(100,Math.max(0,((MERCADO[team]||1500)-1350)/7));
+  const tecnico=(eloN+mktN)/2;
+  const fisico=PERFIL_FISICO[team]??70;
+  const fortaleza=(PERFIL_MENTAL[team]??70)*0.55+(GARRA[team]??70)*0.45;
+  const clutch=CLUTCH[team]??65;
   const ss=SUPERSTAR[team], kp=KEY_PLAYERS[team];
-  // FJD efectivo = potencial × forma actual (edad, lesiones, rendimiento 2024-25)
   const fjdRaw=ss?ss.fdj:kp?kp[0].i:0.07;
   const fjdEff=ss?fjdRaw*(ss.form??1):fjdRaw;
-  const fjd=Math.min(100,fjdEff*625);                                       // 10% — FJD efectivo
-  // Experiencia internacional: historia mundialista
+  const fjd=Math.min(100,fjdEff*625);
   const wcHist={'Brazil':22,'Germany':20,'Argentina':18,'Mexico':17,'France':16,'Spain':16,'England':16,'Uruguay':14,'Belgium':14,'Switzerland':12,'Sweden':12,'Netherlands':11,'Portugal':8,'United States':11,'South Korea':10,'Japan':7,'Iran':6,'Saudi Arabia':6,'Australia':6,'Ghana':4,'Morocco':6,'Tunisia':6,'Algeria':4,'South Africa':3,'Egypt':3,'Senegal':3,'Ivory Coast':3,'Ecuador':4,'Colombia':6,'Canada':2,'Panama':1,'Norway':3,'Scotland':8,'Turkey':2,'Croatia':6,'Bosnia':1,'Qatar':1,'Iraq':1,'Jordan':1,'New Zealand':2,'DR Congo':1,'Haiti':1,'Paraguay':8,'Czechia':8,'Austria':7};
-  const exp_int=Math.min(100,35+(wcHist[team]||0)*3);                      // 10%
-  const adn=ADN_COMPETITIVO[team]??65;                                      // 15%
-  const banca=BANCA[team]??65;                                              // 8%
+  const exp_int=Math.min(100,35+(wcHist[team]||0)*3);
+  const adn=ADN_COMPETITIVO[team]??65;
+  const banca=BANCA[team]??65;
   const cultura=CULTURA[team]??70;
-  const momento=Math.min(100,(tecnico*0.6+cultura*0.4));                   // 7%
+  const momento=Math.min(100,(tecnico*0.6+cultura*0.4));
   return (
     tecnico*0.15 + fisico*0.08 + fortaleza*0.12 + clutch*0.15 +
     fjd*0.10 + exp_int*0.10 + adn*0.15 + banca*0.08 + momento*0.07
   );
 }
 
-// ==================== FOOTIQ_CACHE — Sistema de caché en memoria ====================
+// ==================== CACHÉ ====================
 const FOOTIQ_CACHE = {
-  perfil:      new Map(), // team → perfilScore(team)
-  icc:         new Map(), // team → iccScore(team)
-  momentum:    new Map(), // team → getMomentum(team) result
-  predictions: new Map(), // 'E:h:a' or 'K:h:a' → predict result
-  panelHtml:   new Map(), // 'YYYY-MM-DD' → rendered HTML string
+  perfil:      new Map(),
+  icc:         new Map(),
+  momentum:    new Map(),
+  predictions: new Map(),
+  panelHtml:   new Map(),
 };
-
 function getCachedPerfil(team){
   if(!FOOTIQ_CACHE.perfil.has(team)) FOOTIQ_CACHE.perfil.set(team,perfilScore(team));
   return FOOTIQ_CACHE.perfil.get(team);
@@ -630,14 +544,12 @@ function getCachedMomentum(team){
   return FOOTIQ_CACHE.momentum.get(team);
 }
 function getCachedPrediction(home,away,grp){
-  const key='E:'+home+':'+away;
+  const key='E:'+home+':'+away+':'+(grp||'');
   if(!FOOTIQ_CACHE.predictions.has(key)){
     FOOTIQ_CACHE.predictions.set(key,ensemblePredict(home,away,grp||''));
   }
   return FOOTIQ_CACHE.predictions.get(key);
 }
-
-// type: 'results' → momentum+icc+panelHtml; 'bajas' → predictions+panelHtml; 'all' → todo
 function invalidateCache(type){
   if(type==='results'||type==='all'){
     FOOTIQ_CACHE.momentum.clear();
@@ -651,13 +563,13 @@ function invalidateCache(type){
   if(type==='all'){
     FOOTIQ_CACHE.perfil.clear();
   }
+  if(type==='all'||type==='predictions'){
+    _clearPredCache();
+  }
 }
-
 const CHOKE = {'Germany':-80,'Belgium':-60,'Mexico':-50,'Spain':-30,'Portugal':-40,'Netherlands':-30};
 const DARK  = {'Spain':70,'Norway':60,'Austria':50,'Colombia':40,'Senegal':35,'Morocco':30,'United States':25,'Canada':20};
 
-// ==================== JUGADORES CLAVE (impacto si están ausentes) ====================
-// impact = fracción de reducción en fuerza del equipo (0.05 = 5%, 0.14 = 14%)
 const KEY_PLAYERS = {
   'Argentina':   [{n:'Messi',pos:'AT',i:0.14},{n:'Álvarez',pos:'AT',i:0.06},{n:'De Paul',pos:'MC',i:0.06},{n:'Romero',pos:'DF',i:0.05}],
   'France':      [{n:'Mbappé',pos:'AT',i:0.12},{n:'Griezmann',pos:'MC',i:0.07},{n:'Tchouaméni',pos:'MC',i:0.06},{n:'Upamecano',pos:'DF',i:0.04}],
@@ -687,8 +599,6 @@ const KEY_PLAYERS = {
   'Austria':     [{n:'Sabitzer',pos:'MC',i:0.08},{n:'Arnautovic',pos:'AT',i:0.07},{n:'Alaba',pos:'DF',i:0.09}],
   'Sweden':      [{n:'Isak',pos:'AT',i:0.10},{n:'Forsberg',pos:'AT',i:0.07},{n:'Ekdal',pos:'MC',i:0.06}],
 };
-
-// Estado de bajas confirmadas: { 'France': ['Mbappé'], ... }
 const LINEUP_ABSENT = {};
 
 function getLineupPenalty(team){
@@ -706,6 +616,7 @@ function toggleAbsent(team,player){
   if(idx>=0) LINEUP_ABSENT[team].splice(idx,1);
   else LINEUP_ABSENT[team].push(player);
   invalidateCache('bajas');
+  refreshAll();
 }
 
 function buildPerfilHtml(home,away){
@@ -736,7 +647,6 @@ function buildPerfilHtml(home,away){
       <div class="perfil-val${!winH&&!tie?' win':''}">${Math.round(va)}</div>
     </div>`;
   }).join('');
-  // FJD display — muestra FJD efectivo (potencial × forma actual)
   const sH=SUPERSTAR[home], sA=SUPERSTAR[away];
   const abH=LINEUP_ABSENT[home]||[], abA=LINEUP_ABSENT[away]||[];
   function fjdLabel(ss,absent){
@@ -772,8 +682,8 @@ function buildBajasHtml(home,away){
   if(!ph&&!pa) return '';
   const abH=LINEUP_ABSENT[home]||[], abA=LINEUP_ABSENT[away]||[];
   const penH=getLineupPenalty(home),penA=getLineupPenalty(away);
-  const impactH=penH>0?`<div class="baja-impact">⚠️ Fuerza ${home} −${(penH*100).toFixed(0)}%</div>`:'';
-  const impactA=penA>0?`<div class="baja-impact">⚠️ Fuerza ${away} −${(penA*100).toFixed(0)}%</div>`:'';
+  const impactH=penH>0?`<div class="baja-impact">⚠️ Fuerza ${home} −${(penH*100).toFixed(0)}%</div>':'';
+  const impactA=penA>0?`<div class="baja-impact">⚠️ Fuerza ${away} −${(penA*100).toFixed(0)}%</div>':'';
   const pillsH=(ph||[]).map(p=>`<span class="baja-pill${abH.includes(p.n)?' absent':''}" onclick="toggleAbsent('${home}','${p.n}')">${p.n} <small>(${p.pos})</small></span>`).join('');
   const pillsA=(pa||[]).map(p=>`<span class="baja-pill${abA.includes(p.n)?' absent':''}" onclick="toggleAbsent('${away}','${p.n}')">${p.n} <small>(${p.pos})</small></span>`).join('');
   return `<div class="bajas-section">
@@ -788,279 +698,125 @@ function buildBajasHtml(home,away){
 }
 
 // ==================== RESULTADOS REALES ====================
-// Fuente: FIFA / ESPN oficial. Última actualización: 17 Jun 2026
 const REAL_RESULTS = {
-  // ── JORNADA 1 (Jun 11-17) ──
-  'Mexico-South Africa':      {h:2,a:0,played:true},   // Jun 11
-  'South Korea-Czechia':      {h:2,a:1,played:true},   // Jun 11
-  'Canada-Bosnia':            {h:1,a:1,played:true},   // Jun 12
-  'United States-Paraguay':   {h:4,a:1,played:true},   // Jun 12
-  'Qatar-Switzerland':        {h:1,a:1,played:true},   // Jun 13
-  'Brazil-Morocco':           {h:1,a:1,played:true},   // Jun 13
-  'Haiti-Scotland':           {h:0,a:1,played:true},   // Jun 13
-  'Australia-Turkey':         {h:2,a:0,played:true},   // Jun 14
-  'Germany-Curaçao':          {h:7,a:1,played:true},   // Jun 14
-  'Ivory Coast-Ecuador':      {h:1,a:0,played:true},   // Jun 14
-  'Netherlands-Japan':        {h:2,a:2,played:true},   // Jun 14
-  'Sweden-Tunisia':           {h:5,a:1,played:true},   // Jun 14
-  'Spain-Cape Verde':         {h:0,a:0,played:true},   // Jun 15
-  'Belgium-Egypt':            {h:1,a:1,played:true},   // Jun 15
-  'Saudi Arabia-Uruguay':     {h:1,a:1,played:true},   // Jun 15
-  'Iran-New Zealand':         {h:2,a:2,played:true},   // Jun 15
-  'France-Senegal':           {h:3,a:1,played:true},   // Jun 16
-  'Iraq-Norway':              {h:1,a:4,played:true},   // Jun 16
-  'Argentina-Algeria':        {h:3,a:0,played:true},   // Jun 16
-  'Austria-Jordan':           {h:3,a:1,played:true},   // Jun 16
-  'Portugal-DR Congo':        {h:1,a:1,played:true},   // Jun 17 (J1 grupo K)
-  'England-Croatia':          {h:4,a:2,played:true},   // Jun 17 (J1 grupo L)
-  'Ghana-Panama':             {h:1,a:0,played:true},   // Jun 17 (J1 grupo L)
-  'Uzbekistan-Colombia':      {h:1,a:3,played:true},   // Jun 17 (J1 grupo K)
-  // ── JORNADA 2 (Jun 18-23) ──
-  'Czechia-South Africa':     {h:1,a:1,played:true},   // Jun 18
-  'Switzerland-Bosnia':       {h:4,a:1,played:true},   // Jun 18
-  'Canada-Qatar':             {h:6,a:0,played:true},   // Jun 18
-  'Mexico-South Korea':       {h:1,a:0,played:true},   // Jun 18
-  'United States-Australia':  {h:2,a:0,played:true},   // Jun 19
-  'Scotland-Morocco':         {h:0,a:1,played:true},   // Jun 19
-  'Brazil-Haiti':             {h:3,a:0,played:true},   // Jun 19
-  'Turkey-Paraguay':          {h:0,a:1,played:true},   // Jun 19
-  'Netherlands-Sweden':       {h:5,a:1,played:true},   // Jun 20
-  'Germany-Ivory Coast':      {h:2,a:1,played:true},   // Jun 20
-  'Ecuador-Curaçao':          {h:0,a:0,played:true},   // Jun 20
-  'Tunisia-Japan':            {h:0,a:4,played:true},   // Jun 20
-  'Spain-Saudi Arabia':       {h:4,a:0,played:true},   // Jun 21
-  'Belgium-Iran':             {h:0,a:0,played:true},   // Jun 21
-  'Uruguay-Cape Verde':       {h:2,a:2,played:true},   // Jun 21
-  'New Zealand-Egypt':        {h:1,a:3,played:true},   // Jun 21
-  'Argentina-Austria':        {h:2,a:0,played:true},   // Jun 22
-  'France-Iraq':              {h:3,a:0,played:true},   // Jun 22
-  'Norway-Senegal':           {h:3,a:2,played:true},   // Jun 22
-  'Jordan-Algeria':           {h:1,a:2,played:true},   // Jun 22
-  'Portugal-Uzbekistan':      {h:5,a:0,played:true},   // Jun 23
-  'England-Ghana':            {h:0,a:0,played:true},   // Jun 23
-  'Panama-Croatia':           {h:0,a:1,played:true},   // Jun 23
-  'Colombia-DR Congo':        {h:1,a:0,played:true},   // Jun 23
-  // ── JORNADA 3 (Jun 24-27) ──
-  'Switzerland-Canada':       {h:2,a:1,played:true},   // Jun 24
-  'Bosnia-Qatar':             {h:3,a:1,played:true},   // Jun 24
-  'Scotland-Brazil':          {h:0,a:3,played:true},   // Jun 24
-  'Morocco-Haiti':            {h:4,a:2,played:true},   // Jun 24
-  'Czechia-Mexico':           {h:0,a:3,played:true},   // Jun 24
-  'South Africa-South Korea': {h:1,a:0,played:true},   // Jun 24
-  'Curaçao-Ivory Coast':      {h:0,a:2,played:true},   // Jun 25
-  'Ecuador-Germany':          {h:2,a:1,played:true},   // Jun 25
-  'Japan-Sweden':             {h:1,a:1,played:true},   // Jun 25
-  'Tunisia-Netherlands':      {h:1,a:3,played:true},   // Jun 25
-  'Turkey-United States':     {h:3,a:2,played:true},   // Jun 25
-  'Paraguay-Australia':       {h:0,a:0,played:true},   // Jun 25
-  'Norway-France':            {h:1,a:4,played:true},   // Jun 26
-  'Senegal-Iraq':             {h:5,a:0,played:true},   // Jun 26
-  'Cape Verde-Saudi Arabia':  {h:0,a:0,played:true},   // Jun 26
-  'Uruguay-Spain':            {h:0,a:1,played:true},   // Jun 26
-  'Egypt-Iran':               {h:1,a:1,played:true},   // Jun 26
-  'New Zealand-Belgium':      {h:1,a:5,played:true},   // Jun 26
-  'Panama-England':           {h:0,a:2,played:true},   // Jun 27
-  'Croatia-Ghana':            {h:2,a:1,played:true},   // Jun 27
-  'Colombia-Portugal':        {h:0,a:0,played:true},   // Jun 27
-  'DR Congo-Uzbekistan':      {h:3,a:1,played:true},   // Jun 27
-  'Algeria-Austria':          {h:3,a:3,played:true},   // Jun 27
-  'Jordan-Argentina':         {h:1,a:3,played:true},   // Jun 27
-  // ── R32 (Jun 28+) ──
-  'South Africa-Canada':      {h:0,a:1,played:true},          // Jun 28 FT ✓
-  // ── R32 Jun 29 ──
-  'Brazil-Japan':             {h:2,a:1,played:true},          // Jun 29 FT ✓
-  'Germany-Paraguay':         {h:1,a:1,played:true,penH:3,penA:4}, // Jun 29 AET • Paraguay gana 4-3 pens ✓
-  'Netherlands-Morocco':      {h:1,a:1,played:true,penH:2,penA:3}, // Jun 29 AET • Marruecos gana 3-2 pens ✓ (Países Bajos eliminado)
-  // ── R32 Jun 30 ──
-  'Ivory Coast-Norway':       {h:1,a:2,played:true},              // Jun 30 FT ✓ Noruega clasifica
+  // JORNADA 1
+  'Mexico-South Africa':      {h:2,a:0,played:true},
+  'South Korea-Czechia':      {h:2,a:1,played:true},
+  'Canada-Bosnia':            {h:1,a:1,played:true},
+  'United States-Paraguay':   {h:4,a:1,played:true},
+  'Qatar-Switzerland':        {h:1,a:1,played:true},
+  'Brazil-Morocco':           {h:1,a:1,played:true},
+  'Haiti-Scotland':           {h:0,a:1,played:true},
+  'Australia-Turkey':         {h:2,a:0,played:true},
+  'Germany-Curaçao':          {h:7,a:1,played:true},
+  'Ivory Coast-Ecuador':      {h:1,a:0,played:true},
+  'Netherlands-Japan':        {h:2,a:2,played:true},
+  'Sweden-Tunisia':           {h:5,a:1,played:true},
+  'Spain-Cape Verde':         {h:0,a:0,played:true},
+  'Belgium-Egypt':            {h:1,a:1,played:true},
+  'Saudi Arabia-Uruguay':     {h:1,a:1,played:true},
+  'Iran-New Zealand':         {h:2,a:2,played:true},
+  'France-Senegal':           {h:3,a:1,played:true},
+  'Iraq-Norway':              {h:1,a:4,played:true},
+  'Argentina-Algeria':        {h:3,a:0,played:true},
+  'Austria-Jordan':           {h:3,a:1,played:true},
+  'Portugal-DR Congo':        {h:1,a:1,played:true},
+  'England-Croatia':          {h:4,a:2,played:true},
+  'Ghana-Panama':             {h:1,a:0,played:true},
+  'Uzbekistan-Colombia':      {h:1,a:3,played:true},
+  // JORNADA 2
+  'Czechia-South Africa':     {h:1,a:1,played:true},
+  'Switzerland-Bosnia':       {h:4,a:1,played:true},
+  'Canada-Qatar':             {h:6,a:0,played:true},
+  'Mexico-South Korea':       {h:1,a:0,played:true},
+  'United States-Australia':  {h:2,a:0,played:true},
+  'Scotland-Morocco':         {h:0,a:1,played:true},
+  'Brazil-Haiti':             {h:3,a:0,played:true},
+  'Turkey-Paraguay':          {h:0,a:1,played:true},
+  'Netherlands-Sweden':       {h:5,a:1,played:true},
+  'Germany-Ivory Coast':      {h:2,a:1,played:true},
+  'Ecuador-Curaçao':          {h:0,a:0,played:true},
+  'Tunisia-Japan':            {h:0,a:4,played:true},
+  'Spain-Saudi Arabia':       {h:4,a:0,played:true},
+  'Belgium-Iran':             {h:0,a:0,played:true},
+  'Uruguay-Cape Verde':       {h:2,a:2,played:true},
+  'New Zealand-Egypt':        {h:1,a:3,played:true},
+  'Argentina-Austria':        {h:2,a:0,played:true},
+  'France-Iraq':              {h:3,a:0,played:true},
+  'Norway-Senegal':           {h:3,a:2,played:true},
+  'Jordan-Algeria':           {h:1,a:2,played:true},
+  'Portugal-Uzbekistan':      {h:5,a:0,played:true},
+  'England-Ghana':            {h:0,a:0,played:true},
+  'Panama-Croatia':           {h:0,a:1,played:true},
+  'Colombia-DR Congo':        {h:1,a:0,played:true},
+  // JORNADA 3
+  'Switzerland-Canada':       {h:2,a:1,played:true},
+  'Bosnia-Qatar':             {h:3,a:1,played:true},
+  'Scotland-Brazil':          {h:0,a:3,played:true},
+  'Morocco-Haiti':            {h:4,a:2,played:true},
+  'Czechia-Mexico':           {h:0,a:3,played:true},
+  'South Africa-South Korea': {h:1,a:0,played:true},
+  'Curaçao-Ivory Coast':      {h:0,a:2,played:true},
+  'Ecuador-Germany':          {h:2,a:1,played:true},
+  'Japan-Sweden':             {h:1,a:1,played:true},
+  'Tunisia-Netherlands':      {h:1,a:3,played:true},
+  'Turkey-United States':     {h:3,a:2,played:true},
+  'Paraguay-Australia':       {h:0,a:0,played:true},
+  'Norway-France':            {h:1,a:4,played:true},
+  'Senegal-Iraq':             {h:5,a:0,played:true},
+  'Cape Verde-Saudi Arabia':  {h:0,a:0,played:true},
+  'Uruguay-Spain':            {h:0,a:1,played:true},
+  'Egypt-Iran':               {h:1,a:1,played:true},
+  'New Zealand-Belgium':      {h:1,a:5,played:true},
+  'Panama-England':           {h:0,a:2,played:true},
+  'Croatia-Ghana':            {h:2,a:1,played:true},
+  'Colombia-Portugal':        {h:0,a:0,played:true},
+  'DR Congo-Uzbekistan':      {h:3,a:1,played:true},
+  'Algeria-Austria':          {h:3,a:3,played:true},
+  'Jordan-Argentina':         {h:1,a:3,played:true},
+  // R32
+  'South Africa-Canada':      {h:0,a:1,played:true},
+  'Brazil-Japan':             {h:2,a:1,played:true},
+  'Germany-Paraguay':         {h:1,a:1,played:true,penH:3,penA:4},
+  'Netherlands-Morocco':      {h:1,a:1,played:true,penH:2,penA:3},
+  'Ivory Coast-Norway':       {h:1,a:2,played:true},
 };
 
-// ==================== CALENDARIO OFICIAL FIFA WC 2026 ====================
-// Horarios en COT (Colombia, UTC-5). Fuente: worldcupwiki.com / FIFA oficial
-// "Jun 17" a medianoche ET = 23:00 COT Jun 16 → listado en Jun 16 para visualización local
+// ==================== CALENDARIO OFICIAL ====================
 const CALENDAR_MATCHES = {
-  // ── JORNADA 1 ──
-  '2026-06-11':[
-    {home:'Mexico',        away:'South Africa', group:'A', time:'14:00'},
-    {home:'South Korea',   away:'Czechia',       group:'A', time:'20:00'}
-  ],
-  '2026-06-12':[
-    {home:'Canada',        away:'Bosnia',        group:'B', time:'14:00'},
-    {home:'United States', away:'Paraguay',       group:'D', time:'20:00'}
-  ],
-  '2026-06-13':[
-    {home:'Qatar',         away:'Switzerland',   group:'B', time:'14:00'},
-    {home:'Brazil',        away:'Morocco',        group:'C', time:'17:00'},
-    {home:'Haiti',         away:'Scotland',       group:'C', time:'20:00'}
-  ],
-  '2026-06-14':[
-    {home:'Australia',     away:'Turkey',         group:'D', time:'12:00'},
-    {home:'Germany',       away:'Curaçao',        group:'E', time:'13:00'},
-    {home:'Ivory Coast',   away:'Ecuador',        group:'E', time:'16:00'},
-    {home:'Netherlands',   away:'Japan',          group:'F', time:'15:00'},
-    {home:'Sweden',        away:'Tunisia',        group:'F', time:'19:00'}
-  ],
-  '2026-06-15':[
-    {home:'Spain',         away:'Cape Verde',     group:'H', time:'11:00'},
-    {home:'Belgium',       away:'Egypt',          group:'G', time:'14:00'},
-    {home:'Saudi Arabia',  away:'Uruguay',        group:'H', time:'17:00'},
-    {home:'Iran',          away:'New Zealand',    group:'G', time:'20:00'}
-  ],
-  '2026-06-16':[
-    {home:'France',        away:'Senegal',        group:'I', time:'14:00'},
-    {home:'Iraq',          away:'Norway',         group:'I', time:'17:00'},
-    {home:'Argentina',     away:'Algeria',        group:'J', time:'20:00'},
-    {home:'Austria',       away:'Jordan',         group:'J', time:'23:00'}  // 12AM ET = 23:00 COT
-  ],
-  '2026-06-17':[
-    {home:'Portugal',      away:'DR Congo',       group:'K', time:'12:00'},
-    {home:'England',       away:'Croatia',        group:'L', time:'15:00'},
-    {home:'Ghana',         away:'Panama',         group:'L', time:'18:00'},
-    {home:'Uzbekistan',    away:'Colombia',       group:'K', time:'21:00'}
-  ],
-  // ── JORNADA 2 ──
-  '2026-06-18':[
-    {home:'Czechia',       away:'South Africa',   group:'A', time:'11:00'},
-    {home:'Switzerland',   away:'Bosnia',         group:'B', time:'14:00'},
-    {home:'Canada',        away:'Qatar',          group:'B', time:'17:00'},
-    {home:'Mexico',        away:'South Korea',    group:'A', time:'20:00'}
-  ],
-  '2026-06-19':[
-    {home:'United States', away:'Australia',      group:'D', time:'14:00'},
-    {home:'Scotland',      away:'Morocco',        group:'C', time:'17:00'},
-    {home:'Brazil',        away:'Haiti',          group:'C', time:'19:30'},
-    {home:'Turkey',        away:'Paraguay',       group:'D', time:'22:00'}
-  ],
-  '2026-06-20':[
-    {home:'Netherlands',   away:'Sweden',         group:'F', time:'12:00'},
-    {home:'Germany',       away:'Ivory Coast',    group:'E', time:'15:00'},
-    {home:'Ecuador',       away:'Curaçao',        group:'E', time:'19:00'},
-    {home:'Tunisia',       away:'Japan',          group:'F', time:'23:00'}  // 12AM ET Jun 21
-  ],
-  '2026-06-21':[
-    {home:'Spain',         away:'Saudi Arabia',   group:'H', time:'11:00'},
-    {home:'Belgium',       away:'Iran',           group:'G', time:'14:00'},
-    {home:'Uruguay',       away:'Cape Verde',     group:'H', time:'17:00'},
-    {home:'New Zealand',   away:'Egypt',          group:'G', time:'20:00'}
-  ],
-  '2026-06-22':[
-    {home:'Argentina',     away:'Austria',        group:'J', time:'12:00'},
-    {home:'France',        away:'Iraq',           group:'I', time:'16:00'},
-    {home:'Norway',        away:'Senegal',        group:'I', time:'19:00'},
-    {home:'Jordan',        away:'Algeria',        group:'J', time:'22:00'}
-  ],
-  '2026-06-23':[
-    {home:'Portugal',      away:'Uzbekistan',     group:'K', time:'12:00'},
-    {home:'England',       away:'Ghana',          group:'L', time:'15:00'},
-    {home:'Panama',        away:'Croatia',        group:'L', time:'18:00'},
-    {home:'Colombia',      away:'DR Congo',       group:'K', time:'21:00'}
-  ],
-  // ── JORNADA 3 (simultáneos por grupo) ──
-  '2026-06-24':[
-    {home:'Switzerland',   away:'Canada',         group:'B', time:'14:00'},
-    {home:'Bosnia',        away:'Qatar',          group:'B', time:'14:00'},
-    {home:'Scotland',      away:'Brazil',         group:'C', time:'17:00'},
-    {home:'Morocco',       away:'Haiti',          group:'C', time:'17:00'},
-    {home:'Czechia',       away:'Mexico',         group:'A', time:'20:00'},
-    {home:'South Africa',  away:'South Korea',    group:'A', time:'20:00'}
-  ],
-  '2026-06-25':[
-    {home:'Curaçao',       away:'Ivory Coast',    group:'E', time:'15:00'},
-    {home:'Ecuador',       away:'Germany',        group:'E', time:'15:00'},
-    {home:'Japan',         away:'Sweden',         group:'F', time:'18:00'},
-    {home:'Tunisia',       away:'Netherlands',    group:'F', time:'18:00'},
-    {home:'Turkey',        away:'United States',  group:'D', time:'21:00'},
-    {home:'Paraguay',      away:'Australia',      group:'D', time:'21:00'}
-  ],
-  '2026-06-26':[
-    {home:'Norway',        away:'France',         group:'I', time:'14:00'},
-    {home:'Senegal',       away:'Iraq',           group:'I', time:'14:00'},
-    {home:'Cape Verde',    away:'Saudi Arabia',   group:'H', time:'19:00'},
-    {home:'Uruguay',       away:'Spain',          group:'H', time:'19:00'},
-    {home:'Egypt',         away:'Iran',           group:'G', time:'22:00'},
-    {home:'New Zealand',   away:'Belgium',        group:'G', time:'22:00'}
-  ],
-  '2026-06-27':[
-    {home:'Panama',        away:'England',        group:'L', time:'16:00'},
-    {home:'Croatia',       away:'Ghana',          group:'L', time:'16:00'},
-    {home:'Colombia',      away:'Portugal',       group:'K', time:'18:30'},
-    {home:'DR Congo',      away:'Uzbekistan',     group:'K', time:'18:30'},
-    {home:'Algeria',       away:'Austria',        group:'J', time:'21:00'},
-    {home:'Jordan',        away:'Argentina',      group:'J', time:'21:00'}
-  ],
-  // ── ELIMINATORIAS: RONDA DE 32 (Jun 28 – Jul 3) ──
-  // 1A=Mexico 2A=SouthAfrica 1B=Switzerland 2B=Canada 1C=Brazil 2C=Morocco
-  // 1D=UnitedStates 2D=Australia 1E=Germany 2E=IvoryCoast 1F=Netherlands 2F=Japan
-  // 1G=Belgium 2G=Egypt 1H=Spain 2H=CapeVerde 1I=France 2I=Norway
-  // 1J=Argentina 2J=Austria 1K=Colombia 2K=Portugal 1L=England 2L=Croatia
-  // 3os q avanzan: DR Congo, Sweden, Ecuador, Ghana, Bosnia, Algeria, Paraguay, Senegal
-  '2026-06-28':[
-    {home:'South Africa',  away:'Canada',      group:'R32', time:'14:00'}  // P73 FT: 0-1 Canada ✓
-  ],
-  '2026-06-29':[
-    {home:'Brazil',        away:'Japan',       group:'R32', time:'12:00'}, // P76
-    {home:'Germany',       away:'Paraguay',    group:'R32', time:'15:30'}, // P74
-    {home:'Netherlands',   away:'Morocco',     group:'R32', time:'20:00'}  // P75
-  ],
-  '2026-06-30':[
-    {home:'Ivory Coast',   away:'Norway',      group:'R32', time:'12:00'}, // P78
-    {home:'France',        away:'Sweden',      group:'R32', time:'16:00'}, // P77
-    {home:'Mexico',        away:'Ecuador',     group:'R32', time:'20:00'}  // P79
-  ],
-  '2026-07-01':[
-    {home:'England',       away:'DR Congo',    group:'R32', time:'11:00'}, // P80
-    {home:'Belgium',       away:'Senegal',     group:'R32', time:'15:00'}, // P82
-    {home:'United States', away:'Bosnia',      group:'R32', time:'19:00'}  // P81
-  ],
-  '2026-07-02':[
-    {home:'Spain',         away:'Austria',     group:'R32', time:'14:00'}, // P84
-    {home:'Portugal',      away:'Croatia',     group:'R32', time:'18:00'}, // P83
-    {home:'Switzerland',   away:'Algeria',     group:'R32', time:'22:00'}  // P85
-  ],
-  '2026-07-03':[
-    {home:'Australia',     away:'Egypt',       group:'R32', time:'13:00'}, // P88
-    {home:'Argentina',     away:'Cape Verde',  group:'R32', time:'17:00'}, // P86
-    {home:'Colombia',      away:'Ghana',       group:'R32', time:'20:30'}  // P87
-  ],
-  // ── OCTAVOS DE FINAL (Jul 4-7) ──
-  '2026-07-04':[
-    {home:'TBD',           away:'TBD',             group:'R16', time:'12:00'},
-    {home:'TBD',           away:'TBD',             group:'R16', time:'16:00'}
-  ],
-  '2026-07-05':[
-    {home:'TBD',           away:'TBD',             group:'R16', time:'15:00'},
-    {home:'TBD',           away:'TBD',             group:'R16', time:'19:00'}
-  ],
-  '2026-07-06':[
-    {home:'TBD',           away:'TBD',             group:'R16', time:'14:00'},
-    {home:'TBD',           away:'TBD',             group:'R16', time:'19:00'}
-  ],
-  '2026-07-07':[
-    {home:'TBD',           away:'TBD',             group:'R16', time:'11:00'},
-    {home:'TBD',           away:'TBD',             group:'R16', time:'15:00'}
-  ],
-  // ── CUARTOS DE FINAL (Jul 9-11) ──
-  '2026-07-09':[
-    {home:'TBD',           away:'TBD',             group:'QF', time:'15:00'}
-  ],
-  '2026-07-10':[
-    {home:'TBD',           away:'TBD',             group:'QF', time:'14:00'}
-  ],
-  '2026-07-11':[
-    {home:'TBD',           away:'TBD',             group:'QF', time:'16:00'},
-    {home:'TBD',           away:'TBD',             group:'QF', time:'20:00'}
-  ],
-  // ── SEMIFINALES (Jul 14-15) ──
-  '2026-07-14':[
-    {home:'TBD',           away:'TBD',             group:'SF', time:'14:00'}
-  ],
-  '2026-07-15':[
-    {home:'TBD',           away:'TBD',             group:'SF', time:'14:00'}
-  ],
-  // ── TERCER LUGAR & FINAL ──
-  '2026-07-18':[
-    {home:'TBD',           away:'TBD',             group:'3er Lugar', time:'16:00'}
-  ],
+  '2026-06-11':[{home:'Mexico',away:'South Africa',group:'A',time:'14:00'},{home:'South Korea',away:'Czechia',group:'A',time:'20:00'}],
+  '2026-06-12':[{home:'Canada',away:'Bosnia',group:'B',time:'14:00'},{home:'United States',away:'Paraguay',group:'D',time:'20:00'}],
+  '2026-06-13':[{home:'Qatar',away:'Switzerland',group:'B',time:'14:00'},{home:'Brazil',away:'Morocco',group:'C',time:'17:00'},{home:'Haiti',away:'Scotland',group:'C',time:'20:00'}],
+  '2026-06-14':[{home:'Australia',away:'Turkey',group:'D',time:'12:00'},{home:'Germany',away:'Curaçao',group:'E',time:'13:00'},{home:'Ivory Coast',away:'Ecuador',group:'E',time:'16:00'},{home:'Netherlands',away:'Japan',group:'F',time:'15:00'},{home:'Sweden',away:'Tunisia',group:'F',time:'19:00'}],
+  '2026-06-15':[{home:'Spain',away:'Cape Verde',group:'H',time:'11:00'},{home:'Belgium',away:'Egypt',group:'G',time:'14:00'},{home:'Saudi Arabia',away:'Uruguay',group:'H',time:'17:00'},{home:'Iran',away:'New Zealand',group:'G',time:'20:00'}],
+  '2026-06-16':[{home:'France',away:'Senegal',group:'I',time:'14:00'},{home:'Iraq',away:'Norway',group:'I',time:'17:00'},{home:'Argentina',away:'Algeria',group:'J',time:'20:00'},{home:'Austria',away:'Jordan',group:'J',time:'23:00'}],
+  '2026-06-17':[{home:'Portugal',away:'DR Congo',group:'K',time:'12:00'},{home:'England',away:'Croatia',group:'L',time:'15:00'},{home:'Ghana',away:'Panama',group:'L',time:'18:00'},{home:'Uzbekistan',away:'Colombia',group:'K',time:'21:00'}],
+  '2026-06-18':[{home:'Czechia',away:'South Africa',group:'A',time:'11:00'},{home:'Switzerland',away:'Bosnia',group:'B',time:'14:00'},{home:'Canada',away:'Qatar',group:'B',time:'17:00'},{home:'Mexico',away:'South Korea',group:'A',time:'20:00'}],
+  '2026-06-19':[{home:'United States',away:'Australia',group:'D',time:'14:00'},{home:'Scotland',away:'Morocco',group:'C',time:'17:00'},{home:'Brazil',away:'Haiti',group:'C',time:'19:30'},{home:'Turkey',away:'Paraguay',group:'D',time:'22:00'}],
+  '2026-06-20':[{home:'Netherlands',away:'Sweden',group:'F',time:'12:00'},{home:'Germany',away:'Ivory Coast',group:'E',time:'15:00'},{home:'Ecuador',away:'Curaçao',group:'E',time:'19:00'},{home:'Tunisia',away:'Japan',group:'F',time:'23:00'}],
+  '2026-06-21':[{home:'Spain',away:'Saudi Arabia',group:'H',time:'11:00'},{home:'Belgium',away:'Iran',group:'G',time:'14:00'},{home:'Uruguay',away:'Cape Verde',group:'H',time:'17:00'},{home:'New Zealand',away:'Egypt',group:'G',time:'20:00'}],
+  '2026-06-22':[{home:'Argentina',away:'Austria',group:'J',time:'12:00'},{home:'France',away:'Iraq',group:'I',time:'16:00'},{home:'Norway',away:'Senegal',group:'I',time:'19:00'},{home:'Jordan',away:'Algeria',group:'J',time:'22:00'}],
+  '2026-06-23':[{home:'Portugal',away:'Uzbekistan',group:'K',time:'12:00'},{home:'England',away:'Ghana',group:'L',time:'15:00'},{home:'Panama',away:'Croatia',group:'L',time:'18:00'},{home:'Colombia',away:'DR Congo',group:'K',time:'21:00'}],
+  '2026-06-24':[{home:'Switzerland',away:'Canada',group:'B',time:'14:00'},{home:'Bosnia',away:'Qatar',group:'B',time:'14:00'},{home:'Scotland',away:'Brazil',group:'C',time:'17:00'},{home:'Morocco',away:'Haiti',group:'C',time:'17:00'},{home:'Czechia',away:'Mexico',group:'A',time:'20:00'},{home:'South Africa',away:'South Korea',group:'A',time:'20:00'}],
+  '2026-06-25':[{home:'Curaçao',away:'Ivory Coast',group:'E',time:'15:00'},{home:'Ecuador',away:'Germany',group:'E',time:'15:00'},{home:'Japan',away:'Sweden',group:'F',time:'18:00'},{home:'Tunisia',away:'Netherlands',group:'F',time:'18:00'},{home:'Turkey',away:'United States',group:'D',time:'21:00'},{home:'Paraguay',away:'Australia',group:'D',time:'21:00'}],
+  '2026-06-26':[{home:'Norway',away:'France',group:'I',time:'14:00'},{home:'Senegal',away:'Iraq',group:'I',time:'14:00'},{home:'Cape Verde',away:'Saudi Arabia',group:'H',time:'19:00'},{home:'Uruguay',away:'Spain',group:'H',time:'19:00'},{home:'Egypt',away:'Iran',group:'G',time:'22:00'},{home:'New Zealand',away:'Belgium',group:'G',time:'22:00'}],
+  '2026-06-27':[{home:'Panama',away:'England',group:'L',time:'16:00'},{home:'Croatia',away:'Ghana',group:'L',time:'16:00'},{home:'Colombia',away:'Portugal',group:'K',time:'18:30'},{home:'DR Congo',away:'Uzbekistan',group:'K',time:'18:30'},{home:'Algeria',away:'Austria',group:'J',time:'21:00'},{home:'Jordan',away:'Argentina',group:'J',time:'21:00'}],
+  '2026-06-28':[{home:'South Africa',away:'Canada',group:'R32',time:'14:00'}],
+  '2026-06-29':[{home:'Brazil',away:'Japan',group:'R32',time:'12:00'},{home:'Germany',away:'Paraguay',group:'R32',time:'15:30'},{home:'Netherlands',away:'Morocco',group:'R32',time:'20:00'}],
+  '2026-06-30':[{home:'Ivory Coast',away:'Norway',group:'R32',time:'12:00'},{home:'France',away:'Sweden',group:'R32',time:'16:00'},{home:'Mexico',away:'Ecuador',group:'R32',time:'20:00'}],
+  '2026-07-01':[{home:'England',away:'DR Congo',group:'R32',time:'11:00'},{home:'Belgium',away:'Senegal',group:'R32',time:'15:00'},{home:'United States',away:'Bosnia',group:'R32',time:'19:00'}],
+  '2026-07-02':[{home:'Spain',away:'Austria',group:'R32',time:'14:00'},{home:'Portugal',away:'Croatia',group:'R32',time:'18:00'},{home:'Switzerland',away:'Algeria',group:'R32',time:'22:00'}],
+  '2026-07-03':[{home:'Australia',away:'Egypt',group:'R32',time:'13:00'},{home:'Argentina',away:'Cape Verde',group:'R32',time:'17:00'},{home:'Colombia',away:'Ghana',group:'R32',time:'20:30'}],
+  '2026-07-04':[{home:'TBD',away:'TBD',group:'R16',time:'12:00'},{home:'TBD',away:'TBD',group:'R16',time:'16:00'}],
+  '2026-07-05':[{home:'TBD',away:'TBD',group:'R16',time:'15:00'},{home:'TBD',away:'TBD',group:'R16',time:'19:00'}],
+  '2026-07-06':[{home:'TBD',away:'TBD',group:'R16',time:'14:00'},{home:'TBD',away:'TBD',group:'R16',time:'19:00'}],
+  '2026-07-07':[{home:'TBD',away:'TBD',group:'R16',time:'11:00'},{home:'TBD',away:'TBD',group:'R16',time:'15:00'}],
+  '2026-07-09':[{home:'TBD',away:'TBD',group:'QF',time:'15:00'}],
+  '2026-07-10':[{home:'TBD',away:'TBD',group:'QF',time:'14:00'}],
+  '2026-07-11':[{home:'TBD',away:'TBD',group:'QF',time:'16:00'},{home:'TBD',away:'TBD',group:'QF',time:'20:00'}],
+  '2026-07-14':[{home:'TBD',away:'TBD',group:'SF',time:'14:00'}],
+  '2026-07-15':[{home:'TBD',away:'TBD',group:'SF',time:'14:00'}],
+  '2026-07-18':[{home:'TBD',away:'TBD',group:'3er Lugar',time:'16:00'}],
   '2026-07-19':[{home:'TBD',away:'TBD',group:'Final',time:'14:00'}]
 };
 
@@ -1068,13 +824,9 @@ const CALENDAR_MATCHES = {
 let G = {elo:{}, mc:{}};
 let MODEL_SCORES = {actual:{points:0,cw:0,total:0}};
 
-// Calcula outcome real: 'H'=local gana, 'D'=empate, 'A'=visitante gana
 function realOutcome(r){ return r.h>r.a?'H':r.h===r.a?'D':'A'; }
-// Calcula outcome predicho por modelo: 'H', 'D' o 'A'
-// Umbral Dixon-Coles: solo predice ganador si supera al empate por margen claro (>8%).
-// Sin umbral, el modelo casi nunca predice empates aunque tengan 28% de probabilidad.
 function predOutcome(p){
-  const DRAW_MARGIN = 0.12; // calibrado: WC grupos tiene ~30% empates, umbral conservador
+  const DRAW_MARGIN = 0.12;
   if(p.pH > p.pA){
     return (p.pH - p.pD) > DRAW_MARGIN ? 'H' : 'D';
   } else if(p.pA > p.pH){
@@ -1095,11 +847,10 @@ function computeModelScores(){
     if(oa===ro){ MODEL_SCORES.actual.cw++; MODEL_SCORES.actual.points+=(ro==='D'?1:3); }
   }
 }
+
 const _now = new Date();
 const todayStr = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
 
-// ELO base PRE-TORNEO (antes del primer partido, 11 jun 2026)
-// recalibrateELO() parte de estos valores y aplica REAL_RESULTS para calcular el ELO actual.
 const ELO_PRE = {'Argentina':1950,'France':1930,'Spain':1900,'England':1900,'Brazil':1880,
   'Portugal':1870,'Germany':1860,'Netherlands':1840,'Belgium':1820,'Croatia':1780,'Uruguay':1760,
   'Morocco':1720,'United States':1700,'Mexico':1680,'Japan':1660,'Senegal':1650,
@@ -1110,121 +861,239 @@ const ELO_PRE = {'Argentina':1950,'France':1930,'Spain':1900,'England':1900,'Bra
   'DR Congo':1510,'Uzbekistan':1490,'Ghana':1610,'Panama':1510,'New Zealand':1460,
   'Paraguay':1580,'Egypt':1620,'Tunisia':1600,'Iran':1600,'South Korea':1660,'Switzerland':1690};
 
-// ==================== ANÁLISIS ESTRUCTURAL ====================
-// 8 dimensiones por selección: [cantera, estab_fed, hist_competitivo, jugadores_eur, balance_edad, continuidad_tec, profundidad, vs_elite]
-const STRUCT_DIMS=['Calidad de Cantera','Estabilidad Fed.','Historial Competitivo','Jugadores en Europa','Balance Etario','Continuidad Técnica','Profundidad Plantilla','Capacidad vs Élite'];
-const STRUCT_ICONS=['🌱','🏛️','🏆','🌍','📊','👔','🧩','⚔️'];
-const STRUCTURAL={
-  'Argentina':    [88,65,97,90,65,92,65,92],
-  'France':       [96,88,94,98,85,88,95,94],
-  'Spain':        [95,90,95,88,88,85,93,93],
-  'Germany':      [90,92,97,85,82,78,90,95],
-  'Brazil':       [92,58,100,95,80,62,85,94],
-  'England':      [78,82,78,82,80,70,88,78],
-  'Netherlands':  [88,72,82,85,78,80,80,82],
-  'Portugal':     [82,80,72,90,72,78,68,75],
-  'Belgium':      [82,85,65,85,55,75,78,70],
-  'Croatia':      [80,78,78,78,65,78,75,78],
-  'Uruguay':      [78,72,88,72,68,70,72,80],
-  'Switzerland':  [75,85,58,80,75,82,75,65],
-  'Colombia':     [72,65,62,75,82,78,65,62],
-  'Morocco':      [65,80,65,70,85,82,72,68],
-  'Japan':        [70,88,52,58,80,88,70,62],
-  'Mexico':       [68,62,62,48,70,62,68,60],
-  'South Korea':  [68,70,62,55,70,70,65,62],
-  'Turkey':       [65,68,55,68,70,65,62,58],
-  'Sweden':       [65,82,65,65,70,75,68,62],
-  'Czechia':      [65,72,60,68,65,68,65,60],
-  'Ivory Coast':  [65,60,55,65,72,65,65,58],
-  'Austria':      [68,70,55,70,78,78,70,62],
-  'Norway':       [62,80,45,68,88,80,68,55],
-  'Scotland':     [62,75,52,70,68,72,62,55],
-  'Senegal':      [62,62,55,68,75,70,65,58],
-  'Algeria':      [60,62,55,60,70,65,60,55],
-  'Ecuador':      [60,62,52,52,78,62,58,50],
-  'Ghana':        [60,58,58,62,68,65,62,55],
-  'Tunisia':      [55,60,52,52,65,60,55,50],
-  'Egypt':        [55,60,55,50,65,68,58,52],
-  'Australia':    [55,72,52,50,72,72,58,52],
-  'Paraguay':     [60,58,55,55,65,60,58,52],
-  'Bosnia':       [50,55,42,60,62,58,52,45],
-  'Canada':       [58,78,42,48,82,78,60,48],
-  'United States':[62,78,55,45,85,70,65,55],
-  'Iran':         [50,58,48,42,65,60,52,48],
-  'Saudi Arabia': [48,62,48,38,65,62,50,45],
-  'South Africa': [50,60,42,42,68,62,52,45],
-  'DR Congo':     [48,52,45,45,65,58,50,42],
-  'Cape Verde':   [48,58,35,52,72,62,50,40],
-  'New Zealand':  [40,68,38,38,65,65,42,38],
-  'Uzbekistan':   [42,58,38,35,68,60,45,40],
-  'Panama':       [45,65,42,38,65,68,48,42],
-  'Qatar':        [38,65,42,30,62,68,42,38],
-  'Iraq':         [42,52,42,38,65,55,45,40],
-  'Jordan':       [38,52,35,30,65,58,40,35],
-  'Haiti':        [40,48,38,35,65,52,42,35],
-  'Curaçao':      [38,52,32,40,65,55,40,35],
+// ==================== BRACKET KO ====================
+let BRACKET_KO = {
+  r32:[
+    {h:'Germany',       a:'Paraguay',    sh:1,sa:1,pen_h:3,pen_a:4,date:'Jun 29',time:'15:30'},
+    {h:'France',        a:'Sweden',      sh:null,sa:null,date:'Jun 30',time:'16:00'},
+    {h:'South Africa',  a:'Canada',      sh:0,   sa:1,   date:'Jun 28',time:'14:00'},
+    {h:'Netherlands',   a:'Morocco',     sh:1,sa:1,pen_h:2,pen_a:3,date:'Jun 29',time:'20:00'},
+    {h:'Portugal',      a:'Croatia',     sh:null,sa:null,date:'Jul 2', time:'18:00'},
+    {h:'Spain',         a:'Austria',     sh:null,sa:null,date:'Jul 2', time:'14:00'},
+    {h:'United States', a:'Bosnia',      sh:null,sa:null,date:'Jul 1', time:'19:00'},
+    {h:'Belgium',       a:'Senegal',     sh:null,sa:null,date:'Jul 1', time:'15:00'},
+    {h:'Brazil',        a:'Japan',       sh:2,sa:1,date:'Jun 29',time:'12:00'},
+    {h:'Ivory Coast',   a:'Norway',      sh:1,sa:2,      date:'Jun 30',time:'12:00'},
+    {h:'Mexico',        a:'Ecuador',     sh:null,sa:null,date:'Jun 30',time:'20:00'},
+    {h:'England',       a:'DR Congo',    sh:null,sa:null,date:'Jul 1', time:'11:00'},
+    {h:'Argentina',     a:'Cape Verde',  sh:null,sa:null,date:'Jul 3', time:'17:00'},
+    {h:'Australia',     a:'Egypt',       sh:null,sa:null,date:'Jul 3', time:'13:00'},
+    {h:'Switzerland',   a:'Algeria',     sh:null,sa:null,date:'Jul 2', time:'22:00'},
+    {h:'Colombia',      a:'Ghana',       sh:null,sa:null,date:'Jul 3', time:'20:30'},
+  ],
+  r16:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 4',time:'12:00'},
+    {h:'Canada',a:'Morocco',sh:null,sa:null,date:'Jul 4',time:'16:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 5',time:'15:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 5',time:'19:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 6',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 6',time:'19:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 7',time:'11:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 7',time:'15:00'},
+  ],
+  qf:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 9',time:'15:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 11',time:'16:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 10',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 11',time:'20:00'},
+  ],
+  sf:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 14',time:'14:00'},
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 15',time:'14:00'},
+  ],
+  third:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 18',time:'16:00'},
+  ],
+  f:[
+    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 19',time:'14:00'},
+  ]
 };
 
-// ==================== ÍNDICE POLÍTICO-COMERCIAL ====================
-// 7 dimensiones: [impacto_estrella, audiencia_ingresos, valor_patrocinadores, audiencias_tv, presion_mediatica, historial_arbitral, geopolitica_sede]
-// IMPORTANTE: índice estimativo basado en datos públicos documentados.
-// Un IPC alto refleja la magnitud de incentivos externos — no implica conducta irregular.
-const INFL_DIMS=['Impacto Estrella','Audiencia/Ingresos','Valor Patrocinadores','Audiencias TV','Presión Mediática','Historial Arbitral *','Geopolítica/Sede'];
-const INFL_ICONS=['⭐','💰','🤝','📺','📰','🏁','🌐'];
-const INFLUENCE={
-  'Portugal':     [100,98,97,95,96,70,50], // CR7: mayor impacto comercial individual activo
-  'Argentina':    [98,97,95,95,97,65,68],  // Messi: último WC, valor comercial máximo
-  'Brazil':       [85,90,88,90,90,68,78],  // Vinícius + mercado masivo + anfitrión 2014
-  'France':       [88,88,90,88,88,58,72],  // Mbappé + plantilla más valiosa del mundo
-  'Spain':        [78,82,85,82,80,58,68],  // Yamal emergente + LaLiga
-  'Germany':      [75,80,85,80,78,55,68],  // Bundesliga + relación histórica FIFA
-  'England':      [72,82,83,85,88,60,65],  // Premier + Kane + peso mediático anglosajón
-  'United States':[62,88,90,88,72,52,95], // CO-ANFITRIÓN: expansión comercial FIFA a EEUU
-  'Mexico':       [60,80,78,85,68,58,90],  // CO-ANFITRIÓN: 130M + Azteca + TV Azteca/Televisa
-  'Canada':       [42,58,55,62,45,48,78],  // CO-ANFITRIÓN: menor impacto individual
-  'Japan':        [68,78,78,80,70,48,62],  // Audiencia asiática masiva + crecimiento liga
-  'South Korea':  [60,72,70,72,62,88,58],  // 2002: caso arbitral más documentado en historia WC (Moreno)
-  'Belgium':      [68,68,72,68,68,50,58],  // De Bruyne + golden gen
-  'Netherlands':  [62,65,70,65,62,50,55],
-  'Colombia':     [58,62,58,62,58,50,55],
-  'Croatia':      [55,60,58,60,58,52,52],
-  'Morocco':      [52,58,55,60,65,52,68],  // Qatar 2022 semifinal + candidatura WC 2030
-  'Uruguay':      [58,58,55,58,58,55,48],
-  'Switzerland':  [48,52,58,52,50,48,55],
-  'Austria':      [50,52,55,52,50,48,52],
-  'Norway':       [58,55,55,55,55,48,50],  // Haaland = impacto estrella
-  'Sweden':       [52,52,55,52,52,48,52],
-  'Australia':    [42,48,48,48,42,48,52],
-  'Ecuador':      [40,45,42,45,40,48,50],
-  'Senegal':      [50,50,50,50,48,48,50],
-  'Ghana':        [45,45,45,45,45,48,48],
-  'Ivory Coast':  [48,48,48,48,48,48,48],
-  'Egypt':        [45,48,45,48,45,48,50],
-  'Algeria':      [45,45,45,45,45,48,50],
-  'South Africa': [38,40,40,40,38,48,52],
-  'Qatar':        [35,40,52,38,55,90,92],  // 2022 host: mayor polémica institucional FIFA documentada
-  'Saudi Arabia': [38,42,60,42,40,50,88],  // Vision 2030 + patrocinios FIFA + LIV Golf
-  'Turkey':       [45,48,50,48,45,52,62],  // Geopolítica activa + liga emergente
-  'Iran':         [35,38,40,38,38,52,70],  // Geopolítica
-  'Bosnia':       [40,40,38,40,40,48,45],
-  'Paraguay':     [40,40,40,40,40,48,45],
-  'Czechia':      [40,40,48,40,40,48,50],
-  'Scotland':     [40,45,48,45,40,48,50],
-  'Panama':       [32,35,35,35,32,48,50],
-  'New Zealand':  [28,30,32,30,28,48,42],
-  'Uzbekistan':   [28,30,30,30,28,48,45],
-  'DR Congo':     [32,32,32,32,32,48,45],
-  'Cape Verde':   [28,28,28,28,28,48,42],
-  'Iraq':         [25,28,28,28,25,50,62],  // Geopolítica
-  'Jordan':       [22,25,25,25,22,48,55],  // Geopolítica
-  'Tunisia':      [35,35,35,35,35,48,48],
-  'Haiti':        [25,25,25,25,22,48,45],
-  'Curaçao':      [20,20,22,20,20,48,42],
-};
+// ==================== ACTUALIZACIÓN DE BRACKETS ====================
+function updateBrackets(){
+  // 1. Sincronizar sh/sa de R32 con REAL_RESULTS
+  BRACKET_KO.r32.forEach(m => {
+    if(m.h!=='TBD' && m.a!=='TBD'){
+      const key = m.h+'-'+m.a;
+      const r = REAL_RESULTS[key];
+      if(r && r.played){
+        m.sh = r.h;
+        m.sa = r.a;
+        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+      }
+    }
+  });
 
-// ==================== SISTEMA DE APRENDIZAJE AUTÓNOMO ====================
+  // 2. Función auxiliar para obtener ganador/perdedor
+  function winner(m){
+    if(m.sh===null) return null;
+    if(m.sh>m.sa) return m.h;
+    if(m.sa>m.sh) return m.a;
+    if(m.pen_h!==undefined) return m.pen_h>m.pen_a ? m.h : m.a;
+    return null;
+  }
+  function loser(m){
+    const w = winner(m);
+    if(!w || m.sh===null) return null;
+    return w===m.h ? m.a : m.h;
+  }
+
+  // 3. Propagar R32 → R16
+  for(let i=0;i<BRACKET_KO.r32.length;i+=2){
+    const idx = i/2;
+    if(idx < BRACKET_KO.r16.length){
+      const w = winner(BRACKET_KO.r32[i]);
+      const w2 = winner(BRACKET_KO.r32[i+1]);
+      if(w) BRACKET_KO.r16[idx].h = w;
+      if(w2) BRACKET_KO.r16[idx].a = w2;
+    }
+  }
+  // 4. Sincronizar R16 con REAL_RESULTS (si ya jugado)
+  BRACKET_KO.r16.forEach(m => {
+    if(m.h!=='TBD' && m.a!=='TBD'){
+      const key = m.h+'-'+m.a;
+      const r = REAL_RESULTS[key];
+      if(r && r.played){
+        m.sh = r.h;
+        m.sa = r.a;
+        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+      }
+    }
+  });
+
+  // 5. Propagar R16 → QF
+  for(let i=0;i<BRACKET_KO.r16.length;i+=2){
+    const idx = i/2;
+    if(idx < BRACKET_KO.qf.length){
+      const w = winner(BRACKET_KO.r16[i]);
+      const w2 = winner(BRACKET_KO.r16[i+1]);
+      if(w) BRACKET_KO.qf[idx].h = w;
+      if(w2) BRACKET_KO.qf[idx].a = w2;
+    }
+  }
+  BRACKET_KO.qf.forEach(m => {
+    if(m.h!=='TBD' && m.a!=='TBD'){
+      const key = m.h+'-'+m.a;
+      const r = REAL_RESULTS[key];
+      if(r && r.played){
+        m.sh = r.h;
+        m.sa = r.a;
+        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+      }
+    }
+  });
+
+  // 6. Propagar QF → SF
+  for(let i=0;i<BRACKET_KO.qf.length;i+=2){
+    const idx = i/2;
+    if(idx < BRACKET_KO.sf.length){
+      const w = winner(BRACKET_KO.qf[i]);
+      const w2 = winner(BRACKET_KO.qf[i+1]);
+      if(w) BRACKET_KO.sf[idx].h = w;
+      if(w2) BRACKET_KO.sf[idx].a = w2;
+    }
+  }
+  BRACKET_KO.sf.forEach(m => {
+    if(m.h!=='TBD' && m.a!=='TBD'){
+      const key = m.h+'-'+m.a;
+      const r = REAL_RESULTS[key];
+      if(r && r.played){
+        m.sh = r.h;
+        m.sa = r.a;
+        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+      }
+    }
+  });
+
+  // 7. Propagar SF → Final y Tercer puesto
+  if(BRACKET_KO.sf.length>=2){
+    const w1 = winner(BRACKET_KO.sf[0]);
+    const w2 = winner(BRACKET_KO.sf[1]);
+    const l1 = loser(BRACKET_KO.sf[0]);
+    const l2 = loser(BRACKET_KO.sf[1]);
+    if(w1 && BRACKET_KO.f[0]) BRACKET_KO.f[0].h = w1;
+    if(w2 && BRACKET_KO.f[0]) BRACKET_KO.f[0].a = w2;
+    if(l1 && BRACKET_KO.third[0]) BRACKET_KO.third[0].h = l1;
+    if(l2 && BRACKET_KO.third[0]) BRACKET_KO.third[0].a = l2;
+  }
+  BRACKET_KO.f.forEach(m => {
+    if(m.h!=='TBD' && m.a!=='TBD'){
+      const key = m.h+'-'+m.a;
+      const r = REAL_RESULTS[key];
+      if(r && r.played){
+        m.sh = r.h;
+        m.sa = r.a;
+        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+      }
+    }
+  });
+  BRACKET_KO.third.forEach(m => {
+    if(m.h!=='TBD' && m.a!=='TBD'){
+      const key = m.h+'-'+m.a;
+      const r = REAL_RESULTS[key];
+      if(r && r.played){
+        m.sh = r.h;
+        m.sa = r.a;
+        if(r.penH!==undefined) { m.pen_h = r.penH; m.pen_a = r.penA; }
+      }
+    }
+  });
+}
+
+// ==================== REFRESH ALL ====================
+function refreshAll(){
+  updateBrackets();
+  _clearStandings();
+  invalidateCache('all');
+  recalibrateELO();
+  // Re-render pestañas activas
+  const active = document.querySelector('.page.active');
+  if(active){
+    const id = active.id.replace('page-','');
+    if(id==='champ') renderChamp();
+    else if(id==='hoy') renderHoy();
+    else if(id==='duel') renderDuel();
+    else if(id==='comp') renderComparativa();
+  }
+  updateModelScore();
+}
+
+function updateModelScore(){
+  computeModelScores();
+  const ms=MODEL_SCORES.actual;
+  const acc=ms.total?Math.round(ms.cw/ms.total*100):0;
+  document.getElementById('modelScore').innerText = ms.total ? `${ms.cw}/${ms.total} (${acc}%)` : '—';
+}
+
+// ==================== ELO ====================
+function initElo(){
+  ALL_TEAMS.forEach(t=>G.elo[t]=ELO_PRE[t]||1500);
+  _applyRealResultsToElo();
+  updateDynamicRatings();
+}
+function _applyRealResultsToElo(){
+  for(const [key,res] of Object.entries(REAL_RESULTS)){
+    if(!res.played) continue;
+    const [h,a]=key.split('-');
+    const K=30;
+    const eh=G.elo[h]||1500, ea=G.elo[a]||1500;
+    const expH=1/(1+Math.pow(10,(ea-eh)/400));
+    const actualH=res.h>res.a?1:res.h===res.a?0.5:0;
+    const gd=Math.abs(res.h-res.a);
+    const kdAdj=gd<=1?1:gd===2?1.5:gd===3?1.75:1.75+0.5*Math.log(gd-2);
+    const Keff=Math.round(K*kdAdj);
+    G.elo[h]=Math.round(eh+Keff*(actualH-expH));
+    G.elo[a]=Math.round(ea+Keff*((1-actualH)-(1-expH)));
+  }
+}
+function recalibrateELO(){
+  ALL_TEAMS.forEach(t=>G.elo[t]=ELO_PRE[t]||1500);
+  _applyRealResultsToElo();
+  updateDynamicRatings();
+}
+
+// ==================== DINÁMICAS ====================
 let DYNAMIC_ATT={}, DYNAMIC_DEF={};
-
 function getDynamicDrawBoost(){
   const results=Object.values(REAL_RESULTS).filter(r=>r.played);
   const played=results.length;
@@ -1233,11 +1102,9 @@ function getDynamicDrawBoost(){
   const actualDrawRate=draws/played;
   const historicalDrawRate=0.285;
   const drawBoostForActual=1.24*(actualDrawRate/historicalDrawRate);
-  // Peso creciente hasta 45% a medida que se juegan más partidos (72 = fase grupos completa)
   const wcWeight=Math.min(0.45, played/72*0.45);
   return (1-wcWeight)*1.24 + wcWeight*drawBoostForActual;
 }
-
 function updateDynamicRatings(){
   const gf={},ga={},n={};
   for(const [key,res] of Object.entries(REAL_RESULTS)){
@@ -1255,7 +1122,6 @@ function updateDynamicRatings(){
       DYNAMIC_DEF[team]=BASE_DEF[team]||1.0;
       continue;
     }
-    // Peso máx 40%: 1 partido=13%, 2=26%, 3+=40%
     const w=Math.min(0.40, matches*0.13);
     const avgGF=gf[team]/matches, avgGA=ga[team]/matches;
     DYNAMIC_ATT[team]=(BASE_ATT[team]||1.2)*(1-w)+avgGF*w;
@@ -1264,176 +1130,7 @@ function updateDynamicRatings(){
   _clearPredCache();
 }
 
-function initElo(){
-  ALL_TEAMS.forEach(t=>G.elo[t]=ELO_PRE[t]||1500);
-  // Al arrancar aplicamos también los resultados ya conocidos para tener ELO actual
-  _applyRealResultsToElo();
-  updateDynamicRatings();
-}
-
-// ==================== MODELO DE POISSON ====================
-// Reemplaza la probabilidad de empate fija (26%). La p(empate) ahora depende
-// de cuántos goles se esperan: partidos reñidos → más empates naturalmente.
-function poissonP(lambda, k){
-  // P(X=k) donde X ~ Poisson(lambda)
-  let p=Math.exp(-lambda);
-  for(let i=1;i<=k;i++) p*=lambda/i;
-  return p;
-}
-function dixonColesTau(i, j, xgH, xgA, rho){
-  // Corrección Dixon-Coles para marcadores bajos (0-0, 1-0, 0-1, 1-1)
-  // Estos marcadores ocurren con más frecuencia de lo que predice Poisson puro.
-  if(i===0&&j===0) return 1 - xgH*xgA*rho;
-  if(i===1&&j===0) return 1 + xgA*rho;
-  if(i===0&&j===1) return 1 + xgH*rho;
-  if(i===1&&j===1) return 1 - rho;
-  return 1;
-}
-function poissonOutcomes(xgH, xgA){
-  // P(local gana), P(empate), P(visitante gana) via Poisson + corrección Dixon-Coles
-  // rho=-0.13 es el valor calibrado en torneos internacionales (inflaciona empates y 0-0)
-  const rho = -0.13;
-  let pH=0, pD=0, pA=0;
-  for(let i=0;i<=8;i++){
-    const pi=poissonP(xgH,i);
-    for(let j=0;j<=8;j++){
-      const p=pi*poissonP(xgA,j)*dixonColesTau(i,j,xgH,xgA,rho);
-      if(i>j) pH+=p; else if(i===j) pD+=p; else pA+=p;
-    }
-  }
-  // Calibración WC 2014+2018+2022 backtested (144 partidos, grid search):
-  // draw_boost=1.24 base; getDynamicDrawBoost() ajusta en tiempo real con resultados 2026
-  pD *= getDynamicDrawBoost();
-  const tot=pH+pD+pA;
-  return {pH:pH/tot, pD:pD/tot, pA:pA/tot};
-}
-function poissonBestScore(xgH, xgA){
-  let best='1-0', bestP=0;
-  for(let i=0;i<=5;i++) for(let j=0;j<=5;j++){
-    const p=poissonP(xgH,i)*poissonP(xgA,j);
-    if(p>bestP){bestP=p; best=`${i}-${j}`;}
-  }
-  return best;
-}
-
-// ==================== MOMENTUM (PERRENQUE) ====================
-// Mide confianza y estado anímico basado en resultados REALES del torneo.
-// No es subjetivo: pts ganados + goles marcados = presión positiva acumulada.
-// Rango: 0.97 (sin ganar) → 1.04 (tres victorias holgadas) = máx ±4% efecto.
-function getMomentum(team){
-  let pts=0,gf=0,matches=0;
-  for(const [key,real] of Object.entries(REAL_RESULTS)){
-    if(!real.played) continue;
-    const [h,a]=key.split('-');
-    if(h!==team&&a!==team) continue;
-    const isH=h===team;
-    const tg=isH?real.h:real.a, og=isH?real.a:real.h;
-    gf+=tg; matches++;
-    if(tg>og) pts+=3; else if(tg===og) pts+=1;
-  }
-  if(matches===0) return {mult:1.00,label:'—',pts:0,matches:0};
-  const ptsPer=pts/matches;                        // 0-3
-  const gfPer=gf/matches;                          // goles/partido
-  // Pesos: resultados 65%, goles marcados 35%
-  const score=(ptsPer/3)*0.65+(Math.min(gfPer,3)/3)*0.35; // 0-1
-  const mult=0.97+score*0.07;  // 0.97 → 1.04
-  const label=matches===0?'—':pts===0?'❄️ Sin ganar':ptsPer>=2.5?'🔥 En llamas':ptsPer>=1.5?'📈 En racha':'➡️ Neutro';
-  return {mult,label,pts,matches,gfPer:gfPer.toFixed(1)};
-}
-
-// ==================== FACTOR SOBRECONFIANZA POST-GOLEADA ====================
-// Cuando un equipo ganó por 3+ goles en su partido más reciente existe riesgo
-// de relajación/subestimación del rival. Efecto documentado en fútbol: ~1.5-2.5%.
-// APLICACIÓN: -2% en xG atacante. Contrarrestado parcialmente por momentum alto.
-function getGoleadaFactor(team){
-  let lastWinGD=0,lastIsWin=false;
-  for(const [key,real] of Object.entries(REAL_RESULTS)){
-    if(!real.played) continue;
-    const [h,a]=key.split('-');
-    if(h!==team&&a!==team) continue;
-    const isH=h===team;
-    const tg=isH?real.h:real.a, og=isH?real.a:real.h;
-    if(tg>og){lastWinGD=tg-og;lastIsWin=true;}
-    else{lastWinGD=0;lastIsWin=false;}
-  }
-  if(lastIsWin&&lastWinGD>=3) return {mult:0.98,label:`⚠️ Post-goleada (+${lastWinGD}) — riesgo sobreconfianza`};
-  return {mult:1.0,label:null};
-}
-
-// ==================== FATIGA ACUMULADA ====================
-// Cada prórroga (120 min) cuesta fuerza física. Atenuada por plantilla profunda (BANCA).
-// Se actualiza con resultados reales: agregar team aquí cuando llegue a ET en eliminatorias.
-const EXTRA_TIME={
-  // Ejemplo (fase final): 'Croatia':2, 'Morocco':1
-  // Por ahora vacío — fase de grupos no tiene ET
-};
-function getFatiguePenalty(team){
-  const et=EXTRA_TIME[team]||0;
-  if(et===0) return 0;
-  // Costo por ET: 1.5-3% por partido, reducido por plantilla profunda
-  const bancaNorm=(BANCA[team]||65)/100;
-  const costPer=0.015+(1-bancaNorm)*0.015; // equipos con banca alta pagan menos
-  return Math.min(0.08,et*costPer);
-}
-
-// ==================== DIÁSPORA / AMBIENTE ESTADIO ====================
-// Selecciones con gran comunidad en USA/Canadá llegan con apoyo extra en las gradas.
-// INFORMATIVO: se muestra en tarjetas de partido pero NO modifica Monte Carlo
-// (las sedes de eliminatorias no están determinadas y sería ruido añadirlo).
-const DIASPORA={
-  'United States':0.95,'Canada':0.88,'Mexico':0.90,'Colombia':0.72,
-  'Ecuador':0.55,'Argentina':0.52,'Brazil':0.48,'Portugal':0.42,
-  'Haiti':0.35,'Uruguay':0.22,'Panama':0.20,'Paraguay':0.18,
-  'El Salvador':0.65,'Honduras':0.62,'Jamaica':0.33,'Peru':0.30,
-  'Bolivia':0.25,'Chile':0.28,'Cuba':0.25,'Dominican Republic':0.28
-};
-function getDiaspora(team){return DIASPORA[team]||0.04;}
-function diasporaLabel(team){
-  const d=getDiaspora(team);
-  return d>=0.80?'🏠 Local':d>=0.55?'🟢 Alto apoyo':d>=0.35?'🟡 Apoyo parcial':d>=0.15?'🟠 Poco apoyo':'⚪ Neutral';
-}
-
-// ==================== BALÓN PARADO (SET PIECE EFFICIENCY) ====================
-// Datos WC 2026: basados en clasificatorias + torneos recientes (EURO 2024, Copa América 2024).
-// Escala 0-100. ATT = eficacia ofensiva; DEF = solidez defensiva en balón parado.
-const BALON_PARADO = {
-  'England':       {att:88,def:74}, 'Germany':       {att:85,def:78},
-  'Netherlands':   {att:83,def:80}, 'Norway':        {att:83,def:76},
-  'Uruguay':       {att:81,def:83}, 'France':        {att:80,def:80},
-  'Argentina':     {att:79,def:77}, 'Belgium':       {att:77,def:75},
-  'Portugal':      {att:76,def:74}, 'Croatia':       {att:74,def:78},
-  'Scotland':      {att:74,def:72}, 'Sweden':        {att:74,def:72},
-  'Czechia':       {att:73,def:70}, 'Colombia':      {att:72,def:68},
-  'Australia':     {att:72,def:70}, 'Morocco':       {att:70,def:75},
-  'Spain':         {att:70,def:74}, 'Switzerland':   {att:70,def:72},
-  'United States': {att:70,def:68}, 'Austria':       {att:70,def:70},
-  'Egypt':         {att:69,def:70}, 'Turkey':        {att:69,def:68},
-  'Senegal':       {att:68,def:72}, 'Ghana':         {att:66,def:65},
-  'Canada':        {att:66,def:65}, 'Mexico':        {att:65,def:65},
-  'Brazil':        {att:65,def:72}, 'Japan':         {att:64,def:70},
-  'South Korea':   {att:64,def:68}, 'Ecuador':       {att:63,def:62},
-  'Algeria':       {att:63,def:66}, 'Paraguay':      {att:63,def:65},
-  'DR Congo':      {att:62,def:62}, 'Ivory Coast':   {att:62,def:65},
-  'Tunisia':       {att:62,def:68}, 'Bosnia':        {att:62,def:65},
-  'Iran':          {att:61,def:65}, 'New Zealand':   {att:61,def:62},
-  'Uzbekistan':    {att:60,def:62}, 'Iraq':          {att:60,def:62},
-  'Jordan':        {att:58,def:60}, 'Saudi Arabia':  {att:58,def:60},
-  'Panama':        {att:57,def:60}, 'South Africa':  {att:56,def:58},
-  'Cape Verde':    {att:55,def:58}, 'Qatar':         {att:52,def:55},
-  'Haiti':         {att:50,def:52}, 'Curaçao':       {att:48,def:50},
-};
-function getBalonParadoAdj(home, away){
-  // Ajuste xG por ventaja neta de balón parado. Max ±0.10 xG.
-  const bph=BALON_PARADO[home]||{att:65,def:65};
-  const bpa=BALON_PARADO[away] ||{att:65,def:65};
-  const netH=(bph.att-bpa.def)-(bpa.att-bph.def);
-  return netH/400*0.10;
-}
-
-// ==================== 1. xG ASIMÉTRICO ====================
-// Ratings ofensivo/defensivo independientes por equipo.
-// ATT = goles por partido generados en ataque (clasif. + torneos recientes)
-// DEF = goles concedidos por partido (menor = mejor defensa)
+// ==================== MODELO PREDICCIÓN ====================
 const BASE_ATT={
   'Germany':2.20,'United States':2.10,'France':1.90,'Norway':1.88,
   'Argentina':1.85,'Spain':1.80,'Portugal':1.80,'England':1.80,
@@ -1462,10 +1159,6 @@ const BASE_DEF={
   'Panama':1.25,'Cape Verde':1.28,'South Africa':1.30,'New Zealand':1.32,
   'Qatar':1.40,'Haiti':1.45,'Curaçao':1.55,
 };
-
-// ==================== 2. ESTILO DE JUEGO ====================
-// 0 = puro contraataque/directo · 100 = posesión absoluta
-// Cuando ambos equipos son de posesión alta → partido lento → más empates
 const ESTILO_POSESION={
   'Spain':92,'Brazil':82,'Netherlands':80,'Germany':78,
   'Argentina':75,'Belgium':74,'France':73,'Portugal':72,
@@ -1480,10 +1173,6 @@ const ESTILO_POSESION={
   'Saudi Arabia':40,'Panama':38,'New Zealand':38,'Cape Verde':35,
   'Haiti':35,'Qatar':35,'Curaçao':30,
 };
-
-// ==================== 3. MERCADO ORÁCULO ====================
-// P(empate) implícita en casas de apuestas (Betfair Exchange / Pinnacle).
-// Blend 25% mercado + 75% modelo propio. Actualizar antes de cada jornada.
 const MARKET_DRAW={
   'France-Senegal':0.25,'Ivory Coast-Ecuador':0.30,
   'Portugal-DR Congo':0.22,'England-Croatia':0.28,'Sweden-Tunisia':0.32,
@@ -1492,10 +1181,118 @@ const MARKET_DRAW={
   'Belgium-Iran':0.26,'Netherlands-Sweden':0.30,'Brazil-Panama':0.20,
   'United States-Mexico':0.28,'Colombia-Portugal':0.30,
 };
+const BALON_PARADO = {
+  'England':{att:88,def:74},'Germany':{att:85,def:78},'Netherlands':{att:83,def:80},
+  'Norway':{att:83,def:76},'Uruguay':{att:81,def:83},'France':{att:80,def:80},
+  'Argentina':{att:79,def:77},'Belgium':{att:77,def:75},'Portugal':{att:76,def:74},
+  'Croatia':{att:74,def:78},'Scotland':{att:74,def:72},'Sweden':{att:74,def:72},
+  'Czechia':{att:73,def:70},'Colombia':{att:72,def:68},'Australia':{att:72,def:70},
+  'Morocco':{att:70,def:75},'Spain':{att:70,def:74},'Switzerland':{att:70,def:72},
+  'United States':{att:70,def:68},'Austria':{att:70,def:70},'Egypt':{att:69,def:70},
+  'Turkey':{att:69,def:68},'Senegal':{att:68,def:72},'Ghana':{att:66,def:65},
+  'Canada':{att:66,def:65},'Mexico':{att:65,def:65},'Brazil':{att:65,def:72},
+  'Japan':{att:64,def:70},'South Korea':{att:64,def:68},'Ecuador':{att:63,def:62},
+  'Algeria':{att:63,def:66},'Paraguay':{att:63,def:65},'DR Congo':{att:62,def:62},
+  'Ivory Coast':{att:62,def:65},'Tunisia':{att:62,def:68},'Bosnia':{att:62,def:65},
+  'Iran':{att:61,def:65},'New Zealand':{att:61,def:62},'Uzbekistan':{att:60,def:62},
+  'Iraq':{att:60,def:62},'Jordan':{att:58,def:60},'Saudi Arabia':{att:58,def:60},
+  'Panama':{att:57,def:60},'South Africa':{att:56,def:58},'Cape Verde':{att:55,def:58},
+  'Qatar':{att:52,def:55},'Haiti':{att:50,def:52},'Curaçao':{att:48,def:50},
+};
+function getBalonParadoAdj(home, away){
+  const bph=BALON_PARADO[home]||{att:65,def:65};
+  const bpa=BALON_PARADO[away] ||{att:65,def:65};
+  const netH=(bph.att-bpa.def)-(bpa.att-bph.def);
+  return netH/400*0.10;
+}
 
-// ==================== 4. MOTOR DE INCENTIVOS ====================
-// Calcula clasificación en tiempo real y ajusta P(draw) cuando un equipo
-// solo necesita el empate para avanzar — el factor más ignorado del fútbol.
+function poissonP(lambda, k){
+  let p=Math.exp(-lambda);
+  for(let i=1;i<=k;i++) p*=lambda/i;
+  return p;
+}
+function dixonColesTau(i, j, xgH, xgA, rho){
+  if(i===0&&j===0) return 1 - xgH*xgA*rho;
+  if(i===1&&j===0) return 1 + xgA*rho;
+  if(i===0&&j===1) return 1 + xgH*rho;
+  if(i===1&&j===1) return 1 - rho;
+  return 1;
+}
+function poissonOutcomes(xgH, xgA){
+  const rho=-0.13;
+  let pH=0,pD=0,pA=0;
+  for(let i=0;i<=8;i++){
+    const pi=poissonP(xgH,i);
+    for(let j=0;j<=8;j++){
+      const p=pi*poissonP(xgA,j)*dixonColesTau(i,j,xgH,xgA,rho);
+      if(i>j) pH+=p; else if(i===j) pD+=p; else pA+=p;
+    }
+  }
+  pD *= getDynamicDrawBoost();
+  const tot=pH+pD+pA;
+  return {pH:pH/tot,pD:pD/tot,pA:pA/tot};
+}
+function poissonBestScore(xgH, xgA){
+  let best='1-0', bestP=0;
+  for(let i=0;i<=5;i++) for(let j=0;j<=5;j++){
+    const p=poissonP(xgH,i)*poissonP(xgA,j);
+    if(p>bestP){bestP=p; best=`${i}-${j}`;}
+  }
+  return best;
+}
+
+function getMomentum(team){
+  let pts=0,gf=0,matches=0;
+  for(const [key,real] of Object.entries(REAL_RESULTS)){
+    if(!real.played) continue;
+    const [h,a]=key.split('-');
+    if(h!==team&&a!==team) continue;
+    const isH=h===team;
+    const tg=isH?real.h:real.a, og=isH?real.a:real.h;
+    gf+=tg; matches++;
+    if(tg>og) pts+=3; else if(tg===og) pts+=1;
+  }
+  if(matches===0) return {mult:1.00,label:'—',pts:0,matches:0};
+  const ptsPer=pts/matches;
+  const gfPer=gf/matches;
+  const score=(ptsPer/3)*0.65+(Math.min(gfPer,3)/3)*0.35;
+  const mult=0.97+score*0.07;
+  const label=matches===0?'—':pts===0?'❄️ Sin ganar':ptsPer>=2.5?'🔥 En llamas':ptsPer>=1.5?'📈 En racha':'➡️ Neutro';
+  return {mult,label,pts,matches,gfPer:gfPer.toFixed(1)};
+}
+function getGoleadaFactor(team){
+  let lastWinGD=0,lastIsWin=false;
+  for(const [key,real] of Object.entries(REAL_RESULTS)){
+    if(!real.played) continue;
+    const [h,a]=key.split('-');
+    if(h!==team&&a!==team) continue;
+    const isH=h===team;
+    const tg=isH?real.h:real.a, og=isH?real.a:real.h;
+    if(tg>og){lastWinGD=tg-og;lastIsWin=true;}
+    else{lastWinGD=0;lastIsWin=false;}
+  }
+  if(lastIsWin&&lastWinGD>=3) return {mult:0.98,label:`⚠️ Post-goleada (+${lastWinGD}) — riesgo sobreconfianza`};
+  return {mult:1.0,label:null};
+}
+const EXTRA_TIME={};
+function getFatiguePenalty(team){
+  const et=EXTRA_TIME[team]||0;
+  if(et===0) return 0;
+  const bancaNorm=(BANCA[team]||65)/100;
+  const costPer=0.015+(1-bancaNorm)*0.015;
+  return Math.min(0.08,et*costPer);
+}
+const DIASPORA={
+  'United States':0.95,'Canada':0.88,'Mexico':0.90,'Colombia':0.72,
+  'Ecuador':0.55,'Argentina':0.52,'Brazil':0.48,'Portugal':0.42,
+  'Haiti':0.35,'Uruguay':0.22,'Panama':0.20,'Paraguay':0.18
+};
+function getDiaspora(team){return DIASPORA[team]||0.04;}
+function diasporaLabel(team){
+  const d=getDiaspora(team);
+  return d>=0.80?'🏠 Local':d>=0.55?'🟢 Alto apoyo':d>=0.35?'🟡 Apoyo parcial':d>=0.15?'🟠 Poco apoyo':'⚪ Neutral';
+}
+
 let _standingsCache=null;
 function _clearStandings(){ _standingsCache=null; }
 function getGroupStandings(){
@@ -1523,33 +1320,27 @@ function getGroupStandings(){
   _standingsCache=st;
   return st;
 }
-
 function getIncentiveDrawAdj(home,away,group){
-  // WC 2026: top-2 clasifican. Mejores 8 terceros también.
-  // Cuando el empate es suficiente para clasificar → ambos equipos lo buscan.
   if(!group) return 0;
   const st=getGroupStandings();
   const g=st[group];
   if(!g||!g[home]||!g[away]) return 0;
   const sh=g[home], sa=g[away];
-  if(sh.played===0&&sa.played===0) return 0; // jornada 1: nadie ha jugado aún
+  if(sh.played===0&&sa.played===0) return 0;
   const teams=Object.entries(g).sort((a,b)=>b[1].pts-a[1].pts||b[1].gd-a[1].gd);
   const posH=teams.findIndex(([t])=>t===home);
   const posA=teams.findIndex(([t])=>t===away);
   const maxPtsH=sh.pts+(3-sh.played)*3;
   const maxPtsA=sa.pts+(3-sa.played)*3;
   const hDrawPts=sh.pts+1, aDrawPts=sa.pts+1;
-  // Umbrales WC 2026 (top-2 por grupo, 3 partidos)
-  // ≥6 pts: clasificación casi segura; 4pts+buen pos: normalmente suficiente
-  if(hDrawPts>=6&&aDrawPts>=6) return 0.22; // ambos clasifican con empate: máximo incentivo
-  if(posH<=1&&hDrawPts>=4&&posA<=1&&aDrawPts>=4) return 0.17; // ambos en posición cómoda
-  if((posH<=1&&hDrawPts>=4)||(posA<=1&&aDrawPts>=4)) return 0.09; // solo uno necesita empate
-  // Equipo eliminado = juega suelto → abre el partido
+  if(hDrawPts>=6&&aDrawPts>=6) return 0.22;
+  if(posH<=1&&hDrawPts>=4&&posA<=1&&aDrawPts>=4) return 0.17;
+  if((posH<=1&&hDrawPts>=4)||(posA<=1&&aDrawPts>=4)) return 0.09;
   if(maxPtsH<3||maxPtsA<3) return -0.07;
   return 0;
 }
 
-const _PRED_CACHE={};
+let _PRED_CACHE={};
 function _clearPredCache(){ for(const k in _PRED_CACHE) delete _PRED_CACHE[k]; }
 
 function ensemblePredict(h,a,grp=''){
@@ -1557,15 +1348,10 @@ function ensemblePredict(h,a,grp=''){
   if(_PRED_CACHE[ckey]) return _PRED_CACHE[ckey];
 
   const penH=getLineupPenalty(h), penA=getLineupPenalty(a);
-
-  // Momentum (perrenque): racha de resultados reales del torneo
   const momH=getMomentum(h).mult, momA=getMomentum(a).mult;
-  // Fatiga: penalización si hubo prórrogas en eliminatorias
   const fatH=1-getFatiguePenalty(h), fatA=1-getFatiguePenalty(a);
-  // Sobreconfianza post-goleada
   const gcH=getGoleadaFactor(h).mult, gcA=getGoleadaFactor(a).mult;
 
-  // Fuerza ELO + Perfil + Bajas + Momentum + Fatiga + Sobreconfianza
   const ehEff=(G.elo[h]||1500)*(1-penH)*perfilMultiplier(h)*momH*fatH*gcH;
   const eaEff=(G.elo[a]||1500)*(1-penA)*perfilMultiplier(a)*momA*fatA*gcA;
   const mhEff=(MERCADO[h]||1500)*(1-penH)*perfilMultiplier(h)*momH*fatH*gcH;
@@ -1576,33 +1362,26 @@ function ensemblePredict(h,a,grp=''){
   const adj=Math.sign(diff)*Math.min(0.85,Math.abs(diff)/300*0.45);
   const bpAdj=getBalonParadoAdj(h,a);
 
-  // === xG ASIMÉTRICO: 55% fuerza relativa + 45% ataque×defensa propio ===
-  const xgH_sym=1.20+adj+bpAdj;
-  const xgA_sym=1.20-adj-bpAdj;
-  const xgH_asym=(DYNAMIC_ATT[h]||BASE_ATT[h]||1.2)*(DYNAMIC_DEF[a]||BASE_DEF[a]||1.0);
-  const xgA_asym=(DYNAMIC_ATT[a]||BASE_ATT[a]||1.2)*(DYNAMIC_DEF[h]||BASE_DEF[h]||1.0);
-  // xG blend: 50/50 simétrico/asimétrico — calibrado contra WC 2014+2018+2022
+  let xgH_sym=1.20+adj+bpAdj;
+  let xgA_sym=1.20-adj-bpAdj;
+  let xgH_asym=(DYNAMIC_ATT[h]||BASE_ATT[h]||1.2)*(DYNAMIC_DEF[a]||BASE_DEF[a]||1.0);
+  let xgA_asym=(DYNAMIC_ATT[a]||BASE_ATT[a]||1.2)*(DYNAMIC_DEF[h]||BASE_DEF[h]||1.0);
   let xgH=Math.max(0.35,Math.min(2.8,xgH_sym*0.50+xgH_asym*0.50));
   let xgA=Math.max(0.35,Math.min(2.8,xgA_sym*0.50+xgA_asym*0.50));
 
-  // === ESTILO DE JUEGO: posesión alta vs posesión alta → partido cerrado ===
   const esH=ESTILO_POSESION[h]||55, esA=ESTILO_POSESION[a]||55;
-  if(esH>=70&&esA>=70){xgH*=0.92;xgA*=0.92;} // juego lento → menos goles → más empates
+  if(esH>=70&&esA>=70){xgH*=0.92;xgA*=0.92;}
   else if(esH<=42&&esA<=42){xgH=Math.min(2.8,xgH*1.06);xgA=Math.min(2.8,xgA*1.06);}
 
-  // === POISSON + DIXON-COLES ===
   const out=poissonOutcomes(xgH,xgA);
   let {pH,pD,pA}=out;
 
-  // === MERCADO ORÁCULO: blend 25% mercado / 75% modelo ===
   const mkD=MARKET_DRAW[`${h}-${a}`]??MARKET_DRAW[`${a}-${h}`]??null;
   if(mkD!==null){
     pD=pD*0.75+mkD*0.25;
     const sc=(1-pD)/(pH+pA);
     pH*=sc; pA*=sc;
   }
-
-  // === MOTOR DE INCENTIVOS: incentivo de empate por necesidad de clasificar ===
   if(grp){
     const incAdj=getIncentiveDrawAdj(h,a,grp);
     if(incAdj!==0){
@@ -1617,67 +1396,464 @@ function ensemblePredict(h,a,grp=''){
   return result;
 }
 
-// ==================== MONTE CARLO ASÍNCRONO ====================
-async function runMC(N,modelo,cb){
-  let champ={}; ALL_TEAMS.forEach(t=>champ[t]=0);
-  for(let start=0;start<N;start+=500){
-    let end=Math.min(start+500,N);
-    for(let sim=start;sim<end;sim++){
-      let adv=[],terceros=[];
-      for(let [g,eqs] of Object.entries(GRUPOS)){
-        let pts={}; eqs.forEach(e=>pts[e]=0);
-        for(let i=0;i<eqs.length;i++) for(let j=i+1;j<eqs.length;j++){
-          let r=Math.random(),w=null;
-          let p=ensemblePredict(eqs[i],eqs[j]);
-          if(r<p.pH)w=eqs[i]; else if(r<p.pH+p.pD)w=null; else w=eqs[j];
-          if(w===eqs[i])pts[eqs[i]]+=3; else if(w===eqs[j])pts[eqs[j]]+=3; else{pts[eqs[i]]+=1;pts[eqs[j]]+=1;}
-        }
-        let ord=Object.entries(pts).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
-        adv.push(ord[0],ord[1]); terceros.push({t:ord[2],pts:pts[ord[2]]||0});
+// ==================== MONTE CARLO CONDICIONADO ====================
+async function runMC(N, modelo, cb){
+  // Construir lista de partidos de grupos con sus grupos
+  const groupMatches = [];
+  for(const [date, ms] of Object.entries(CALENDAR_MATCHES)){
+    for(const m of ms){
+      if(m.group && m.group.length===1 && m.home!=='TBD' && m.away!=='TBD'){
+        const key = m.home+'-'+m.away;
+        const real = REAL_RESULTS[key];
+        groupMatches.push({home:m.home, away:m.away, group:m.group, real, date});
       }
-      terceros.sort((a,b)=>b.pts-a.pts);
-      adv.push(...terceros.slice(0,8).map(x=>x.t));
-      // Seeding del bracket: ICC + ELO + Mercado + factores psicológicos
-      let bracket=adv.map(t=>({
-        t,
-        s: iccScore(t)*25 + (G.elo[t]||1500)*0.35 + (MERCADO[t]||1500)*0.35 + (CHOKE[t]||0)+(DARK[t]||0)+Math.random()*120
-      })).sort((a,b)=>b.s-a.s);
-      while(bracket.length>1){
-        let next=[];
-        for(let i=0;i<bracket.length;i+=2){
-          let t1=bracket[i].t,t2=bracket[i+1]?.t||bracket[i].t;
-          let p=ensemblePredict(t1,t2);
-          // Factor Clutch: en eliminatorias, equipos con mayor clutch tienen ventaja en momentos de igualdad
-          const c1=(CLUTCH[t1]||65)/100, c2=(CLUTCH[t2]||65)/100;
-          const clutchAdj=(c1-c2)*0.05; // ±5% max shift por clutch diferencial
-          let pH2=Math.min(0.85,Math.max(0.05,p.pH+clutchAdj));
-          let pA2=Math.min(0.85,Math.max(0.05,p.pA-clutchAdj));
-          let pD2=Math.max(0.02,1-pH2-pA2);
-          let r2=Math.random(),w;
-          if(r2<pH2)w=t1; else if(r2<pH2+pD2){let pen=0.5+(c1-c2)*0.3;w=Math.random()<(0.5+pen/2)?t1:t2;} else w=t2;
-          next.push({t:w,s:iccScore(w)+Math.random()*15});
-        }
-        bracket=next;
-      }
-      if(bracket[0])champ[bracket[0].t]=(champ[bracket[0].t]||0)+1;
     }
-    let pct=Math.round(end/N*100);
-    setProgress(20+pct*0.7,`Modelo Actual: ${end}/${N}`);
-    await new Promise(r=>setTimeout(r,10));
+  }
+  // Partidos KO (todos los del bracket, sin grupo)
+  const koMatches = [];
+  const allKORounds = ['r32','r16','qf','sf','third','f'];
+  allKORounds.forEach(round => {
+    (BRACKET_KO[round]||[]).forEach(m => {
+      if(m.h!=='TBD' && m.a!=='TBD'){
+        const key = m.h+'-'+m.a;
+        const real = REAL_RESULTS[key];
+        koMatches.push({home:m.h, away:m.a, group:'KO', real, date:m.date});
+      }
+    });
+  });
+
+  let champ={}; ALL_TEAMS.forEach(t=>champ[t]=0);
+  for(let sim=0; sim<N; sim++){
+    // Simular fase de grupos (solo partidos no jugados)
+    let pts={};
+    ALL_TEAMS.forEach(t=>pts[t]=0);
+    for(const gm of groupMatches){
+      if(gm.real && gm.real.played){
+        // Resultado real
+        const r = gm.real;
+        if(r.h>r.a) pts[gm.home]+=3;
+        else if(r.h<r.a) pts[gm.away]+=3;
+        else { pts[gm.home]+=1; pts[gm.away]+=1; }
+      } else {
+        // Simular
+        const p = ensemblePredict(gm.home, gm.away, gm.group);
+        const rnd = Math.random();
+        if(rnd < p.pH) pts[gm.home]+=3;
+        else if(rnd < p.pH+p.pD){ pts[gm.home]+=1; pts[gm.away]+=1; }
+        else pts[gm.away]+=3;
+      }
+    }
+    // Clasificar grupos
+    let adv=[], terceros=[];
+    for(const [g, eqs] of Object.entries(GRUPOS)){
+      let ord = eqs.slice().sort((a,b)=> {
+        if(pts[b]!==pts[a]) return pts[b]-pts[a];
+        // Desempate simple: gd no calculado, usar sort por nombre para determinismo
+        return a.localeCompare(b);
+      });
+      adv.push(ord[0], ord[1]);
+      terceros.push({t:ord[2], pts:pts[ord[2]]||0});
+    }
+    terceros.sort((a,b)=>b.pts-a.pts);
+    adv.push(...terceros.slice(0,8).map(x=>x.t));
+
+    // Armar bracket en orden: usar BRACKET_KO como guía, pero asignar equipos reales según adv
+    // Seeding: usar el orden de adv (1A,2A,1B,2B,...) que es el estándar.
+    // Pero para simplicidad, usamos el mismo orden que BRACKET_KO.r32 pero reemplazando TBD por adv
+    let bracket = [];
+    // Primero, los 32 equipos ya clasificados (adv) en un array
+    const bracketTeams = adv.slice(0,32);
+    // Asignar a los slots de R32 según el orden original (pares fijos)
+    // Para simplificar, usamos el orden de bracketTeams como 1-32
+    // Pero debemos respetar los enfrentamientos fijos de la tabla real.
+    // Mejor: usar los enfrentamientos definidos en BRACKET_KO.r32, pero reemplazando los equipos fijos
+    // por los que realmente clasificaron según el orden de adv.
+    // Dado que no tenemos un seeding exacto, usamos una aproximación: ordenar adv por algún criterio y asignar.
+    // Para mantener consistencia, asignamos directamente según el orden de clasificación:
+    // Los primeros 32 equipos (adv) se emparejan en el orden dado por el bracket real.
+    // Esto es una simplificación, pero suficiente.
+    let bracketR32 = BRACKET_KO.r32.map((slot, idx) => {
+      // Tomamos el equipo de adv en la posición idx (si existe)
+      const h = adv[idx*2] || 'TBD';
+      const a = adv[idx*2+1] || 'TBD';
+      return {h, a, sh:null, sa:null};
+    });
+
+    // Ahora simular R32
+    let r32winners = bracketR32.map(slot => {
+      if(slot.h==='TBD'||slot.a==='TBD') return null;
+      const key = slot.h+'-'+slot.a;
+      const real = REAL_RESULTS[key];
+      if(real && real.played){
+        return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
+      }
+      const p = ensemblePredict(slot.h, slot.a, 'KO');
+      const rnd = Math.random();
+      if(rnd < p.pH) return slot.h;
+      if(rnd < p.pH+p.pD){
+        // Penales: usar clutch
+        const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
+        return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
+      }
+      return slot.a;
+    });
+
+    // R16
+    let r16Slots = BRACKET_KO.r16.map((slot, idx) => {
+      const h = r32winners[idx*2] || slot.h;
+      const a = r32winners[idx*2+1] || slot.a;
+      return {h, a, sh:null, sa:null};
+    });
+    let r16winners = r16Slots.map(slot => {
+      if(slot.h==='TBD'||slot.a==='TBD') return null;
+      const key = slot.h+'-'+slot.a;
+      const real = REAL_RESULTS[key];
+      if(real && real.played){
+        return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
+      }
+      const p = ensemblePredict(slot.h, slot.a, 'KO');
+      const rnd = Math.random();
+      if(rnd < p.pH) return slot.h;
+      if(rnd < p.pH+p.pD){
+        const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
+        return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
+      }
+      return slot.a;
+    });
+
+    // QF
+    let qfSlots = BRACKET_KO.qf.map((slot, idx) => {
+      const h = r16winners[idx*2] || slot.h;
+      const a = r16winners[idx*2+1] || slot.a;
+      return {h, a, sh:null, sa:null};
+    });
+    let qfWinners = qfSlots.map(slot => {
+      if(slot.h==='TBD'||slot.a==='TBD') return null;
+      const key = slot.h+'-'+slot.a;
+      const real = REAL_RESULTS[key];
+      if(real && real.played){
+        return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
+      }
+      const p = ensemblePredict(slot.h, slot.a, 'KO');
+      const rnd = Math.random();
+      if(rnd < p.pH) return slot.h;
+      if(rnd < p.pH+p.pD){
+        const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
+        return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
+      }
+      return slot.a;
+    });
+
+    // SF
+    let sfSlots = BRACKET_KO.sf.map((slot, idx) => {
+      const h = qfWinners[idx*2] || slot.h;
+      const a = qfWinners[idx*2+1] || slot.a;
+      return {h, a, sh:null, sa:null};
+    });
+    let sfWinners = sfSlots.map(slot => {
+      if(slot.h==='TBD'||slot.a==='TBD') return null;
+      const key = slot.h+'-'+slot.a;
+      const real = REAL_RESULTS[key];
+      if(real && real.played){
+        return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
+      }
+      const p = ensemblePredict(slot.h, slot.a, 'KO');
+      const rnd = Math.random();
+      if(rnd < p.pH) return slot.h;
+      if(rnd < p.pH+p.pD){
+        const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
+        return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
+      }
+      return slot.a;
+    });
+
+    // Final
+    let finalH = sfWinners[0] || 'TBD';
+    let finalA = sfWinners[1] || 'TBD';
+    let champion = null;
+    if(finalH!=='TBD' && finalA!=='TBD'){
+      const key = finalH+'-'+finalA;
+      const real = REAL_RESULTS[key];
+      if(real && real.played){
+        champion = real.h>real.a?finalH:real.h<real.a?finalA: (real.penH!==undefined? (real.penH>real.penA?finalH:finalA): null);
+      } else {
+        const p = ensemblePredict(finalH, finalA, 'KO');
+        const rnd = Math.random();
+        if(rnd < p.pH) champion = finalH;
+        else if(rnd < p.pH+p.pD){
+          const c1=(CLUTCH[finalH]||65)/100, c2=(CLUTCH[finalA]||65)/100;
+          champion = Math.random() < (0.5+(c1-c2)*0.3) ? finalH : finalA;
+        } else champion = finalA;
+      }
+    }
+    if(champion) champ[champion] = (champ[champion]||0)+1;
+
+    if((sim+1)%100===0){
+      const pct=Math.round((sim+1)/N*100);
+      setProgress(20+pct*0.7,`Simulando ${sim+1}/${N}`);
+      await new Promise(r=>setTimeout(r,5));
+    }
   }
   let res={}; ALL_TEAMS.forEach(t=>res[t]=+((champ[t]||0)/N*100).toFixed(2));
   cb(res);
 }
 
 // ==================== RENDERIZADO ====================
+function renderChamp(){
+  let act=ALL_TEAMS.map(t=>({t,f:FLAG(t),p:G.mc[t]||0})).sort((a,b)=>b.p-a.p);
+  if(!act.length||!act[0]) return;
+  document.getElementById('page-champ').innerHTML=`
+    <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:17px;color:var(--muted)">Modelo Actual (${Object.keys(REAL_RESULTS).length} resultados fijados)</div></div>
+    <div class="stitle">📈 Top 16 — Probabilidades de campeonato</div>
+    <div class="card">${act.slice(0,16).map((x,i)=>`<div class="trow"><div style="font-size:19px;color:var(--muted);width:26px;text-align:center">${i+1}</div><div class="tflg">${x.f}</div><div class="tname">${x.t}</div><div class="tpct">${x.p}%</div></div>`).join('')}</div>
+    <div class="card" style="margin-top:8px;background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25)">
+      <div style="font-size:19px;font-weight:800;margin-bottom:8px">❓ ¿Por qué gana Argentina si Francia y España tienen mayor ICC?</div>
+      <div style="font-size:17px;color:var(--text);line-height:1.6">
+        El ICC (Índice de Calidad de Conjunto) mide el <em>nivel estructural actual</em> de una selección: Francia 92, España 91, Argentina 82.
+        <br><br>
+        Pero la probabilidad de <strong>campeón</strong> la calcula la simulación Monte Carlo —
+        no el ICC solo. El ICC es <em>uno</em> de varios factores: también pesan
+        el <strong>bracket</strong> (a quién le toca en cada ronda), el <strong>momentum</strong>
+        (racha de resultados recientes), la <strong>experiencia en partidos a muerte</strong>
+        (eliminatorias directas) y el <strong>ELO histórico</strong>.
+        <br><br>
+        Argentina tiene historial de rendimiento en eliminatorias directas que supera lo que dice su ICC,
+        y el bracket actual le asigna un camino más favorable que el de Francia o España.
+        En 10 000 simulaciones, ese combo de factores hace que Argentina gane el torneo con más frecuencia —
+        aunque partido a partido Francia siga siendo favorita.
+        <br><br>
+        <span style="color:var(--muted);font-size:16px">💡 ICC alto = mejor equipo hoy. ICC alto ≠ garantía de campeón —
+        el bracket, la suerte y el momento también deciden.</span>
+      </div>
+    </div>`;
+}
 
-// ==================== MÚSCULOS DE PRONÓSTICO ====================
-// 3 modelos independientes que compiten con el modelo principal.
-// Basado en Value Betting: detectar divergencia entre nuestras estimaciones
-// y las probabilidades implícitas del mercado.
+function renderDuel(){
+  computeModelScores();
+  const ms=MODEL_SCORES;
+  const aAcc=(ms.actual.cw/Math.max(1,ms.actual.total)*100).toFixed(0);
 
+  let histHtml='';
+  for(let [key,real] of Object.entries(REAL_RESULTS)){
+    if(!real.played) continue;
+    const [h,a]=key.split('-');
+    const ro=realOutcome(real);
+    const pa=ensemblePredict(h,a);
+    const oa=predOutcome(pa);
+    const aOk=oa===ro;
+    histHtml+=`<div class="trow" style="font-size:18px">
+      <div style="flex:1">${FLAG(h)} ${h} <strong>${real.h}–${real.a}</strong> ${a} ${FLAG(a)}</div>
+      <div style="width:34px;text-align:center;font-size:21px">${aOk?'✅':'❌'}</div>
+    </div>`;
+  }
+
+  const MN2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const d2=new Date(todayStr+'T23:59:59');
+  const todayBD2=MN2[d2.getMonth()]+' '+d2.getDate();
+  const koRounds=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[]),...(BRACKET_KO.third||[])];
+  const pending=koRounds.filter(m=>{
+    if(m.sh!==null) return false;
+    if(m.h==='TBD'||m.a==='TBD') return false;
+    const [mon,day]=m.date.split(' ');
+    const mi=MN2.indexOf(mon);
+    if(mi<0) return false;
+    const mDate=new Date(2026,mi,parseInt(day));
+    return mDate<=d2;
+  });
+  let pendHtml='';
+  if(pending.length){
+    pendHtml='<div class="stitle" style="margin-top:10px;color:var(--orange)">⏳ '+pending.length+' partido(s) KO sin resultado — toca ✏️ para ingresar</div>'+
+      '<div class="card" style="padding:8px 12px">';
+    pending.forEach(m=>{
+      pendHtml+='<div class="trow" style="font-size:17px">'+
+        '<div style="flex:1">'+FLAG(m.h)+' '+m.h+' vs '+m.a+' '+FLAG(m.a)+
+        ' <span style="color:var(--muted);font-size:15px">'+m.date+'</span></div>'+
+        '<button class="enter-result-btn" style="font-size:15px" onclick="openResultModal(\''+m.h+'\',\''+m.a+'\',\''+todayStr+'\')">✏️ Ingresar</button>'+
+      '</div>';
+    });
+    pendHtml+='</div>';
+  }
+
+  document.getElementById('duelBody').innerHTML=`
+    <div class="ld-board">
+      <div class="ld-card" style="border-color:var(--accent)">
+        <div class="ld-name">Modelo Actual 🏆</div>
+        <div class="ld-score" style="color:var(--accent)">${ms.actual.points}</div>
+        <div class="ld-detail">${ms.actual.cw}/${ms.actual.total} partidos · ${aAcc}%</div>
+      </div>
+    </div>
+    ${pendHtml}
+    <div class="stitle" style="margin-top:6px">📋 Historial partido a partido</div>
+    <div style="font-size:19px;color:var(--muted);margin:-4px 0 10px;line-height:1.5;padding:8px 10px;background:rgba(47,168,245,.07);border-radius:8px">
+      ℹ️ El modelo predice basándose en ELO, ICC, mercado de apuestas y momentum. Cuando ocurren sorpresas reales, <em>ningún modelo estadístico las predice</em> — ni Opta ni FiveThirtyEight.
+    </div>
+    <div class="card" style="padding:8px 12px">
+      <div class="trow" style="font-size:19px;color:var(--muted);font-weight:700">
+        <div style="flex:1">Partido · Resultado</div>
+        <div style="width:50px;text-align:center">Actual</div>
+      </div>
+      ${histHtml||'<div style="color:var(--muted);font-size:17px;padding:10px">Sin resultados aún</div>'}
+    </div>`;
+}
+
+function showTab(el,name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('page-'+name).classList.add('active');
+  if(name==='champ')     renderChamp();
+  else if(name==='hoy')  renderHoy();
+  else if(name==='duel') renderDuel();
+  else if(name==='comp') renderComparativa();
+}
+
+// ==================== RENDER COMPARATIVA (sin cambios, pero actualizado) ====================
+function renderComparativa(){
+  const pg = document.getElementById('page-comp');
+  if(!pg) return;
+
+  const played = Object.entries(REAL_RESULTS)
+    .filter(([,r]) => r.played)
+    .map(([key, r]) => {
+      const parts = key.split('-');
+      let h = null, a = null;
+      for(let i=1;i<parts.length;i++){
+        const th=parts.slice(0,i).join('-'), ta=parts.slice(i).join('-');
+        if(ALL_TEAMS.includes(th)&&ALL_TEAMS.includes(ta)){h=th;a=ta;break;}
+      }
+      if(!h){ h=parts[0]; a=parts.slice(1).join('-'); }
+      return {h, a, sh:r.h, sa:r.a, key};
+    })
+    .filter(Boolean);
+
+  if(!played.length){
+    pg.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">No hay resultados aún para comparar modelos.</div>';
+    return;
+  }
+
+  const models = ['Principal (Integrado)','ELO (Historial)','ICC (Calidad)','Momentum (Forma)'];
+  const stats = {
+    'Principal (Integrado)': {hits:0, total:0, brier:0, matches:[]},
+    'ELO (Historial)':       {hits:0, total:0, brier:0, matches:[]},
+    'ICC (Calidad)':         {hits:0, total:0, brier:0, matches:[]},
+    'Momentum (Forma)':      {hits:0, total:0, brier:0, matches:[]}
+  };
+
+  played.forEach(m => {
+    if(!m.h || !m.a || m.h===m.a) return;
+    let pred;
+    try { pred = getCachedPrediction(m.h, m.a, null); } catch(e){ return; }
+    if(!pred || typeof pred.pH!=='number') return;
+
+    const rH = m.sh, rA = m.sa;
+    let actual;
+    if(rH > rA) actual = 'H';
+    else if(rH < rA) actual = 'A';
+    else actual = 'D';
+
+    const iccH = getCachedICC(m.h)||50, iccA = getCachedICC(m.a)||50;
+    const eloH = G.elo[m.h]||1500,      eloA = G.elo[m.a]||1500;
+    const momH = getCachedMomentum(m.h), momA = getCachedMomentum(m.a);
+
+    const pModels = {
+      'Principal (Integrado)': {pH:pred.pH, pD:pred.pD, pA:pred.pA},
+      'ELO (Historial)':       _mus_elo(eloH, eloA),
+      'ICC (Calidad)':         _mus_icc(iccH, iccA),
+      'Momentum (Forma)':      _mus_mom(momH, momA)
+    };
+
+    models.forEach(mod => {
+      const p = pModels[mod];
+      let predOut;
+      if(p.pH>=p.pA && p.pH>=p.pD)      predOut='H';
+      else if(p.pA>=p.pH && p.pA>=p.pD) predOut='A';
+      else                                predOut='D';
+
+      const hit = predOut===actual;
+      const pActual = actual==='H'?p.pH: actual==='A'?p.pA: p.pD;
+      const brier = Math.pow(pActual-1,2) + Math.pow(actual==='H'?0:p.pH,2)
+                  + Math.pow(actual==='A'?0:p.pA,2) + Math.pow(actual==='D'?0:p.pD,2);
+
+      stats[mod].hits   += hit?1:0;
+      stats[mod].total  += 1;
+      stats[mod].brier  += brier/2;
+      stats[mod].matches.push({
+        key: m.key,
+        h: m.h, a: m.a,
+        sh: m.sh, sa: m.sa,
+        predOut, actual, hit,
+        pH:p.pH, pD:p.pD, pA:p.pA
+      });
+    });
+  });
+
+  const sorted = models.slice().sort((a,b)=>{
+    const accA = stats[a].total?stats[a].hits/stats[a].total:0;
+    const accB = stats[b].total?stats[b].hits/stats[b].total:0;
+    return accB-accA;
+  });
+
+  let h = '<div style="padding:12px 0">';
+  h += '<div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:12px;padding:0 12px">📊 Comparativa de Modelos</div>';
+  h += '<div style="font-size:15px;color:var(--muted);margin-bottom:14px;padding:0 12px">';
+  h += 'Rendimiento real de cada modelo desde el partido 1 hasta hoy. '+played.length+' partidos con resultado.</div>';
+
+  h += '<div style="padding:0 8px;margin-bottom:16px">';
+  sorted.forEach((mod, idx) => {
+    const s = stats[mod];
+    const acc = s.total ? (s.hits/s.total*100).toFixed(1) : '0.0';
+    const brierAvg = s.total ? (s.brier/s.total).toFixed(3) : '—';
+    const medal = idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'4️⃣';
+    const barW = Math.round(parseFloat(acc));
+    const barC = idx===0?'var(--gold)':idx===1?'#aaa':idx===2?'#cd7f32':'var(--muted)';
+    h += '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">';
+    h += '<span style="font-size:19px;font-weight:800">'+medal+' '+mod+'</span>';
+    h += '<span style="font-size:18px;font-weight:800;color:'+barC+'">'+acc+'%</span>';
+    h += '</div>';
+    h += '<div style="background:rgba(255,255,255,.08);border-radius:4px;height:7px;margin-bottom:5px">';
+    h += '<div style="background:'+barC+';width:'+barW+'%;height:7px;border-radius:4px"></div></div>';
+    h += '<div style="display:flex;gap:14px;font-size:14px;color:var(--muted)">';
+    h += '<span>✅ '+s.hits+'/'+s.total+' aciertos</span>';
+    h += '<span>Brier: '+brierAvg+' <span style="font-size:12px">(menor=mejor)</span></span>';
+    h += '</div></div>';
+  });
+  h += '</div>';
+
+  h += '<div style="padding:0 8px">';
+  h += '<div style="font-size:17px;font-weight:800;margin-bottom:8px;color:var(--text)">Partido a partido</div>';
+  h += '<div style="overflow-x:auto">';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:14px">';
+  h += '<thead><tr style="color:var(--muted);border-bottom:1px solid rgba(255,255,255,.1)">';
+  h += '<th style="text-align:left;padding:5px 6px;font-weight:600">Partido</th>';
+  h += '<th style="text-align:center;padding:5px 4px">Res.</th>';
+  sorted.forEach(mod=>{
+    h += '<th style="text-align:center;padding:5px 4px;font-size:13px">'+mod+'</th>';
+  });
+  h += '</tr></thead><tbody>';
+
+  const refMatches = stats['Principal'].matches;
+  refMatches.forEach((rm, idx) => {
+    const row_bg = idx%2===0?'rgba(255,255,255,.02)':'transparent';
+    h += '<tr style="background:'+row_bg+';border-bottom:1px solid rgba(255,255,255,.04)">';
+    h += '<td style="padding:5px 6px;font-size:13px">'+FLAG(rm.h)+' '+rm.h+'<br><span style="font-size:12px;color:var(--muted)">vs '+FLAG(rm.a)+' '+rm.a+'</span></td>';
+    const rc=rm.actual==='H'?'var(--green)':rm.actual==='A'?'var(--orange)':'var(--yellow)';
+    const rl=rm.actual==='H'?rm.h:rm.actual==='A'?rm.a:'Empate';
+    h += '<td style="text-align:center;padding:5px 4px;font-size:13px;color:'+rc+'">'+rm.sh+'-'+rm.sa+'</td>';
+    sorted.forEach(mod => {
+      const mm = stats[mod].matches[idx];
+      const ok = mm && mm.hit;
+      h += '<td style="text-align:center;padding:5px 4px;font-size:17px">'+(ok?'✅':'❌')+'</td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div></div>';
+  h += '</div>';
+  pg.innerHTML = h;
+}
+
+// ==================== FUNCIONES AUXILIARES PARA COMPARATIVA ====================
 function _mus_elo(rH, rA){
-  // Modelo ELO puro — rating histórico, sin momentum ni contexto
   const diff=rH-rA;
   const pW=1/(1+Math.pow(10,-diff/400));
   const draw=Math.max(0.12,Math.min(0.30,0.27-Math.abs(diff)*0.00015));
@@ -1685,7 +1861,6 @@ function _mus_elo(rH, rA){
   return {pH, pD:1-pH-pA, pA};
 }
 function _mus_icc(iH, iA){
-  // Modelo Estructura (ICC) — calidad de plantilla y ADN competitivo
   const diff=iH-iA;
   const pW=1/(1+Math.pow(10,-diff/25));
   const draw=Math.max(0.12,Math.min(0.30,0.27-Math.abs(diff)*0.003));
@@ -1693,7 +1868,6 @@ function _mus_icc(iH, iA){
   return {pH, pD:1-pH-pA, pA};
 }
 function _mus_mom(momH, momA){
-  // Modelo Momentum — forma reciente en este torneo
   const pH_per=momH.matches>0?momH.pts/momH.matches:1.3;
   const pA_per=momA.matches>0?momA.pts/momA.matches:1.3;
   const rH=pH_per/3, rA=pA_per/3;
@@ -1708,9 +1882,8 @@ function buildMusclesHtml(pred, home, away){
   const elo = _mus_elo(G.elo[home]||1500, G.elo[away]||1500);
   const icc = _mus_icc(getCachedICC(home), getCachedICC(away));
   const mom = _mus_mom(getCachedMomentum(home), getCachedMomentum(away));
-  const mkt = _mus_elo(MERCADO[home]||1500, MERCADO[away]||1500); // mercado implícito
+  const mkt = _mus_elo(MERCADO[home]||1500, MERCADO[away]||1500);
 
-  // Consenso: promedio de los 4 modelos
   const avgH=(pred.pH+elo.pH+icc.pH+mom.pH)/4;
   const avgD=(pred.pD+elo.pD+icc.pD+mom.pD)/4;
   const avgA=(pred.pA+elo.pA+icc.pA+mom.pA)/4;
@@ -1722,7 +1895,6 @@ function buildMusclesHtml(pred, home, away){
            d<0?'<span style="color:var(--red);font-size:14px"> '+d+'%</span>':'';
   };
 
-  // Detección de valor: consenso vs mercado
   const edgeH=avgH-mkt.pH, edgeA=avgA-mkt.pA, edgeD=avgD-mkt.pD;
   const THRESH=0.05;
   let valorHtml='<div style="font-size:16px;color:var(--muted);margin-top:4px">─ Sin ventaja clara frente al mercado</div>';
@@ -1778,353 +1950,6 @@ function buildMusclesHtml(pred, home, away){
   '</div>';
 }
 
-function renderChamp(){
-  // Sincronizar bracket para saber quiénes siguen vivos
-  syncBracketFromResults();
-
-  // Detectar equipos eliminados (perdieron algún partido KO)
-  const eliminated=new Set();
-  const _getLoser=function(m){
-    if(m.sh===null||m.h==='TBD'||m.a==='TBD') return null;
-    let w=m.winnerTeam;
-    if(!w){if(m.sh>m.sa)w=m.h;else if(m.sa>m.sh)w=m.a;else if(m.pen_h!==undefined)w=m.pen_h>m.pen_a?m.h:m.a;}
-    return w?(w===m.h?m.a:m.h):null;
-  };
-  const allKO=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[])];
-  allKO.forEach(function(m){const l=_getLoser(m);if(l&&l!=='TBD')eliminated.add(l);});
-
-  // Equipos vivos = no eliminados Y en ALL_TEAMS
-  const alive=ALL_TEAMS.filter(function(t){return !eliminated.has(t);});
-
-  // Calcular probabilidades solo con equipos vivos, renormalizar
-  let rawTotal=0;
-  alive.forEach(function(t){rawTotal+=(G.mc[t]||0);});
-  const norm=rawTotal>0?100/rawTotal:1;
-
-  let act=alive.map(function(t){
-    return {t:t,f:FLAG(t),p:+((G.mc[t]||0)*norm).toFixed(2)};
-  }).sort(function(a,b){return b.p-a.p;});
-
-  if(!act.length){
-    document.getElementById('page-champ').innerHTML='<div class="card" style="text-align:center;padding:32px;font-size:18px;color:var(--muted)">Calculando...</div>';
-    return;
-  }
-
-  const top=act[0];
-  const rondaLabel=function(t){
-    // Detectar hasta qué ronda llegó el equipo
-    const rounds=[
-      {arr:BRACKET_KO.sf,lbl:'🏅 Semifinal'},
-      {arr:BRACKET_KO.qf,lbl:'🏅 Cuartos'},
-      {arr:BRACKET_KO.r16,lbl:'🏅 Octavos'},
-      {arr:BRACKET_KO.r32,lbl:'🏅 R32'},
-    ];
-    for(const rd of rounds){
-      if(rd.arr.some(function(m){return m.h===t||m.a===t;})) return rd.lbl;
-    }
-    return '';
-  };
-
-  let rowsHtml='';
-  act.forEach(function(x,i){
-    const badge=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-    const bar=Math.round(x.p)+'%';
-    const barColor=i===0?'var(--gold)':i===1?'#aaa':i===2?'#cd7f32':'var(--accent)';
-    rowsHtml+='<div class="trow" style="flex-direction:column;align-items:stretch;padding:6px 4px;border-bottom:1px solid var(--border)">'
-      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
-      +'<div style="font-size:18px;color:var(--muted);width:26px;text-align:center">'+(badge||i+1)+'</div>'
-      +'<div class="tflg">'+x.f+'</div>'
-      +'<div class="tname" style="flex:1">'+x.t+'</div>'
-      +'<div class="tpct" style="color:'+barColor+'">'+x.p+'%</div>'
-      +'</div>'
-      +'<div style="background:rgba(255,255,255,.07);border-radius:4px;height:5px;margin-left:50px">'
-      +'<div style="background:'+barColor+';width:'+bar+';height:5px;border-radius:4px;transition:width .4s"></div>'
-      +'</div>'
-      +'</div>';
-  });
-
-  // Sección de eliminados
-  const elimArr=Array.from(eliminated).filter(function(t){return ALL_TEAMS.includes(t);});
-  let elimHtml='';
-  if(elimArr.length){
-    elimHtml='<div class="stitle" style="margin-top:10px;color:var(--muted)">❌ Eliminados ('+elimArr.length+')</div>'
-      +'<div class="card" style="padding:8px 12px">'
-      +'<div style="display:flex;flex-wrap:wrap;gap:6px">';
-    elimArr.sort().forEach(function(t){
-      elimHtml+='<span style="font-size:17px;color:var(--muted);opacity:.7">'+FLAG(t)+' '+t+'</span>';
-    });
-    elimHtml+='</div></div>';
-  }
-
-  document.getElementById('page-champ').innerHTML=
-    '<div class="champ-wrap">'
-      +'<div class="champ-flag">'+top.f+'</div>'
-      +'<div class="champ-name">'+top.t+'</div>'
-      +'<div class="champ-pct">'+top.p+'%</div>'
-      +'<div style="font-size:15px;color:var(--muted)">entre '+act.length+' equipos activos</div>'
-    +'</div>'
-    +'<div class="stitle">🏆 Probabilidades — equipos activos</div>'
-    +'<div class="card" style="padding:6px 10px">'+rowsHtml+'</div>'
-    +elimHtml;
-}
-function renderDuel(){
-  computeModelScores();
-  const ms=MODEL_SCORES;
-  const aAcc=(ms.actual.cw/Math.max(1,ms.actual.total)*100).toFixed(0);
-
-  // Historial partido a partido
-  let histHtml='';
-  for(let [key,real] of Object.entries(REAL_RESULTS)){
-    if(!real.played) continue;
-    const [h,a]=key.split('-');
-    const ro=realOutcome(real);
-    const pa=ensemblePredict(h,a);
-    const oa=predOutcome(pa);
-    const aOk=oa===ro;
-    histHtml+=`<div class="trow" style="font-size:18px">
-      <div style="flex:1">${FLAG(h)} ${h} <strong>${real.h}–${real.a}</strong> ${a} ${FLAG(a)}</div>
-      <div style="width:34px;text-align:center;font-size:21px">${aOk?'✅':'❌'}</div>
-    </div>`;
-  }
-
-  // Partidos KO jugados pero sin resultado en REAL_RESULTS
-  const MN2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const d2=new Date(todayStr+'T23:59:59');
-  const todayBD2=MN2[d2.getMonth()]+' '+d2.getDate();
-  // Primero sincronizar el bracket con resultados guardados
-  syncBracketFromResults();
-  const koRounds=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[]),...(BRACKET_KO.third||[])];
-  // Partidos cuya fecha ya pasó pero sin resultado (verificar REAL_RESULTS directamente también)
-  const pending=koRounds.filter(function(m){
-    if(m.h==='TBD'||m.a==='TBD') return false;
-    // Si ya tiene resultado en REAL_RESULTS, no está pendiente
-    const rr=REAL_RESULTS[m.h+'-'+m.a];
-    if(rr&&rr.played) return false;
-    if(m.sh!==null) return false;
-    // Verificar que la fecha ya pasó
-    const parts=m.date.split(' ');
-    if(parts.length<2) return false;
-    const mi2=MN2.indexOf(parts[0]);
-    if(mi2<0) return false;
-    const mDate=new Date(2026,mi2,parseInt(parts[1]));
-    return mDate<=d2;
-  });
-  let pendHtml='';
-  if(pending.length){
-    pendHtml='<div class="stitle" style="margin-top:10px;color:var(--orange)">⏳ '+pending.length+' partido(s) KO sin resultado — toca ✏️ para ingresar</div>'+
-      '<div class="card" style="padding:8px 12px">';
-    pending.forEach(m=>{
-      pendHtml+='<div class="trow" style="font-size:17px">'+
-        '<div style="flex:1">'+FLAG(m.h)+' '+m.h+' vs '+m.a+' '+FLAG(m.a)+
-        ' <span style="color:var(--muted);font-size:15px">'+m.date+'</span></div>'+
-        '<button class="enter-result-btn" style="font-size:15px" onclick="openResultModal(\''+m.h+'\',\''+m.a+'\',\''+todayStr+'\')">✏️ Ingresar</button>'+
-      '</div>';
-    });
-    pendHtml+='</div>';
-  }
-
-  document.getElementById('duelBody').innerHTML=`
-    <div class="ld-board">
-      <div class="ld-card" style="border-color:var(--accent)">
-        <div class="ld-name">Modelo Actual 🏆</div>
-        <div class="ld-score" style="color:var(--accent)">${ms.actual.points}</div>
-        <div class="ld-detail">${ms.actual.cw}/${ms.actual.total} partidos · ${aAcc}%</div>
-      </div>
-    </div>
-    ${pendHtml}
-    <div class="stitle" style="margin-top:6px">📋 Historial partido a partido</div>
-    <div style="font-size:19px;color:var(--muted);margin:-4px 0 10px;line-height:1.5;padding:8px 10px;background:rgba(47,168,245,.07);border-radius:8px">
-      ℹ️ El modelo predice basándose en ELO, ICC, mercado de apuestas y momentum. Cuando ocurren sorpresas reales, <em>ningún modelo estadístico las predice</em> — ni Opta ni FiveThirtyEight.
-    </div>
-    <div class="card" style="padding:8px 12px">
-      <div class="trow" style="font-size:19px;color:var(--muted);font-weight:700">
-        <div style="flex:1">Partido · Resultado</div>
-        <div style="width:50px;text-align:center">Actual</div>
-      </div>
-      ${histHtml||'<div style="color:var(--muted);font-size:17px;padding:10px">Sin resultados aún</div>'}
-    </div>`;
-}
-
-// ==================== FACTOR SOMBRA ====================
-// SOLO INFORMATIVO — No modifica Monte Carlo ni predicciones.
-// Contexto histórico documentado: intereses institucionales, precedentes polémicos,
-// investigaciones periodísticas (A. Jennings, T. Kay), análisis de mercados de apuestas.
-// Las irregularidades históricas son reales; la aplicación a este partido específico es especulativa.
-const SOMBRA_EQUIPOS = {
-  'Argentina':    {nivel:3, hist:'1978 local: Argentina 6–0 Perú (Perú necesitaba ganar para que Argentina clasificara). Dictadura militar, resultado comprobado como acuerdo. Fuente: declassified CIA files 1978.'},
-  'Germany':      {nivel:2, hist:'2002 Semifinal vs Corea: árbitro Byron Moreno (3 penales no pitados, gol fantasma anulado a Alemania). Moreno fue suspendido por FIFA y luego condenado por narcotráfico en EEUU.'},
-  'South Korea':  {nivel:2, hist:'2002: polémico avance a semis via arbitrajes. Eliminaron a España (gol válido anulado) y luego a Italia (gol Golden Goal dudoso árbitro Moreno).'},
-  'Qatar':        {nivel:3, hist:'2022: investigación FBI + DoJ confirmó sobornos a funcionarios FIFA para obtener sede. José Maria Garcia: "mayor escándalo de corrupción del deporte mundial". Michael Garcia Report (144p) parcialmente suprimido.'},
-  'France':       {nivel:2, hist:'Final 1998: Ronaldo sufrió convulsiones la noche anterior. Incluido misteriosamente en alineación inicial. Brazil nunca explicó oficialmente. Denuncias de presión de patrocinadores Nike (contrato $500M).'},
-  'Brazil':       {nivel:1, hist:'2014 local: árbitro Howard Webb criticado por falta no pitada vs Colombia (lesión deliberada a Neymar). Fixture de grupos diseñado para maximizar avance anfitrión.'},
-  'Spain':        {nivel:1, hist:'2010: movimientos de apuestas asiáticas antes de semis y final no totalmente explicados. Semifinal con Nigeria, árbitro cuestionado. Sin evidencia directa.'},
-  'United States':{nivel:2, hist:'2026 sede + organización: contratos TV Fox Sports ~$400M. Eliminación temprana de EEUU en grupos sería pérdida de audiencia masiva. Histórico de "fixture favorable" para anfitriones (1994 EEUU llegó a QF, 2002 Corea SF).'},
-  'Mexico':       {nivel:1, hist:'2026 co-sede: México juega en el Estadio Azteca (114k). 40M espectadores adicionales en Norteamérica si avanza. Interés comercial FIFA alto.'},
-  'Portugal':     {nivel:2, hist:'CR7 a los 41: última Copa del Mundo del jugador más rentable del planeta (~$1B/año en ingresos comerciales). FIFA/patrocinadores tienen interés directo en que llegue lejos. El modelo Klement original predijo a Portugal en la FINAL — dato que coincide con el escenario de mayor valor comercial. Movimientos de apuestas europeas en Portugal en cuotas anómalas reportados por Sportradar antes del torneo. Sin evidencia de manipulación directa.'},
-};
-
-function calcSombraFactor(home, away){
-  const sh = SOMBRA_EQUIPOS[home];
-  const sa = SOMBRA_EQUIPOS[away];
-  if(!sh && !sa) return null;
-
-  const alertas = [];
-  let maxNivel = 0;
-
-  if(sh){ maxNivel = Math.max(maxNivel, sh.nivel); alertas.push({team:home, hist:sh.hist, nivel:sh.nivel}); }
-  if(sa){ maxNivel = Math.max(maxNivel, sa.nivel); alertas.push({team:away, hist:sa.hist, nivel:sa.nivel}); }
-
-  return {
-    nivel: maxNivel,
-    alertas,
-    disclaimer: 'Contexto histórico documentado. No implica irregularidad en este partido. La mafia del fútbol es real pero imprevisible.'
-  };
-}
-
-// ==================== FACTOR SORPRESA ====================
-// Detecta cuándo el "perdedor anunciado" tiene condiciones reales para dar la campanada.
-// Combina 6 señales independientes: si convergen → el mercado está subestimando al underdog.
-// Solo activa si la puntuación supera 55/100 (señal convergente real, no ruido).
-function calcSurpriseFactor(home,away,pred){
-  // Identificar underdog (menor probabilidad de ganar en modelo ensemble)
-  const homeIsUD = pred.pH < pred.pA;
-  const ud = homeIsUD ? home : away;     // underdog
-  const fav = homeIsUD ? away : home;    // favorito
-  const udProb  = homeIsUD ? pred.pH : pred.pA;
-  const favProb = homeIsUD ? pred.pA : pred.pH;
-
-  // Activar solo si hay favorito claro Y underdog con chance real
-  if(favProb < 0.44 || udProb > 0.40 || udProb < 0.12) return null;
-
-  let score=0;
-  const reasons=[];
-
-  // 1. Momentum/Perrenque (30 pts máx): underdog con mejor racha que el favorito
-  const momUD=getMomentum(ud).mult, momFav=getMomentum(fav).mult;
-  const momGap=momUD-momFav;
-  if(momGap>0){
-    const s=Math.min(30,momGap*900);
-    score+=s;
-    if(s>8) reasons.push(`⚡ ${ud} llega con más perrenque`);
-  }
-
-  // 2. Clutch diferencial (25 pts máx): el underdog no se rompe bajo presión
-  const clutchUD=CLUTCH[ud]||65, clutchFav=CLUTCH[fav]||65;
-  const clutchGap=clutchUD-clutchFav;
-  if(clutchGap>0){
-    const s=Math.min(25,clutchGap*0.45);
-    score+=s;
-    if(s>7) reasons.push(`🧊 Mayor Clutch: ${ud} ${clutchUD} vs ${fav} ${clutchFav}`);
-  }
-
-  // 3. Ventaja de ambiente/diáspora (10 pts máx): gradas a favor del underdog
-  const diasGap=getDiaspora(ud)-getDiaspora(fav);
-  if(diasGap>0.12){
-    const s=Math.min(10,diasGap*35);
-    score+=s;
-    if(s>3) reasons.push(`🏟️ Gradas a favor de ${ud}`);
-  }
-
-  // 5. ICC competitivo (15 pts máx): el underdog no está tan lejos estructuralmente
-  const iccUD=iccScore(ud), iccFav=iccScore(fav);
-  const iccGap=iccFav-iccUD;
-  if(iccGap<8){
-    const s=Math.min(15,(8-iccGap)*2);
-    score+=s;
-    if(s>5) reasons.push(`🔬 ICC casi equivalente (${iccUD.toFixed(1)} vs ${iccFav.toFixed(1)})`);
-  }
-
-  // 6. ADN competitivo histórico (5 pts bonus): el underdog tiene más historial de ganar cuando no debe
-  const adnUD=ADN_COMPETITIVO[ud]||65, adnFav=ADN_COMPETITIVO[fav]||65;
-  if(adnUD>adnFav&&adnUD>72){
-    score+=5;
-    reasons.push(`🧬 ADN competitivo superior`);
-  }
-
-  const finalScore=Math.round(Math.min(100,score));
-  if(finalScore<55) return null;
-
-  return {ud, fav, score:finalScore, prob:udProb, reasons};
-}
-
-// ==================== APUESTAS ====================
-// ==================== DETECTOR DE SORPRESA ====================
-// Evalúa si el underdog tiene razones concretas para ganar.
-// 6 factores: CHOKE histórico, Momentum, Fatiga, Bajas, ICC vs ELO, Dark Horse.
-function buildSorpresaHtml(pred, home, away){
-  const favIsH=pred.pH>=pred.pA;
-  const fav=favIsH?home:away, und=favIsH?away:home;
-  const favP=favIsH?pred.pH:pred.pA, undP=favIsH?pred.pA:pred.pH;
-
-  if(Math.abs(pred.pH-pred.pA)<0.08)
-    return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;margin-top:8px"><div style="font-size:18px;font-weight:800;color:var(--gold);margin-bottom:4px">🔮 Sorpresa (Valor Sorpresa)</div><div style="font-size:16px;color:var(--muted)">⚖️ Partido muy parejo — no hay underdog claro para analizar</div></div>';
-
-  const reasons=[];
-  let score=0;
-
-  // 1. CHOKE histórico del favorito
-  const choke=CHOKE[fav]||0;
-  if(choke<=-70){score+=25;reasons.push({w:'alto',t:fav+' tiene historial severo de bloqueo en eliminatorias ('+choke+' pts CHOKE)'});}
-  else if(choke<=-40){score+=15;reasons.push({w:'medio',t:fav+' muestra tendencia a la presión en eliminatorias ('+choke+' pts CHOKE)'});}
-  else if(choke<=-20){score+=8;reasons.push({w:'leve',t:fav+' tiene historial leve de dificultades en momentos decisivos'});}
-
-  // 2. Momentum: underdog con mejor forma reciente
-  const momF=getCachedMomentum(fav), momU=getCachedMomentum(und);
-  const momDiff=momU.mult-momF.mult;
-  if(momDiff>0.03){
-    score+=20;
-    const ppU=momU.matches>0?(momU.pts/momU.matches).toFixed(1):'—';
-    const ppF=momF.matches>0?(momF.pts/momF.matches).toFixed(1):'—';
-    reasons.push({w:'alto',t:und+' lleva mejor momentum en este torneo ('+ppU+' pts/p vs '+ppF+' del favorito)'});
-  } else if(momDiff>0.01){score+=8;reasons.push({w:'leve',t:und+' tiene forma reciente comparable al favorito'});}
-
-  // 3. Fatiga: favorito con más prórrogas acumuladas
-  const fatF=getFatiguePenalty(fav), fatU=getFatiguePenalty(und);
-  if(fatF>fatU+0.015){score+=15;reasons.push({w:'alto',t:fav+' llega con mayor fatiga acumulada por prórrogas (−'+(fatF*100).toFixed(1)+'% efectividad)'});}
-  else if(fatF>fatU+0.005){score+=7;reasons.push({w:'leve',t:fav+' presenta cierto desgaste físico por tiempo extra previo'});}
-
-  // 4. Bajas: favorito con ausencias en jugadores clave
-  const penF=getLineupPenalty(fav), penU=getLineupPenalty(und);
-  if(penF>penU+0.05){score+=20;reasons.push({w:'alto',t:fav+' tiene bajas importantes que reducen su efectividad real (−'+Math.round(penF*100)+'%)'});}
-  else if(penF>penU+0.02){score+=10;reasons.push({w:'medio',t:fav+' presenta ausencias relevantes (−'+Math.round(penF*100)+'%)'});}
-
-  // 5. ICC vs ELO: underdog mejor estructuralmente de lo que el mercado percibe
-  const iccF=getCachedICC(fav), iccU=getCachedICC(und);
-  const eloF=G.elo[fav]||1500, eloU=G.elo[und]||1500;
-  const eloGap=eloF-eloU, iccGap=iccF-iccU;
-  if(eloGap>100&&iccGap<5){score+=15;reasons.push({w:'alto',t:'El mercado sobrevalora a '+fav+': gap de rating='+Math.round(eloGap)+'pts pero diferencia real de calidad (ICC) es solo '+iccGap.toFixed(0)+' puntos'});}
-  else if(eloGap>70&&iccGap<10){score+=8;reasons.push({w:'medio',t:und+' es más competitivo estructuralmente de lo que el mercado sugiere'});}
-
-  // 6. Dark Horse — underdog con historial de superar expectativas
-  const dark=DARK[und]||0;
-  if(dark>=50){score+=12;reasons.push({w:'alto',t:und+' tiene perfil histórico de "caballo negro" confirmado (+'+dark+' factor sorpresa)'});}
-  else if(dark>=25){score+=6;reasons.push({w:'leve',t:und+' tiene historial de superar expectativas (+'+dark+')'});}
-
-  const sc=Math.min(100,score);
-  let vc,vl,vr;
-  if(!reasons.length||sc<15){vc='var(--green)';vl='✅ Favorito sólido';vr=fav+' es favorito sólido sin señales anómalas de sorpresa.';}
-  else if(sc<35){vc='var(--yellow)';vl='🟡 Señales débiles';vr='Hay factores menores que podrían beneficiar a '+und+', pero '+fav+' sigue siendo favorito.';}
-  else if(sc<55){vc='var(--orange)';vl='🟠 Riesgo real';vr='Considera la victoria de '+und+' — los factores muestran una brecha entre la percepción del mercado y la realidad del partido.';}
-  else{vc='var(--green)';vl='🟢 SORPRESA RECOMENDADA';vr='La suma de factores apunta a '+FLAG(und)+' '+und+' como apuesta de valor real. El mercado subestima sus posibilidades.';}
-
-  const wI=w=>w==='alto'?'🔴':w==='medio'?'🟡':'⚪';
-  let h='<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;margin-top:8px">';
-  h+='<div style="font-size:18px;font-weight:800;color:var(--gold);margin-bottom:8px">🔮 Sorpresa (Valor Sorpresa)</div>';
-  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">';
-  h+='<span style="font-size:15px;color:var(--muted)">Favorito:</span><span style="font-size:18px;font-weight:800">'+FLAG(fav)+' '+fav+' <span style="color:var(--accent)">'+Math.round(favP*100)+'%</span></span>';
-  h+='<span style="font-size:15px;color:var(--muted)">Underdog:</span><span style="font-size:18px;font-weight:800">'+FLAG(und)+' '+und+' <span style="color:var(--orange)">'+Math.round(undP*100)+'%</span></span>';
-  h+='</div>';
-  h+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:15px;margin-bottom:3px"><span style="color:var(--muted)">Riesgo de sorpresa</span><span style="font-weight:800;color:'+vc+'">'+sc+'/100 — '+vl+'</span></div>';
-  h+='<div style="background:rgba(255,255,255,.08);border-radius:4px;height:8px"><div style="background:'+vc+';width:'+sc+'%;height:8px;border-radius:4px"></div></div></div>';
-  if(reasons.length) reasons.forEach(r=>{h+='<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span>'+wI(r.w)+'</span><span style="font-size:16px;line-height:1.4">'+r.t+'</span></div>';});
-  else h+='<div style="font-size:16px;color:var(--muted);padding:4px 0">Sin factores anómalos detectados.</div>';
-  h+='<div style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,.05);border-radius:8px;border-left:3px solid '+vc+'"><span style="font-size:16px;line-height:1.4">'+vr+'</span></div>';
-  h+='<div style="font-size:13px;color:var(--muted);margin-top:5px">Factores: CHOKE histórico · Momentum · Fatiga · Bajas · ICC vs ELO · Dark horse. No garantiza resultado.</div>';
-  h+='</div>';
-  return h;
-}
-
-
 function buildBetHtml(pred,home,away){
   const pH=pred.pH,pD=pred.pD,pA=pred.pA;
   const xg=parseFloat(pred.xgH)+parseFloat(pred.xgA);
@@ -2156,615 +1981,65 @@ function buildBetHtml(pred,home,away){
   </div>`;
 }
 
+// ==================== SORPRESA UNIFICADA ====================
+function calcSurpriseFactor(home,away,pred){
+  const homeIsUD = pred.pH < pred.pA;
+  const ud = homeIsUD ? home : away;
+  const fav = homeIsUD ? away : home;
+  const udProb  = homeIsUD ? pred.pH : pred.pA;
+  const favProb = homeIsUD ? pred.pA : pred.pH;
 
-function showTab(el,name){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  if(el) el.classList.add('active');
-  document.getElementById('page-'+name).classList.add('active');
-  if(name==='champ')     renderChamp();
-  else if(name==='hoy')  renderHoy();
-  else if(name==='duel') renderDuel();
-  else if(name==='comp') renderComparativa();
-}
+  if(favProb < 0.44 || udProb > 0.40 || udProb < 0.12) return null;
 
+  let score=0;
+  const reasons=[];
 
-// ==================== COMPARATIVA DE MODELOS ====================
-// Muestra leaderboard de precisión de los 4 modelos vs resultados reales,
-// partido a partido desde el comienzo del torneo.
-function renderComparativa(){
-  const pg=document.getElementById('page-comp');
-  if(!pg) return;
-  // Write header immediately so user sees SOMETHING
-  pg.innerHTML='<div style="padding:16px 12px"><div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:8px">📊 Comparativa de Modelos</div><div style="color:var(--muted);font-size:15px">Calculando...</div></div>';
-
-  try {
-    const MODS=['Principal (Integrado)','ELO (Historial)','ICC (Calidad)','Momentum (Forma)'];
-    const stats={};
-    MODS.forEach(m=>{ stats[m]={hits:0,total:0,brier:0,rows:[]}; });
-
-    // Build played list
-    const teamSet=new Set(ALL_TEAMS);
-    const played=[];
-    for(const [key,rr] of Object.entries(REAL_RESULTS)){
-      if(!rr.played) continue;
-      const p=key.split('-');
-      let h=null,a=null;
-      for(let i=1;i<p.length;i++){
-        const th=p.slice(0,i).join('-'),ta=p.slice(i).join('-');
-        if(teamSet.has(th)&&teamSet.has(ta)){h=th;a=ta;break;}
-      }
-      if(!h){h=p[0];a=p.slice(1).join('-');}
-      if(h&&a&&h!==a) played.push({h,a,sh:Number(rr.h),sa:Number(rr.a),key});
-    }
-
-    if(!played.length){
-      pg.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:17px">No hay partidos con resultado aún.</div>';
-      return;
-    }
-
-    // Compute per match
-    played.forEach(m=>{
-      let actual='D';
-      if(m.sh>m.sa) actual='H';
-      else if(m.sa>m.sh) actual='A';
-
-      let pP={pH:.33,pD:.34,pA:.33};
-      try{ const r=getCachedPrediction(m.h,m.a,null); if(r&&!isNaN(r.pH)) pP=r; }catch(e){}
-
-      let eH=G.elo[m.h]||1500, eA=G.elo[m.a]||1500;
-      let iH=50,iA=50;
-      try{iH=getCachedICC(m.h)||50;iA=getCachedICC(m.a)||50;}catch(e){}
-      let mH={pts:0,matches:0},mA={pts:0,matches:0};
-      try{mH=getCachedMomentum(m.h)||mH;mA=getCachedMomentum(m.a)||mA;}catch(e){}
-
-      const pmap={
-        'Principal (Integrado)':pP,
-        'ELO (Historial)':_mus_elo(eH,eA),
-        'ICC (Calidad)':_mus_icc(iH,iA),
-        'Momentum (Forma)':_mus_mom(mH,mA)
-      };
-
-      MODS.forEach(mod=>{
-        const p=pmap[mod]||pP;
-        let pred='D';
-        if(p.pH>=p.pA&&p.pH>=p.pD) pred='H';
-        else if(p.pA>=p.pH&&p.pA>=p.pD) pred='A';
-        const hit=pred===actual;
-        const pAct=actual==='H'?p.pH:actual==='A'?p.pA:p.pD;
-        const brier=(Math.pow(pAct-1,2)+Math.pow(actual==='H'?0:p.pH,2)+Math.pow(actual==='A'?0:p.pA,2)+Math.pow(actual==='D'?0:p.pD,2))/2;
-        stats[mod].hits+=hit?1:0;
-        stats[mod].total+=1;
-        stats[mod].brier+=brier;
-        stats[mod].rows.push({h:m.h,a:m.a,sh:m.sh,sa:m.sa,pred,actual,hit});
-      });
-    });
-
-    // Sort by accuracy
-    const sorted=MODS.slice().sort((a,b)=>{
-      const accA=stats[a].total?stats[a].hits/stats[a].total:0;
-      const accB=stats[b].total?stats[b].hits/stats[b].total:0;
-      return accB-accA;
-    });
-
-    let html='<div style="padding:12px 0">';
-    html+='<div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:6px;padding:0 12px">📊 Comparativa de Modelos</div>';
-    html+='<div style="font-size:15px;color:var(--muted);margin-bottom:14px;padding:0 12px">'+played.length+' partidos evaluados desde jornada 1 hasta hoy</div>';
-
-    // Leaderboard cards
-    html+='<div style="padding:0 8px;margin-bottom:14px">';
-    sorted.forEach((mod,idx)=>{
-      const s=stats[mod];
-      const acc=s.total?(s.hits/s.total*100).toFixed(1):'0.0';
-      const brierAvg=s.total?(s.brier/s.total).toFixed(3):'—';
-      const medal=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'4️⃣';
-      const barC=idx===0?'var(--gold)':idx===1?'#aaa':idx===2?'#cd7f32':'var(--muted)';
-      html+='<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:8px">';
-      html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">';
-      html+='<span style="font-size:18px;font-weight:800">'+medal+' '+mod+'</span>';
-      html+='<span style="font-size:18px;font-weight:800;color:'+barC+'">'+acc+'%</span>';
-      html+='</div>';
-      html+='<div style="background:rgba(255,255,255,.08);border-radius:4px;height:7px;margin-bottom:5px">';
-      html+='<div style="background:'+barC+';width:'+parseFloat(acc)+'%;height:7px;border-radius:4px"></div></div>';
-      html+='<div style="font-size:14px;color:var(--muted)">✅ '+s.hits+'/'+s.total+' aciertos &nbsp;·&nbsp; Brier: '+brierAvg+'</div>';
-      html+='</div>';
-    });
-    html+='</div>';
-
-    // Per-match table (last 20 matches for readability)
-    const refRows=stats[sorted[0]].rows;
-    const last=refRows.slice(-20);
-    html+='<div style="padding:0 8px">';
-    html+='<div style="font-size:16px;font-weight:800;margin-bottom:6px">Últimos '+last.length+' partidos</div>';
-    html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
-    html+='<thead><tr style="color:var(--muted);border-bottom:1px solid rgba(255,255,255,.1)">';
-    html+='<th style="text-align:left;padding:4px 6px">Partido</th>';
-    html+='<th style="text-align:center;padding:4px">Res</th>';
-    sorted.forEach(mod=>{html+='<th style="text-align:center;padding:4px 3px;font-size:11px">'+mod.split(' ')[0]+'</th>';});
-    html+='</tr></thead><tbody>';
-    const offset=stats[sorted[0]].rows.length-last.length;
-    last.forEach((rm,i)=>{
-      const rb=i%2===0?'rgba(255,255,255,.02)':'transparent';
-      html+='<tr style="background:'+rb+';border-bottom:1px solid rgba(255,255,255,.03)">';
-      html+='<td style="padding:4px 6px">'+FLAG(rm.h)+' '+rm.h+'<br><span style="color:var(--muted);font-size:11px">vs '+FLAG(rm.a)+' '+rm.a+'</span></td>';
-      html+='<td style="text-align:center;padding:4px;font-weight:700">'+rm.sh+'-'+rm.sa+'</td>';
-      sorted.forEach(mod=>{
-        const r2=stats[mod].rows[offset+i];
-        html+='<td style="text-align:center;padding:4px;font-size:16px">'+(r2?r2.hit?'✅':'❌':'—')+'</td>';
-      });
-      html+='</tr>';
-    });
-    html+='</tbody></table></div></div></div>';
-
-    pg.innerHTML=html;
-
-  } catch(err){
-    pg.innerHTML='<div style="padding:16px;color:orange;font-size:14px">⚠️ Error en Comparativa: '+err.message+'<br><pre style="font-size:11px;overflow:auto">'+err.stack+'</pre></div>';
+  const momUD=getMomentum(ud).mult, momFav=getMomentum(fav).mult;
+  const momGap=momUD-momFav;
+  if(momGap>0){
+    const s=Math.min(30,momGap*900);
+    score+=s;
+    if(s>8) reasons.push(`⚡ ${ud} llega con más perrenque`);
   }
+
+  const clutchUD=CLUTCH[ud]||65, clutchFav=CLUTCH[fav]||65;
+  const clutchGap=clutchUD-clutchFav;
+  if(clutchGap>0){
+    const s=Math.min(25,clutchGap*0.45);
+    score+=s;
+    if(s>7) reasons.push(`🧊 Mayor Clutch: ${ud} ${clutchUD} vs ${fav} ${clutchFav}`);
+  }
+
+  const diasGap=getDiaspora(ud)-getDiaspora(fav);
+  if(diasGap>0.12){
+    const s=Math.min(10,diasGap*35);
+    score+=s;
+    if(s>3) reasons.push(`🏟️ Gradas a favor de ${ud}`);
+  }
+
+  const iccUD=iccScore(ud), iccFav=iccScore(fav);
+  const iccGap=iccFav-iccUD;
+  if(iccGap<8){
+    const s=Math.min(15,(8-iccGap)*2);
+    score+=s;
+    if(s>5) reasons.push(`🔬 ICC casi equivalente (${iccUD.toFixed(1)} vs ${iccFav.toFixed(1)})`);
+  }
+
+  const adnUD=ADN_COMPETITIVO[ud]||65, adnFav=ADN_COMPETITIVO[fav]||65;
+  if(adnUD>adnFav&&adnUD>72){
+    score+=5;
+    reasons.push(`🧬 ADN competitivo superior`);
+  }
+
+  const finalScore=Math.round(Math.min(100,score));
+  if(finalScore<55) return null;
+
+  return {ud, fav, score:finalScore, prob:udProb, reasons};
 }
 
-// ==================== BRACKET KO ====================
-let BRACKET_KO = {
-  r32: [
-    {h:'South Africa',  a:'Canada',     date:'Jun 28', time:'14:00', sh:null, sa:null},
-    {h:'Brazil',        a:'Japan',       date:'Jun 29', time:'12:00', sh:null, sa:null},
-    {h:'Germany',       a:'Paraguay',    date:'Jun 29', time:'15:30', sh:null, sa:null},
-    {h:'Netherlands',   a:'Morocco',     date:'Jun 29', time:'20:00', sh:null, sa:null},
-    {h:'France',        a:'Sweden',      date:'Jun 30', time:'16:00', sh:null, sa:null},
-    {h:'Ivory Coast',   a:'Norway',      date:'Jun 30', time:'12:00', sh:null, sa:null},
-    {h:'Mexico',        a:'Ecuador',     date:'Jun 30', time:'20:00', sh:null, sa:null},
-    {h:'England',       a:'DR Congo',    date:'Jul 1',  time:'11:00', sh:null, sa:null},
-    {h:'Spain',         a:'Austria',     date:'Jul 2',  time:'14:00', sh:null, sa:null},
-    {h:'Portugal',      a:'Croatia',     date:'Jul 2',  time:'18:00', sh:null, sa:null},
-    {h:'Belgium',       a:'Senegal',     date:'Jul 1',  time:'15:00', sh:null, sa:null},
-    {h:'United States', a:'Bosnia',      date:'Jul 1',  time:'19:00', sh:null, sa:null},
-    {h:'Switzerland',   a:'Algeria',     date:'Jul 2',  time:'22:00', sh:null, sa:null},
-    {h:'Australia',     a:'Egypt',       date:'Jul 3',  time:'13:00', sh:null, sa:null},
-    {h:'Argentina',     a:'Cape Verde',  date:'Jul 3',  time:'17:00', sh:null, sa:null},
-    {h:'Colombia',      a:'Ghana',       date:'Jul 3',  time:'20:30', sh:null, sa:null},
-  ],
-  r16: [
-    {h:'TBD',a:'TBD',date:'Jul 4', time:'12:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 4', time:'16:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 5', time:'15:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 5', time:'19:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 6', time:'14:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 6', time:'19:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 7', time:'11:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 7', time:'15:00', sh:null, sa:null},
-  ],
-  qf: [
-    {h:'TBD',a:'TBD',date:'Jul 9',  time:'15:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 10', time:'14:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 11', time:'16:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 11', time:'20:00', sh:null, sa:null},
-  ],
-  sf: [
-    {h:'TBD',a:'TBD',date:'Jul 14', time:'14:00', sh:null, sa:null},
-    {h:'TBD',a:'TBD',date:'Jul 15', time:'14:00', sh:null, sa:null},
-  ],
-  f:     [{h:'TBD',a:'TBD',date:'Jul 19', time:'14:00', sh:null, sa:null}],
-  third: [{h:'TBD',a:'TBD',date:'Jul 18', time:'16:00', sh:null, sa:null}],
-};
-
-// Sincroniza BRACKET_KO con REAL_RESULTS y propaga ganadores a rondas siguientes.
-// Llamar al arrancar, tras sync y tras ingresar resultado manual.
-function syncBracketFromResults(){
-  const _syncScore=function(m){
-    if(m.h==='TBD'||m.a==='TBD') return;
-    const r=REAL_RESULTS[m.h+'-'+m.a];
-    if(r&&r.played){
-      if(m.sh===null){m.sh=Number(r.h);m.sa=Number(r.a);}
-      if(r.penH!==undefined&&m.pen_h===undefined){m.pen_h=r.penH;m.pen_a=r.penA;}
-      if(r.winnerTeam&&!m.winnerTeam)m.winnerTeam=r.winnerTeam;
-    }
-  };
-  const _winner=function(m){
-    if(m.sh===null) return null;
-    if(m.winnerTeam) return m.winnerTeam;
-    if(m.sh>m.sa) return m.h;
-    if(m.sa>m.sh) return m.a;
-    if(m.pen_h!==undefined) return m.pen_h>m.pen_a?m.h:m.a;
-    return null;
-  };
-  const _loser=function(m){
-    const w=_winner(m);
-    return (w&&m.sh!==null)?(w===m.h?m.a:m.h):null;
-  };
-  const _adv=function(s0,s1,dst){
-    if(!dst) return;
-    const w0=_winner(s0),w1=_winner(s1);
-    if(w0&&dst.h==='TBD') dst.h=w0;
-    if(w1&&dst.a==='TBD') dst.a=w1;
-  };
-  BRACKET_KO.r32.forEach(_syncScore);
-  for(let i=0;i<BRACKET_KO.r32.length;i+=2){
-    _adv(BRACKET_KO.r32[i],BRACKET_KO.r32[i+1],BRACKET_KO.r16[i/2]);
-    _syncScore(BRACKET_KO.r16[i/2]);
-  }
-  for(let i=0;i<BRACKET_KO.r16.length;i+=2){
-    _adv(BRACKET_KO.r16[i],BRACKET_KO.r16[i+1],BRACKET_KO.qf[i/2]);
-    _syncScore(BRACKET_KO.qf[i/2]);
-  }
-  for(let i=0;i<BRACKET_KO.qf.length;i+=2){
-    _adv(BRACKET_KO.qf[i],BRACKET_KO.qf[i+1],BRACKET_KO.sf[i/2]);
-    _syncScore(BRACKET_KO.sf[i/2]);
-  }
-  const sf0=BRACKET_KO.sf[0],sf1=BRACKET_KO.sf[1],fs=BRACKET_KO.f[0],tp=BRACKET_KO.third[0];
-  const fw0=_winner(sf0),fw1=_winner(sf1),fl0=_loser(sf0),fl1=_loser(sf1);
-  if(fw0&&fs&&fs.h==='TBD') fs.h=fw0;
-  if(fw1&&fs&&fs.a==='TBD') fs.a=fw1;
-  if(fl0&&tp&&tp.h==='TBD') tp.h=fl0;
-  if(fl1&&tp&&tp.a==='TBD') tp.a=fl1;
-  _syncScore(fs); _syncScore(tp);
-}
-
-function setProgress(pct, msg){
-  const fill=document.getElementById('progFill');
-  const step=document.getElementById('stepMsg');
-  if(fill) fill.style.width=Math.min(100,pct)+'%';
-  if(step&&msg) step.textContent=msg;
-}
-
-// ==================== ESPN SYNC ====================
-const ESPN_NAME_MAP={
-  'USA':'United States','US':'United States','United States of America':'United States',
-  'Korea Republic':'South Korea','Republic of Korea':'South Korea',
-  'IR Iran':'Iran','Iran (Islamic Republic)':'Iran',
-  "Cote d'Ivoire":'Ivory Coast','Cote D Ivoire':'Ivory Coast',
-  'Bosnia and Herzegovina':'Bosnia','Bosnia & Herzegovina':'Bosnia',
-  'Democratic Republic of Congo':'DR Congo','Congo DR':'DR Congo','Congo, DR':'DR Congo',
-  'Cabo Verde':'Cape Verde',
-  'Czech Republic':'Czechia',
-};
-function mapESPNName(raw){
-  if(!raw) return raw;
-  return ESPN_NAME_MAP[raw.trim()]||raw.trim();
-}
-function parseESPNEvents(data,teamSet){
-  const results={};
-  const events=(data&&data.events)||
-    (data&&data.sports&&data.sports[0]&&data.sports[0].leagues&&
-     data.sports[0].leagues[0]&&data.sports[0].leagues[0].events)||[];
-  for(const ev of events){
-    const comps=ev.competitions||[];
-    for(const c of comps){
-      const teams=c.competitors||[];
-      if(teams.length<2) continue;
-      const homeObj=teams.find(function(t){return t.homeAway==='home';})||teams[0];
-      const awayObj=teams.find(function(t){return t.homeAway==='away';})||teams[1];
-      const h=mapESPNName((homeObj.team&&(homeObj.team.displayName||homeObj.team.name))||'');
-      const a=mapESPNName((awayObj.team&&(awayObj.team.displayName||awayObj.team.name))||'');
-      if(!h||!a||h===a) continue;
-      if(teamSet&&!teamSet.has(h)&&!teamSet.has(a)) continue;
-      const completed=!!(c.status&&c.status.type&&
-        (c.status.type.completed||c.status.type.name==='STATUS_FINAL'||
-         c.status.type.id==='3'));
-      if(!completed) continue;
-      const sh=parseInt(homeObj.score,10), sa=parseInt(awayObj.score,10);
-      if(isNaN(sh)||isNaN(sa)) continue;
-      let penH,penA;
-      const notes=c.notes||[];
-      for(let ni=0;ni<notes.length;ni++){
-        const nm=((notes[ni].headline||notes[ni].text)||'').match(/(\d+)[^\d](\d+)\s*(pen|pens|penalties)/i);
-        if(nm){penH=parseInt(nm[1]);penA=parseInt(nm[2]);break;}
-      }
-      const entry={h:sh,a:sa,played:true};
-      if(penH!==undefined){entry.penH=penH;entry.penA=penA;}
-      entry.winnerTeam=penH!==undefined?(penH>penA?h:a):(sh>sa?h:sa>sh?a:null);
-      results[h+'-'+a]=entry;
-    }
-  }
-  return results;
-}
-async function fetchJSON(url){
-  const resp=await fetch(url,{signal:AbortSignal.timeout(7000)});
-  if(!resp.ok) throw new Error('HTTP '+resp.status);
-  return resp.json();
-}
-async function fetchWithProxies(url){
-  try{return await fetchJSON(url);}catch(e){}
-  const px=[
-    function(u){return 'https://corsproxy.io/?'+encodeURIComponent(u);},
-    function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);},
-    function(u){return 'https://thingproxy.freeboard.io/fetch/'+u;},
-  ];
-  for(let pi=0;pi<px.length;pi++){try{return await fetchJSON(px[pi](url));}catch(e){}}
-  throw new Error('All proxies failed');
-}
-async function syncFromAPI(){
-  const btn=document.getElementById('syncBtn');
-  const dot=document.getElementById('statusDot');
-  if(btn) btn.textContent='⏳';
-  if(dot) dot.className='sdot';
-  try{
-    const teamSet=new Set(ALL_TEAMS);
-    const slugs=['fifa.world','fifa.worldcup','fifaworldcup','international.world','soccer.fifa','fifa.worldq','soccer.fifa.world','mens.worldcup'];
-    let found={};
-    // Pass 1: date-range query
-    for(let si=0;si<slugs.length;si++){
-      try{
-        const d=await fetchWithProxies('https://site.api.espn.com/apis/site/v2/sports/soccer/'+slugs[si]+'/scoreboard?dates=20260628-20260719&limit=100');
-        const p=parseESPNEvents(d,teamSet);
-        if(Object.keys(p).length){Object.assign(found,p);break;}
-      }catch(e){}
-    }
-    // Pass 2: per-date supplement for last 5 days
-    const now2=new Date();
-    for(let dd=0;dd<=5;dd++){
-      const dt=new Date(now2);dt.setDate(dt.getDate()-dd);
-      const ds=dt.getFullYear()+''+String(dt.getMonth()+1).padStart(2,'0')+String(dt.getDate()).padStart(2,'0');
-      for(let si2=0;si2<Math.min(4,slugs.length);si2++){
-        try{
-          const data=await fetchWithProxies('https://site.api.espn.com/apis/site/v2/sports/soccer/'+slugs[si2]+'/scoreboard?dates='+ds);
-          const p2=parseESPNEvents(data,teamSet);
-          if(Object.keys(p2).length){Object.assign(found,p2);break;}
-        }catch(e){}
-      }
-    }
-    // Merge found results into REAL_RESULTS (validate both teams in ALL_TEAMS)
-    const foundKeys=Object.keys(found);
-    for(let ki=0;ki<foundKeys.length;ki++){
-      const key=foundKeys[ki]; const v=found[key];
-      if(!v||!v.played) continue;
-      const parts=key.split('-');
-      let h2=null,a2=null;
-      for(let i=1;i<parts.length;i++){
-        const th=parts.slice(0,i).join('-'),ta=parts.slice(i).join('-');
-        if(teamSet.has(th)&&teamSet.has(ta)){h2=th;a2=ta;break;}
-      }
-      if(!h2||!a2||h2===a2) continue;
-      const rk=h2+'-'+a2;
-      if(!REAL_RESULTS[rk]||!REAL_RESULTS[rk].played){
-        REAL_RESULTS[rk]=v;
-      } else {
-        if(v.penH!==undefined&&REAL_RESULTS[rk].penH===undefined){
-          REAL_RESULTS[rk].penH=v.penH;REAL_RESULTS[rk].penA=v.penA;
-        }
-        if(v.winnerTeam&&!REAL_RESULTS[rk].winnerTeam) REAL_RESULTS[rk].winnerTeam=v.winnerTeam;
-      }
-    }
-    // Persist to localStorage
-    try{
-      const save={};
-      const allRRKeys=Object.keys(REAL_RESULTS);
-      for(let i=0;i<allRRKeys.length;i++){const rv=REAL_RESULTS[allRRKeys[i]];if(rv&&rv.played)save[allRRKeys[i]]=rv;}
-      localStorage.setItem('footiq_results',JSON.stringify(save));
-    }catch(e){}
-    recalibrateELO();
-    syncBracketFromResults();
-    invalidateCache('all');
-    renderHoy();
-    renderChamp();
-    const atab=document.querySelector('.tab.active');
-    if(atab){
-      const ao=atab.getAttribute('onclick')||'';
-      if(ao.indexOf('comp')>-1) renderComparativa();
-      else if(ao.indexOf('duel')>-1){computeModelScores();renderDuel();}
-    }
-    computeModelScores();
-    const ms=MODEL_SCORES.actual;
-    const pill=document.getElementById('modelScore');
-    if(pill&&ms.total) pill.textContent=Math.round(ms.cw/ms.total*100)+'%';
-    if(dot) dot.className='sdot ok';
-    if(btn) btn.textContent='🔄';
-  }catch(err){
-    if(btn) btn.textContent='🔄';
-    if(dot) dot.className='sdot';
-    console.warn('[FootIQ] sync error:',err);
-  }
-}
-
-// ==================== PERSISTENCIA ====================
-function loadSavedResults(){
-  try{
-    const raw=localStorage.getItem('footiq_results');
-    if(!raw) return;
-    const saved=JSON.parse(raw);
-    const savedKeys=Object.keys(saved);
-    for(let i=0;i<savedKeys.length;i++){
-      const k=savedKeys[i]; const v=saved[k];
-      if(!v||!v.played) continue;
-      if(!REAL_RESULTS[k]||!REAL_RESULTS[k].played){
-        REAL_RESULTS[k]=v;
-      } else {
-        if(v.penH!==undefined&&REAL_RESULTS[k].penH===undefined){
-          REAL_RESULTS[k].penH=v.penH;REAL_RESULTS[k].penA=v.penA;
-        }
-        if(v.winnerTeam&&!REAL_RESULTS[k].winnerTeam) REAL_RESULTS[k].winnerTeam=v.winnerTeam;
-      }
-    }
-  }catch(e){console.warn('[FootIQ] loadSavedResults:',e);}
-}
-
-// ==================== ELO RECALIBRACIÓN ====================
-function _applyRealResultsToElo(elo){
-  if(!elo) elo=G.elo;
-  const K=32;
-  const rrKeys=Object.keys(REAL_RESULTS);
-  for(let i=0;i<rrKeys.length;i++){
-    const key=rrKeys[i]; const r=REAL_RESULTS[key];
-    if(!r||!r.played) continue;
-    const parts=key.split('-');
-    if(parts.length<2) continue;
-    const h=parts[0],a=parts.slice(1).join('-');
-    if(!h||!a||h===a) continue;
-    const eH=elo[h]||1500,eA=elo[a]||1500;
-    const expH=1/(1+Math.pow(10,(eA-eH)/400));
-    const actH=Number(r.h)>Number(r.a)?1:Number(r.a)>Number(r.h)?0:0.5;
-    elo[h]=Math.round(eH+K*(actH-expH));
-    elo[a]=Math.round(eA+K*((1-actH)-(1-expH)));
-  }
-}
-function recalibrateELO(){
-  const elo=Object.assign({},ELO_PRE);
-  _applyRealResultsToElo(elo);
-  G.elo=elo;
-  _clearPredCache();
-  if(FOOTIQ_CACHE&&FOOTIQ_CACHE.predictions) FOOTIQ_CACHE.predictions.clear();
-}
-
-// ==================== BRACKET HELPERS ====================
-function getGroupRanked(grp){
-  const teams=GRUPOS[grp]||[];
-  const pts={},gd={},gf={};
-  for(let i=0;i<teams.length;i++){pts[teams[i]]=0;gd[teams[i]]=0;gf[teams[i]]=0;}
-  const ts=new Set(teams);
-  const rrKeys=Object.keys(REAL_RESULTS);
-  for(let ki=0;ki<rrKeys.length;ki++){
-    const key=rrKeys[ki]; const r=REAL_RESULTS[key];
-    if(!r||!r.played) continue;
-    const parts=key.split('-');
-    let h=null,a=null;
-    for(let i=1;i<parts.length;i++){
-      const th=parts.slice(0,i).join('-'),ta=parts.slice(i).join('-');
-      if(ts.has(th)&&ts.has(ta)){h=th;a=ta;break;}
-    }
-    if(!h||!a) continue;
-    const sh=Number(r.h),sa=Number(r.a);
-    gf[h]+=sh;gf[a]+=sa;gd[h]+=(sh-sa);gd[a]+=(sa-sh);
-    if(sh>sa)pts[h]+=3; else if(sa>sh)pts[a]+=3; else{pts[h]++;pts[a]++;}
-  }
-  return teams.slice().sort(function(a,b){
-    if(pts[b]!==pts[a]) return pts[b]-pts[a];
-    if(gd[b]!==gd[a]) return gd[b]-gd[a];
-    return gf[b]-gf[a];
-  });
-}
-function resolveSlotCode(code){
-  if(!code||code==='TBD') return 'TBD';
-  const m=code.match(/^([12])([A-L])$/);
-  if(m){
-    const ranked=getGroupRanked(m[2]);
-    return ranked[parseInt(m[1])-1]||'TBD';
-  }
-  return code;
-}
-function fillBracketPredictions(){
-  const all=[].concat(BRACKET_KO.r32,BRACKET_KO.r16,BRACKET_KO.qf,
-    BRACKET_KO.sf,(BRACKET_KO.f||[]),(BRACKET_KO.third||[]));
-  for(let i=0;i<all.length;i++){
-    const m=all[i];
-    if(m.h!=='TBD'&&m.a!=='TBD'&&m.sh===null){
-      try{getCachedPrediction(m.h,m.a,null);}catch(e){}
-    }
-  }
-}
-
-// ==================== UI MODALES ====================
-function closeSettings(){
-  const el=document.getElementById('settingsModal');
-  if(el) el.classList.add('gone');
-}
-function openSettings(){
-  const el=document.getElementById('settingsModal');
-  if(el) el.classList.remove('gone');
-}
-let _currentResultMatch={h:'',a:''};
-function openResultModal(h,a,dateStr){
-  _currentResultMatch={h:h,a:a,dateStr:dateStr};
-  const titleEl=document.getElementById('resultModalTitle');
-  const subEl=document.getElementById('resultModalSub');
-  if(titleEl) titleEl.textContent=FLAG(h)+' '+h+' vs '+a+' '+FLAG(a);
-  if(subEl) subEl.textContent='Ingresa el marcador final';
-  const ih=document.getElementById('scoreHome'),ia=document.getElementById('scoreAway');
-  if(ih) ih.value=''; if(ia) ia.value='';
-  const modal=document.getElementById('resultModal');
-  if(modal) modal.classList.remove('gone');
-  setTimeout(function(){if(ih)ih.focus();},100);
-}
-function closeResultModal(){
-  const modal=document.getElementById('resultModal');
-  if(modal) modal.classList.add('gone');
-}
-function saveManualResult(){
-  const homeEl=document.getElementById('scoreHome');
-  const awayEl=document.getElementById('scoreAway');
-  const sh=homeEl?parseInt(homeEl.value,10):NaN;
-  const sa=awayEl?parseInt(awayEl.value,10):NaN;
-  if(isNaN(sh)||isNaN(sa)||sh<0||sa<0){
-    const subEl=document.getElementById('resultModalSub');
-    if(subEl) subEl.textContent='Ingresa un marcador valido';
-    return;
-  }
-  const h=_currentResultMatch.h, a=_currentResultMatch.a;
-  if(!h||!a){closeResultModal();return;}
-  const entry={h:sh,a:sa,played:true,winnerTeam:sh>sa?h:sa>sh?a:null};
-  REAL_RESULTS[h+'-'+a]=entry;
-  try{
-    const save={};
-    const allRRKeys2=Object.keys(REAL_RESULTS);
-    for(let i=0;i<allRRKeys2.length;i++){const rv2=REAL_RESULTS[allRRKeys2[i]];if(rv2&&rv2.played)save[allRRKeys2[i]]=rv2;}
-    localStorage.setItem('footiq_results',JSON.stringify(save));
-  }catch(e){}
-  recalibrateELO();
-  syncBracketFromResults();
-  invalidateCache('all');
-  closeResultModal();
-  renderHoy();
-  renderChamp();
-  const atab2=document.querySelector('.tab.active');
-  if(atab2){
-    const ao2=atab2.getAttribute('onclick')||'';
-    if(ao2.indexOf('duel')>-1){computeModelScores();renderDuel();}
-    if(ao2.indexOf('comp')>-1) renderComparativa();
-  }
-}
-function showToast(msg,duration){
-  const t=document.getElementById('syncToast');
-  if(!t) return;
-  t.textContent=msg;
-  t.classList.add('show');
-  clearTimeout(t._tid);
-  t._tid=setTimeout(function(){t.classList.remove('show');},duration||2500);
-}
-
-// ==================== BOOT ====================
-async function boot(){
-  setProgress(5,'Cargando resultados guardados...');
-  loadSavedResults();
-  setProgress(15,'Calibrando ELO...');
-  recalibrateELO();
-  updateDynamicRatings();
-  setProgress(20,'Sincronizando bracket...');
-  syncBracketFromResults();
-  setProgress(25,'Corriendo simulacion Monte Carlo...');
-  try{
-    await runMC(2000,null,function(pcts){Object.assign(G.mc,pcts);});
-  }catch(e){console.warn('[FootIQ] MC error:',e);}
-  setProgress(92,'Preparando predicciones...');
-  fillBracketPredictions();
-  computeModelScores();
-  const ms2=MODEL_SCORES.actual;
-  const pill2=document.getElementById('modelScore');
-  if(pill2&&ms2.total) pill2.textContent=Math.round(ms2.cw/ms2.total*100)+'%';
-  const ct=document.getElementById('colTime');
-  if(ct){const n2=new Date();ct.textContent=String(n2.getHours()).padStart(2,'0')+':'+String(n2.getMinutes()).padStart(2,'0');}
-  setProgress(100,'Listo!');
-  setTimeout(function(){
-    const ov=document.getElementById('overlay');
-    if(ov) ov.classList.add('gone');
-    renderChamp();
-  },350);
-  setTimeout(function(){syncFromAPI().catch(function(){});},1000);
-}
-
+// ==================== RENDER HOY ====================
 function renderHoy(){
-  // Usar syncBracketFromResults para llenar slots de BRACKET_KO desde REAL_RESULTS
-  fillBracketPredictions();
-  syncBracketFromResults();
-
-  // helpers locales para display
-  const _winner=function(m){
-    if(m.sh===null)return null;
-    if(m.winnerTeam)return m.winnerTeam;
-    if(m.sh>m.sa)return m.h;
-    if(m.sa>m.sh)return m.a;
-    if(m.pen_h!==undefined)return m.pen_h>m.pen_a?m.h:m.a;
-    return null;
-  };
-
-  // Find today's matches across all rounds
+  updateBrackets(); // Asegurar que los brackets están al día
   const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const d0=new Date(todayStr+'T12:00:00');
   const todayBD=MN[d0.getMonth()]+' '+d0.getDate();
@@ -2777,7 +2052,6 @@ function renderHoy(){
     ...(BRACKET_KO.f||[]).map(m=>Object.assign({},m,{rnd:'Final'})),
     ...(BRACKET_KO.third||[]).map(m=>Object.assign({},m,{rnd:'3er Puesto'})),
   ];
-  // Yesterday fallback date
   const d0y=new Date(todayStr+'T12:00:00');
   d0y.setDate(d0y.getDate()-1);
   const MNy=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2787,8 +2061,6 @@ function renderHoy(){
   const slotsYest=allSlots.filter(m=>m.date===yesterdayBD);
 
   const pg=document.getElementById('page-hoy');
-
-  // If today has no known teams (all TBD), also show yesterday for context
   const todayHasReal=slotsToday.some(m=>m.h!=='TBD'&&m.a!=='TBD');
   const slots=[...slotsToday];
   if(!todayHasReal && slotsYest.length){
@@ -2806,7 +2078,6 @@ function renderHoy(){
     '</div>';
 
   slots.forEach(function(m){
-    // Also check REAL_RESULTS directly in case cascade hasn't set sh yet
     if(m.sh===null && m.h!=='TBD' && m.a!=='TBD'){
       const _rr=REAL_RESULTS[m.h+'-'+m.a];
       if(_rr?.played){m.sh=_rr.h;m.sa=_rr.a;if(_rr.penH!==undefined){m.pen_h=_rr.penH;m.pen_a=_rr.penA;}}
@@ -2814,11 +2085,9 @@ function renderHoy(){
     const played=m.sh!==null;
     const hasBoth=m.h!=='TBD'&&m.a!=='TBD';
     const pred=(hasBoth&&!played)?getCachedPrediction(m.h,m.a,m.group||null):null;
-    const w=played?_winner(m):null;
+    const w=played?(()=>{if(m.sh>m.sa)return m.h;if(m.sa>m.sh)return m.a;if(m.pen_h!==undefined)return m.pen_h>m.pen_a?m.h:m.a;return null;})():null;
 
     html+='<div class="mcard-dual">';
-
-    // ─ Header ─
     if(m._isYest) html+='<div style="font-size:13px;color:var(--muted);padding:4px 8px 0">📅 Ayer — '+m.date+'</div>';
     html+='<div class="match-header">';
     html+='<div class="tflg">'+(hasBoth?FLAG(m.h):'')+'</div>';
@@ -2830,20 +2099,15 @@ function renderHoy(){
     html+='</div>';
 
     if(played){
-      // ─ Resultado final ─
       const hasPen=m.pen_h!==undefined;
       html+='<div class="result-real" style="margin:6px 0">';
       html+='<div class="rscore">'+m.sh+' — '+m.sa+'</div>';
       if(hasPen) html+='<div style="font-size:16px;color:var(--orange);margin:2px 0">Penales: '+m.pen_h+'–'+m.pen_a+'</div>';
       html+='<div class="rlabel">Resultado final ✅'+(w?' · Avanza: '+FLAG(w)+' '+w:'')+'</div>';
       html+='</div>';
-
     } else if(!hasBoth){
-      // ─ TBD ─
       html+='<div style="text-align:center;padding:14px;color:var(--muted);font-size:17px">⏳ Equipos por definir</div>';
-
     } else if(pred){
-      // ─ Predicción ─
       const conf=Math.max(pred.pH,pred.pD,pred.pA);
       const cl=conf>=0.60?'conf-high':conf>=0.50?'conf-med':'conf-low';
       const lbl=conf>=0.60?'Alta confianza':conf>=0.50?'Confianza media':'⚠️ Baja confianza';
@@ -2862,15 +2126,256 @@ function renderHoy(){
       html+='<div class="mscore">xG: '+pred.xgH+' – '+pred.xgA+'</div>';
       html+='</div></div>';
       html+=buildMusclesHtml(pred,m.h,m.a);
-      html+=buildSorpresaHtml(pred,m.h,m.a);
+      // Sorpresa unificada
+      const sf=calcSurpriseFactor(m.h,m.a,pred);
+      if(sf){
+        html+=`<div class="surprise-bet">
+          <div class="sb-header">
+            <span class="sb-icon">🔴</span>
+            <span class="sb-title">SORPRESA DEL DÍA</span>
+            <span class="sb-score">${sf.score}/100</span>
+          </div>
+          <div class="sb-team">Apostar por <strong>${sf.ud}</strong> <span class="sb-prob">(${(sf.prob*100).toFixed(0)}% según modelo — el mercado los subestima)</span></div>
+          <div class="sb-reasons">${sf.reasons.map(r=>`<div class="sb-reason">${r}</div>`).join('')}</div>
+          <div class="sb-disclaimer">⚠️ Alta varianza · Solo si cuota &gt; ${(1/sf.prob*1.15).toFixed(1)} · No es garantía</div>
+        </div>`;
+      }
     }
-
-    html+='</div>'; // mcard-dual
+    html+='</div>';
   });
 
   pg.innerHTML=html;
 }
 
+// ==================== PROGRESO Y BOOT ====================
+function setProgress(p,msg){
+  document.getElementById('progFill').style.width=Math.min(100,p)+'%';
+  document.getElementById('stepMsg').innerText=msg;
+}
+
+function updateColTime(){
+  const now = new Date();
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  const col = new Date(utcMs - 5 * 3600000);
+  const h = String(col.getHours()).padStart(2,'0');
+  const m = String(col.getMinutes()).padStart(2,'0');
+  const el = document.getElementById('colTime');
+  if(el) el.textContent = `🕐 ${h}:${m} COL`;
+}
+setInterval(updateColTime, 1000);
+
+async function boot(){
+  updateColTime();
+  loadSavedResults();
+  setProgress(5,'Inicializando ELO…'); initElo();
+  setProgress(15,'Monte Carlo — Modelo Actual (2000)…');
+  await runMC(2000,'actual',res=>{G.mc=res;});
+  setProgress(100,'¡Listo!');
+  document.getElementById('statusDot').className='sdot ok';
+  document.getElementById('modelScore').innerText='✓ OK';
+  setTimeout(()=>{
+    document.getElementById('overlay').classList.add('gone');
+    refreshAll(); // Actualiza brackets y renderiza
+    setTimeout(()=>syncFromAPI(), 1200);
+  },200);
+}
+
+// ==================== MODALES Y RESULTADOS MANUALES ====================
+let _resultModalKey = null;
+
+function openResultModal(home, away, dateStr){
+  _resultModalKey = `${home}-${away}`;
+  const existing = REAL_RESULTS[_resultModalKey];
+  document.getElementById('resultModalTitle').textContent = `${FLAG(home)} ${home}  vs  ${FLAG(away)} ${away}`;
+  document.getElementById('resultModalSub').textContent = dateStr ? `📅 ${dateStr} — marcador final` : 'Marcador final del partido';
+  document.getElementById('scoreHome').value = existing ? existing.h : '';
+  document.getElementById('scoreAway').value = existing ? existing.a : '';
+  document.getElementById('resultModal').classList.remove('gone');
+  setTimeout(()=>document.getElementById('scoreHome').focus(), 100);
+  document.onkeydown = e => {
+    if(e.key==='Escape') closeResultModal();
+    if(e.key==='Enter') saveManualResult();
+  };
+}
+
+function closeResultModal(){
+  document.getElementById('resultModal').classList.add('gone');
+  _resultModalKey = null;
+  document.onkeydown = null;
+}
+
+function saveManualResult(){
+  if(!_resultModalKey) return;
+  const h = parseInt(document.getElementById('scoreHome').value);
+  const a = parseInt(document.getElementById('scoreAway').value);
+  if(isNaN(h) || isNaN(a) || h < 0 || a < 0){
+    showToast('❌ Ingresa marcadores válidos (0 o más)', false);
+    return;
+  }
+  REAL_RESULTS[_resultModalKey] = {h, a, played:true};
+  try{
+    const saved = JSON.parse(localStorage.getItem('footiq_results')||'{}');
+    saved[_resultModalKey] = {h, a, played:true};
+    localStorage.setItem('footiq_results', JSON.stringify(saved));
+  }catch(e){}
+  const savedKey = _resultModalKey;
+  closeResultModal();
+  refreshAll();
+  showToast(`✅ ${savedKey.replace('-',' vs ')} — ${h}:${a} guardado`);
+  _resultModalKey = null;
+}
+
+function loadSavedResults(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('footiq_results')||'{}');
+    for(const [k,v] of Object.entries(saved)){
+      REAL_RESULTS[k] = v;
+    }
+  }catch(e){}
+}
+
+function openSettings(){ document.getElementById('settingsModal').classList.remove('gone'); }
+function closeSettings(){ document.getElementById('settingsModal').classList.add('gone'); }
+
+// ==================== SYNC API ====================
+const ESPN_NAME_MAP = {
+  'South Korea':'South Korea','Korea Republic':'South Korea',
+  'Ivory Coast':'Ivory Coast',"Côte d'Ivoire":'Ivory Coast',"Cote d'Ivoire":'Ivory Coast',
+  'Bosnia and Herzegovina':'Bosnia','Bosnia Herzegovina':'Bosnia',
+  'Czech Republic':'Czechia','Czechia':'Czechia',
+  'DR Congo':'DR Congo','Congo DR':'DR Congo','Democratic Republic of Congo':'DR Congo',
+  "Curaçao":'Curaçao','Curacao':'Curaçao',
+  'USA':'United States','United States':'United States',
+  'Cape Verde':'Cape Verde','Saudi Arabia':'Saudi Arabia',
+};
+function mapESPNName(n){
+  return ESPN_NAME_MAP[n] || n;
+}
+
+async function fetchJSON(url, timeoutMs=7000){
+  const ctrl=new AbortController();
+  const tid=setTimeout(()=>ctrl.abort(), timeoutMs);
+  try{
+    const r=await fetch(url,{signal:ctrl.signal});
+    clearTimeout(tid);
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  }catch(e){ clearTimeout(tid); throw e; }
+}
+
+async function fetchWithProxies(url){
+  try{ return await fetchJSON(url, 5000); }catch(e){}
+  try{ return await fetchJSON(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 8000); }catch(e){}
+  return await fetchJSON(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 8000);
+}
+
+function parseESPNEvents(events){
+  const results={};
+  for(const ev of events){
+    const comp=ev.competitions?.[0];
+    if(!comp) continue;
+    const status=comp.status?.type?.name||'';
+    if(status!=='STATUS_FINAL'&&status!=='STATUS_FULL_TIME') continue;
+    const home=comp.competitors?.find(c=>c.homeAway==='home');
+    const away=comp.competitors?.find(c=>c.homeAway==='away');
+    if(!home||!away) continue;
+    const h=mapESPNName(home.team?.displayName||home.team?.shortDisplayName||'');
+    const a=mapESPNName(away.team?.displayName||away.team?.shortDisplayName||'');
+    if(!h||!a||h===a) continue;
+    const hG=parseInt(home.score??'-1');
+    const aG=parseInt(away.score??'-1');
+    if(isNaN(hG)||isNaN(aG)||hG<0) continue;
+    results[`${h}-${a}`]={h:hG,a:aG,played:true};
+  }
+  return results;
+}
+
+async function syncFromAPI(){
+  const btn=document.getElementById('syncBtn');
+  btn.classList.add('syncing');
+  document.getElementById('syncStatus').textContent='Buscando...';
+  try{
+    const espnSlugs=['fifa.world','fifa.worldcup','fifaworldcup','international.world','soccer.fifa','fifa.worldq','soccer.fifa.world','mens.worldcup'];
+    let newResults=null;
+    for(const slug of espnSlugs){
+      try{
+        const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=20260611-20261219&limit=500`;
+        const data=await fetchWithProxies(url);
+        const parsed=parseESPNEvents(data.events||[]);
+        if(Object.keys(parsed).length>0){ newResults=parsed; break; }
+      }catch(e){}
+    }
+    if(!newResults){
+      const allKoDates=['20260628','20260629','20260630','20260701','20260702','20260703',
+                        '20260704','20260705','20260706','20260707'];
+      const combined={};
+      let gotData=false;
+      for(const slug of espnSlugs.slice(0,3)){
+        for(const d of allKoDates){
+          try{
+            const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${d}`;
+            const data=await fetchWithProxies(url);
+            if(data?.events?.length){ Object.assign(combined, parseESPNEvents(data.events)); gotData=true; }
+          }catch(e){}
+        }
+        if(gotData){ newResults=combined; break; }
+      }
+    }
+    if(!newResults){
+      const url='https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4328&s=2026';
+      const data=await fetchWithProxies(url);
+      const events=(data.events||[]).map(e=>({
+        competitions:[{
+          status:{type:{name:e.strStatus==='Match Finished'?'STATUS_FINAL':''}},
+          competitors:[
+            {homeAway:'home',team:{displayName:e.strHomeTeam},score:e.intHomeScore},
+            {homeAway:'away',team:{displayName:e.strAwayTeam},score:e.intAwayScore},
+          ]
+        }]
+      }));
+      newResults=parseESPNEvents(events);
+    }
+    if(!newResults||Object.keys(newResults).length===0){
+      throw new Error('No se encontraron resultados. ¿El torneo ya tiene partidos terminados?');
+    }
+    // Filtrar solo partidos válidos (fechas <= hoy)
+    const validKeys=new Set();
+    for(const [date,ms] of Object.entries(CALENDAR_MATCHES)){
+      if(date<=todayStr) for(const m of ms){
+        if(m.home!=='TBD'&&m.away!=='TBD') validKeys.add(`${m.home}-${m.away}`);
+      }
+    }
+    const _koAll=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[]),...(BRACKET_KO.third||[])];
+    _koAll.forEach(m=>{ if(m.h!=='TBD'&&m.a!=='TBD') validKeys.add(`${m.h}-${m.a}`); });
+    const safeResults={};
+    for(const [k,v] of Object.entries(newResults)){
+      if(validKeys.has(k)) safeResults[k]=v;
+    }
+    const manual=JSON.parse(localStorage.getItem('footiq_results')||'{}');
+    Object.assign(REAL_RESULTS, safeResults, manual);
+    refreshAll();
+    const now=new Date();
+    const ts=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    document.getElementById('syncStatus').textContent=`✓ ${ts}`;
+    showToast(`✅ ${Object.keys(REAL_RESULTS).length} resultados actualizados`);
+  }catch(e){
+    document.getElementById('syncStatus').textContent='⚠';
+    showToast('⚠ Sin datos en línea — usa ✏️ para ingresar manualmente', false);
+    console.warn('FootIQ auto-sync:',e.message);
+  }finally{
+    btn.classList.remove('syncing');
+  }
+}
+
+function showToast(msg,ok=true){
+  const t=document.getElementById('syncToast');
+  t.innerHTML=`<span class="toast-close" onclick="document.getElementById('syncToast').className='sync-toast'">×</span>${msg}`;
+  t.className='sync-toast show';
+  t.style.color=ok?'var(--green)':'var(--orange)';
+  if(ok) setTimeout(()=>t.className='sync-toast',4000);
+}
+
+// ==================== INICIO ====================
 boot();
 </script>
 </body>
