@@ -682,8 +682,8 @@ function buildBajasHtml(home,away){
   if(!ph&&!pa) return '';
   const abH=LINEUP_ABSENT[home]||[], abA=LINEUP_ABSENT[away]||[];
   const penH=getLineupPenalty(home),penA=getLineupPenalty(away);
-  const impactH=penH>0?`<div class="baja-impact">⚠️ Fuerza ${home} −${(penH*100).toFixed(0)}%</div>':'';
-  const impactA=penA>0?`<div class="baja-impact">⚠️ Fuerza ${away} −${(penA*100).toFixed(0)}%</div>':'';
+  const impactH=penH>0?`<div class="baja-impact">⚠️ Fuerza ${home} −${(penH*100).toFixed(0)}%</div>`:'';
+  const impactA=penA>0?`<div class="baja-impact">⚠️ Fuerza ${away} −${(penA*100).toFixed(0)}%</div>`:'';
   const pillsH=(ph||[]).map(p=>`<span class="baja-pill${abH.includes(p.n)?' absent':''}" onclick="toggleAbsent('${home}','${p.n}')">${p.n} <small>(${p.pos})</small></span>`).join('');
   const pillsA=(pa||[]).map(p=>`<span class="baja-pill${abA.includes(p.n)?' absent':''}" onclick="toggleAbsent('${away}','${p.n}')">${p.n} <small>(${p.pos})</small></span>`).join('');
   return `<div class="bajas-section">
