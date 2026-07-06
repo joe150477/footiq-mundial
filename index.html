@@ -2106,691 +2106,524 @@ function showTab(el,name){
 // Muestra leaderboard de precisión de los 4 modelos vs resultados reales,
 // partido a partido desde el comienzo del torneo.
 function renderComparativa(){
-  const pg = document.getElementById('page-comp');
+  const pg=document.getElementById('page-comp');
   if(!pg) return;
+  // Write header immediately so user sees SOMETHING
+  pg.innerHTML='<div style="padding:16px 12px"><div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:8px">📊 Comparativa de Modelos</div><div style="color:var(--muted);font-size:15px">Calculando...</div></div>';
 
-  // Obtener todos los partidos con resultado
-  const played = Object.entries(REAL_RESULTS)
-    .filter(([,r]) => r.played)
-    .map(([key, r]) => {
-      // Split on first hyphen that separates two team names
-      // All team names are known — find separator index
-      const parts = key.split('-');
-      if(parts.length < 2) return null;
-      // Rejoin: h = parts[0], a = parts[1..] OR find correct split via ALL_TEAMS
-      let h = null, a = null;
-      for(let i=1;i<parts.length;i++){
-        const th=parts.slice(0,i).join('-'), ta=parts.slice(i).join('-');
-        if(ALL_TEAMS.includes(th)&&ALL_TEAMS.includes(ta)){h=th;a=ta;break;}
+  try {
+    const MODS=['Principal (Integrado)','ELO (Historial)','ICC (Calidad)','Momentum (Forma)'];
+    const stats={};
+    MODS.forEach(m=>{ stats[m]={hits:0,total:0,brier:0,rows:[]}; });
+
+    // Build played list
+    const teamSet=new Set(ALL_TEAMS);
+    const played=[];
+    for(const [key,rr] of Object.entries(REAL_RESULTS)){
+      if(!rr.played) continue;
+      const p=key.split('-');
+      let h=null,a=null;
+      for(let i=1;i<p.length;i++){
+        const th=p.slice(0,i).join('-'),ta=p.slice(i).join('-');
+        if(teamSet.has(th)&&teamSet.has(ta)){h=th;a=ta;break;}
       }
-      if(!h){ h=parts[0]; a=parts.slice(1).join('-'); }
-      return {h, a, sh:r.h, sa:r.a, key};
-    })
-    .filter(Boolean);
+      if(!h){h=p[0];a=p.slice(1).join('-');}
+      if(h&&a&&h!==a) played.push({h,a,sh:Number(rr.h),sa:Number(rr.a),key});
+    }
 
-  if(!played.length){
-    pg.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">No hay resultados aún para comparar modelos.</div>';
-    return;
-  }
+    if(!played.length){
+      pg.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:17px">No hay partidos con resultado aún.</div>';
+      return;
+    }
 
-  // Para cada partido, obtener predicción de los 4 modelos
-  const models = ['Principal (Integrado)','ELO (Historial)','ICC (Calidad)','Momentum (Forma)'];
-  const stats = {
-    'Principal (Integrado)': {hits:0, total:0, brier:0, matches:[]},
-    'ELO (Historial)':       {hits:0, total:0, brier:0, matches:[]},
-    'ICC (Calidad)':         {hits:0, total:0, brier:0, matches:[]},
-    'Momentum (Forma)':      {hits:0, total:0, brier:0, matches:[]}
-  };
+    // Compute per match
+    played.forEach(m=>{
+      let actual='D';
+      if(m.sh>m.sa) actual='H';
+      else if(m.sa>m.sh) actual='A';
 
-  played.forEach(m => {
-    // Skip if team name split was bad (fallback guard)
-    if(!m.h || !m.a || m.h===m.a) return;
-    let pred;
-    try { pred = getCachedPrediction(m.h, m.a, null); } catch(e){ return; }
-    if(!pred || typeof pred.pH!=='number') return;
+      let pP={pH:.33,pD:.34,pA:.33};
+      try{ const r=getCachedPrediction(m.h,m.a,null); if(r&&!isNaN(r.pH)) pP=r; }catch(e){}
 
-    const rH = m.sh, rA = m.sa;
-    if(typeof rH!=='number' || typeof rA!=='number') return;
-    let actual;
-    if(rH > rA)       actual = 'H';
-    else if(rH < rA)  actual = 'A';
-    else               actual = 'D';
+      let eH=G.elo[m.h]||1500, eA=G.elo[m.a]||1500;
+      let iH=50,iA=50;
+      try{iH=getCachedICC(m.h)||50;iA=getCachedICC(m.a)||50;}catch(e){}
+      let mH={pts:0,matches:0},mA={pts:0,matches:0};
+      try{mH=getCachedMomentum(m.h)||mH;mA=getCachedMomentum(m.a)||mA;}catch(e){}
 
-    // Probabilidades por modelo
-    const iccH = getCachedICC(m.h)||50, iccA = getCachedICC(m.a)||50;
-    const eloH = G.elo[m.h]||1500,      eloA = G.elo[m.a]||1500;
-    const momH = getCachedMomentum(m.h), momA = getCachedMomentum(m.a);
+      const pmap={
+        'Principal (Integrado)':pP,
+        'ELO (Historial)':_mus_elo(eH,eA),
+        'ICC (Calidad)':_mus_icc(iH,iA),
+        'Momentum (Forma)':_mus_mom(mH,mA)
+      };
 
-    const pModels = {
-      'Principal (Integrado)': {pH:pred.pH, pD:pred.pD, pA:pred.pA},
-      'ELO (Historial)':       _mus_elo(eloH, eloA),
-      'ICC (Calidad)':         _mus_icc(iccH, iccA),
-      'Momentum (Forma)':      _mus_mom(momH, momA)
-    };
-
-    models.forEach(mod => {
-      const p = pModels[mod];
-      let predOut;
-      if(p.pH>=p.pA && p.pH>=p.pD)      predOut='H';
-      else if(p.pA>=p.pH && p.pA>=p.pD) predOut='A';
-      else                                predOut='D';
-
-      const hit = predOut===actual;
-      // Brier: (p_outcome - 1)^2 + others^2, simplified
-      const pActual = actual==='H'?p.pH: actual==='A'?p.pA: p.pD;
-      const brier = Math.pow(pActual-1,2) + Math.pow(actual==='H'?0:p.pH,2)
-                  + Math.pow(actual==='A'?0:p.pA,2) + Math.pow(actual==='D'?0:p.pD,2);
-
-      stats[mod].hits   += hit?1:0;
-      stats[mod].total  += 1;
-      stats[mod].brier  += brier/2; // half-Brier (0=perfect,1=worst)
-      stats[mod].matches.push({
-        key: m.key,
-        h: m.h, a: m.a,
-        sh: m.sh, sa: m.sa,
-        predOut, actual, hit,
-        pH:p.pH, pD:p.pD, pA:p.pA
+      MODS.forEach(mod=>{
+        const p=pmap[mod]||pP;
+        let pred='D';
+        if(p.pH>=p.pA&&p.pH>=p.pD) pred='H';
+        else if(p.pA>=p.pH&&p.pA>=p.pD) pred='A';
+        const hit=pred===actual;
+        const pAct=actual==='H'?p.pH:actual==='A'?p.pA:p.pD;
+        const brier=(Math.pow(pAct-1,2)+Math.pow(actual==='H'?0:p.pH,2)+Math.pow(actual==='A'?0:p.pA,2)+Math.pow(actual==='D'?0:p.pD,2))/2;
+        stats[mod].hits+=hit?1:0;
+        stats[mod].total+=1;
+        stats[mod].brier+=brier;
+        stats[mod].rows.push({h:m.h,a:m.a,sh:m.sh,sa:m.sa,pred,actual,hit});
       });
     });
-  });
 
-  // Sort models by accuracy desc
-  const sorted = models.slice().sort((a,b)=>{
-    const accA = stats[a].total?stats[a].hits/stats[a].total:0;
-    const accB = stats[b].total?stats[b].hits/stats[b].total:0;
-    return accB-accA;
-  });
-
-  let h = '<div style="padding:12px 0">';
-  h += '<div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:12px;padding:0 12px">📊 Comparativa de Modelos</div>';
-  h += '<div style="font-size:15px;color:var(--muted);margin-bottom:14px;padding:0 12px">';
-  h += 'Rendimiento real de cada modelo desde el partido 1 hasta hoy. '+played.length+' partidos con resultado.</div>';
-
-  // Leaderboard
-  h += '<div style="padding:0 8px;margin-bottom:16px">';
-  sorted.forEach((mod, idx) => {
-    const s = stats[mod];
-    const acc = s.total ? (s.hits/s.total*100).toFixed(1) : '0.0';
-    const brierAvg = s.total ? (s.brier/s.total).toFixed(3) : '—';
-    const medal = idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'4️⃣';
-    const barW = Math.round(parseFloat(acc));
-    const barC = idx===0?'var(--gold)':idx===1?'#aaa':idx===2?'#cd7f32':'var(--muted)';
-    h += '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:8px">';
-    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">';
-    h += '<span style="font-size:19px;font-weight:800">'+medal+' '+mod+'</span>';
-    h += '<span style="font-size:18px;font-weight:800;color:'+barC+'">'+acc+'%</span>';
-    h += '</div>';
-    h += '<div style="background:rgba(255,255,255,.08);border-radius:4px;height:7px;margin-bottom:5px">';
-    h += '<div style="background:'+barC+';width:'+barW+'%;height:7px;border-radius:4px"></div></div>';
-    h += '<div style="display:flex;gap:14px;font-size:14px;color:var(--muted)">';
-    h += '<span>✅ '+s.hits+'/'+s.total+' aciertos</span>';
-    h += '<span>Brier: '+brierAvg+' <span style="font-size:12px">(menor=mejor)</span></span>';
-    h += '</div></div>';
-  });
-  h += '</div>';
-
-  // Match-by-match table
-  h += '<div style="padding:0 8px">';
-  h += '<div style="font-size:17px;font-weight:800;margin-bottom:8px;color:var(--text)">Partido a partido</div>';
-  h += '<div style="overflow-x:auto">';
-  h += '<table style="width:100%;border-collapse:collapse;font-size:14px">';
-  h += '<thead><tr style="color:var(--muted);border-bottom:1px solid rgba(255,255,255,.1)">';
-  h += '<th style="text-align:left;padding:5px 6px;font-weight:600">Partido</th>';
-  h += '<th style="text-align:center;padding:5px 4px">Res.</th>';
-  sorted.forEach(mod=>{
-    h += '<th style="text-align:center;padding:5px 4px;font-size:13px">'+mod+'</th>';
-  });
-  h += '</tr></thead><tbody>';
-
-  // Use Principal model matches as reference (same set)
-  const refMatches = stats['Principal'].matches;
-  refMatches.forEach((rm, idx) => {
-    const row_bg = idx%2===0?'rgba(255,255,255,.02)':'transparent';
-    h += '<tr style="background:'+row_bg+';border-bottom:1px solid rgba(255,255,255,.04)">';
-    h += '<td style="padding:5px 6px;font-size:13px">'+FLAG(rm.h)+' '+rm.h+'<br><span style="font-size:12px;color:var(--muted)">vs '+FLAG(rm.a)+' '+rm.a+'</span></td>';
-    const rc=rm.actual==='H'?'var(--green)':rm.actual==='A'?'var(--orange)':'var(--yellow)';
-    const rl=rm.actual==='H'?rm.h:rm.actual==='A'?rm.a:'Empate';
-    h += '<td style="text-align:center;padding:5px 4px;font-size:13px;color:'+rc+'">'+rm.sh+'-'+rm.sa+'</td>';
-    sorted.forEach(mod => {
-      const mm = stats[mod].matches[idx];
-      const ok = mm && mm.hit;
-      h += '<td style="text-align:center;padding:5px 4px;font-size:17px">'+(ok?'✅':'❌')+'</td>';
+    // Sort by accuracy
+    const sorted=MODS.slice().sort((a,b)=>{
+      const accA=stats[a].total?stats[a].hits/stats[a].total:0;
+      const accB=stats[b].total?stats[b].hits/stats[b].total:0;
+      return accB-accA;
     });
-    h += '</tr>';
-  });
-  h += '</tbody></table></div></div>';
-  h += '</div>';
-  pg.innerHTML = h;
-}
 
+    let html='<div style="padding:12px 0">';
+    html+='<div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:6px;padding:0 12px">📊 Comparativa de Modelos</div>';
+    html+='<div style="font-size:15px;color:var(--muted);margin-bottom:14px;padding:0 12px">'+played.length+' partidos evaluados desde jornada 1 hasta hoy</div>';
 
-// ==================== PROGRESO Y BOOT ====================
-function setProgress(p,msg){
-  document.getElementById('progFill').style.width=Math.min(100,p)+'%';
-  document.getElementById('stepMsg').innerText=msg;
-}
+    // Leaderboard cards
+    html+='<div style="padding:0 8px;margin-bottom:14px">';
+    sorted.forEach((mod,idx)=>{
+      const s=stats[mod];
+      const acc=s.total?(s.hits/s.total*100).toFixed(1):'0.0';
+      const brierAvg=s.total?(s.brier/s.total).toFixed(3):'—';
+      const medal=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'4️⃣';
+      const barC=idx===0?'var(--gold)':idx===1?'#aaa':idx===2?'#cd7f32':'var(--muted)';
+      html+='<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">';
+      html+='<span style="font-size:18px;font-weight:800">'+medal+' '+mod+'</span>';
+      html+='<span style="font-size:18px;font-weight:800;color:'+barC+'">'+acc+'%</span>';
+      html+='</div>';
+      html+='<div style="background:rgba(255,255,255,.08);border-radius:4px;height:7px;margin-bottom:5px">';
+      html+='<div style="background:'+barC+';width:'+parseFloat(acc)+'%;height:7px;border-radius:4px"></div></div>';
+      html+='<div style="font-size:14px;color:var(--muted)">✅ '+s.hits+'/'+s.total+' aciertos &nbsp;·&nbsp; Brier: '+brierAvg+'</div>';
+      html+='</div>';
+    });
+    html+='</div>';
 
-// Reloj Colombia UTC-5 (no observa horario de verano)
-function updateColTime(){
-  const now = new Date();
-  // Convertir a UTC luego restar 5 horas → Colombia
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  const col = new Date(utcMs - 5 * 3600000);
-  const h = String(col.getHours()).padStart(2,'0');
-  const m = String(col.getMinutes()).padStart(2,'0');
-  const el = document.getElementById('colTime');
-  if(el) el.textContent = `🕐 ${h}:${m} COL`;
-}
-setInterval(updateColTime, 1000);
+    // Per-match table (last 20 matches for readability)
+    const refRows=stats[sorted[0]].rows;
+    const last=refRows.slice(-20);
+    html+='<div style="padding:0 8px">';
+    html+='<div style="font-size:16px;font-weight:800;margin-bottom:6px">Últimos '+last.length+' partidos</div>';
+    html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html+='<thead><tr style="color:var(--muted);border-bottom:1px solid rgba(255,255,255,.1)">';
+    html+='<th style="text-align:left;padding:4px 6px">Partido</th>';
+    html+='<th style="text-align:center;padding:4px">Res</th>';
+    sorted.forEach(mod=>{html+='<th style="text-align:center;padding:4px 3px;font-size:11px">'+mod.split(' ')[0]+'</th>';});
+    html+='</tr></thead><tbody>';
+    const offset=stats[sorted[0]].rows.length-last.length;
+    last.forEach((rm,i)=>{
+      const rb=i%2===0?'rgba(255,255,255,.02)':'transparent';
+      html+='<tr style="background:'+rb+';border-bottom:1px solid rgba(255,255,255,.03)">';
+      html+='<td style="padding:4px 6px">'+FLAG(rm.h)+' '+rm.h+'<br><span style="color:var(--muted);font-size:11px">vs '+FLAG(rm.a)+' '+rm.a+'</span></td>';
+      html+='<td style="text-align:center;padding:4px;font-weight:700">'+rm.sh+'-'+rm.sa+'</td>';
+      sorted.forEach(mod=>{
+        const r2=stats[mod].rows[offset+i];
+        html+='<td style="text-align:center;padding:4px;font-size:16px">'+(r2?r2.hit?'✅':'❌':'—')+'</td>';
+      });
+      html+='</tr>';
+    });
+    html+='</tbody></table></div></div></div>';
 
-async function boot(){
-  updateColTime();
-  loadSavedResults(); // Cargar resultados manuales guardados en localStorage
-  setProgress(5,'Inicializando ELO…'); initElo();
-  setProgress(15,'Monte Carlo — Modelo Actual (2k)…');
-  await runMC(2000,'actual',res=>{G.mc=res;});
-  setProgress(100,'¡Listo!');
-  document.getElementById('statusDot').className='sdot ok';
-  document.getElementById('modelScore').innerText='✓ OK';
-  setTimeout(()=>{
-    document.getElementById('overlay').classList.add('gone');
-    // Render lazy: solo la pestaña activa (Campeón) al arrancar
-    renderChamp();
-    // Pre-calcular perfil/ICC/momentum en tiempo libre
-    const ric=typeof requestIdleCallback==='function'?requestIdleCallback:cb=>setTimeout(cb,200);
-    ric(()=>{ ALL_TEAMS.forEach(t=>{ getCachedPerfil(t); getCachedICC(t); getCachedMomentum(t); }); });
-    // Auto-sync de resultados al arrancar
-    setTimeout(()=>syncFromAPI(), 1200);
-  },200);
-}
+    pg.innerHTML=html;
 
-// ==================== INTEGRACIÓN API FOOTBALL-DATA.ORG ====================
-
-// Mapeo de nombres de equipos: API → nuestros nombres
-const FD_NAME_MAP = {
-  'Korea Republic':'South Korea','United States':'United States',
-  'Côte d\'Ivoire':'Ivory Coast',"Cote d'Ivoire":'Ivory Coast',
-  'Bosnia and Herzegovina':'Bosnia','Bosnia Herzegovina':'Bosnia',
-  'Czechia':'Czechia','Czech Republic':'Czechia',
-  'DR Congo':'DR Congo','Congo DR':'DR Congo','Democratic Republic of Congo':'DR Congo',
-  'Curaçao':'Curaçao','Curacao':'Curaçao',
-  'New Zealand':'New Zealand','Saudi Arabia':'Saudi Arabia',
-  'Cape Verde':'Cape Verde','Scotland':'Scotland',
-  'Panama':'Panama','Paraguay':'Paraguay','Uruguay':'Uruguay',
-  'Morocco':'Morocco','Algeria':'Algeria','Tunisia':'Tunisia',
-  'Senegal':'Senegal','Ghana':'Ghana','Ivory Coast':'Ivory Coast',
-  'South Africa':'South Africa','Egypt':'Egypt','Uzbekistan':'Uzbekistan',
-  'Iran':'Iran','Iraq':'Iraq','Jordan':'Jordan','Qatar':'Qatar',
-};
-function mapFDName(n){ return FD_NAME_MAP[n]||n; }
-
-// Convierte fecha UTC de la API a fecha y hora en Colombia (UTC-5)
-function utcToCol(utcStr){
-  const d=new Date(utcStr);
-  const col=new Date(d.getTime()-5*60*60*1000);
-  const Y=col.getUTCFullYear();
-  const M=String(col.getUTCMonth()+1).padStart(2,'0');
-  const D=String(col.getUTCDate()).padStart(2,'0');
-  const h=String(col.getUTCHours()).padStart(2,'0');
-  const mn=String(col.getUTCMinutes()).padStart(2,'0');
-  return {date:`${Y}-${M}-${D}`,time:`${h}:${mn}`};
-}
-
-function showToast(msg,ok=true){
-  const t=document.getElementById('syncToast');
-  t.innerHTML=`<span class="toast-close" onclick="document.getElementById('syncToast').className='sync-toast'">×</span>${msg}`;
-  t.className='sync-toast show';
-  t.style.color=ok?'var(--green)':'var(--orange)';
-  // Errores: persistente hasta que el usuario cierre. Éxitos: auto-cierre 4s.
-  if(ok) setTimeout(()=>t.className='sync-toast',4000);
-}
-
-// ==================== INGRESO MANUAL DE RESULTADOS ====================
-let _resultModalKey = null;
-
-function openResultModal(home, away, dateStr){
-  _resultModalKey = `${home}-${away}`;
-  const existing = REAL_RESULTS[_resultModalKey];
-  document.getElementById('resultModalTitle').textContent = `${FLAG(home)} ${home}  vs  ${FLAG(away)} ${away}`;
-  document.getElementById('resultModalSub').textContent = dateStr ? `📅 ${dateStr} — marcador final` : 'Marcador final del partido';
-  document.getElementById('scoreHome').value = existing ? existing.h : '';
-  document.getElementById('scoreAway').value = existing ? existing.a : '';
-  document.getElementById('resultModal').classList.remove('gone');
-  setTimeout(()=>document.getElementById('scoreHome').focus(), 100);
-  // Cerrar con Escape, guardar con Enter
-  document.onkeydown = e => {
-    if(e.key==='Escape') closeResultModal();
-    if(e.key==='Enter') saveManualResult();
-  };
-}
-
-
-function closeResultModal(){
-  document.getElementById('resultModal').classList.add('gone');
-  _resultModalKey = null;
-}
-
-function saveManualResult(){
-  if(!_resultModalKey) return;
-  const h = parseInt(document.getElementById('scoreHome').value);
-  const a = parseInt(document.getElementById('scoreAway').value);
-  if(isNaN(h) || isNaN(a) || h < 0 || a < 0){
-    showToast('❌ Ingresa marcadores válidos (0 o más)', false);
-    return;
+  } catch(err){
+    pg.innerHTML='<div style="padding:16px;color:orange;font-size:14px">⚠️ Error en Comparativa: '+err.message+'<br><pre style="font-size:11px;overflow:auto">'+err.stack+'</pre></div>';
   }
-  REAL_RESULTS[_resultModalKey] = {h, a, played:true};
-  // Persist in localStorage so it survives page reload
-  try{
-    const saved = JSON.parse(localStorage.getItem('footiq_results')||'{}');
-    saved[_resultModalKey] = {h, a, played:true};
-    localStorage.setItem('footiq_results', JSON.stringify(saved));
-  }catch(e){}
-  const savedKey = _resultModalKey;
-  closeResultModal();
-  // Limpiar cachés y recalibrar ELO
-  _clearStandings(); _clearPredCache(); invalidateCache('results');
-  recalibrateELO();
-  renderHoy();
-  renderDuel();
-  renderChamp();
-  showToast(`✅ ${savedKey.replace('-',' vs ')} — ${h}:${a} guardado`);
-  _resultModalKey = null;
 }
 
-// Load manual results from localStorage on boot
-function loadSavedResults(){
-  try{
-    const saved = JSON.parse(localStorage.getItem('footiq_results')||'{}');
-    for(const [k,v] of Object.entries(saved)){
-      REAL_RESULTS[k] = v;
-    }
-  }catch(e){}
-}
-
-function openSettings(){ document.getElementById('settingsModal').classList.remove('gone'); }
-function closeSettings(){ document.getElementById('settingsModal').classList.add('gone'); }
-
-// ==================== AUTO-SYNC SIN API KEY ====================
-// Usa ESPN Public API (gratis, sin autenticación) con proxies CORS como respaldo.
-// No requiere cuenta ni clave de ningún tipo.
-
-const ESPN_NAME_MAP = {
-  // ESPN → nombre interno FootIQ
-  'South Korea':'South Korea','Korea Republic':'South Korea',
-  'Ivory Coast':'Ivory Coast',"Côte d'Ivoire":'Ivory Coast',"Cote d'Ivoire":'Ivory Coast',
-  'Bosnia and Herzegovina':'Bosnia','Bosnia Herzegovina':'Bosnia',
-  'Czech Republic':'Czechia','Czechia':'Czechia',
-  'DR Congo':'DR Congo','Congo DR':'DR Congo','Democratic Republic of Congo':'DR Congo',
-  "Curaçao":'Curaçao','Curacao':'Curaçao',
-  'USA':'United States','United States':'United States',
-  'Cape Verde':'Cape Verde','Saudi Arabia':'Saudi Arabia',
+// ==================== BRACKET KO ====================
+let BRACKET_KO = {
+  r32: [
+    {h:'South Africa',  a:'Canada',     date:'Jun 28', time:'14:00', sh:null, sa:null},
+    {h:'Brazil',        a:'Japan',       date:'Jun 29', time:'12:00', sh:null, sa:null},
+    {h:'Germany',       a:'Paraguay',    date:'Jun 29', time:'15:30', sh:null, sa:null},
+    {h:'Netherlands',   a:'Morocco',     date:'Jun 29', time:'20:00', sh:null, sa:null},
+    {h:'Spain',         a:'Austria',     date:'Jul 2',  time:'14:00', sh:null, sa:null},
+    {h:'Portugal',      a:'Croatia',     date:'Jul 2',  time:'18:00', sh:null, sa:null},
+    {h:'France',        a:'Sweden',      date:'Jun 30', time:'16:00', sh:null, sa:null},
+    {h:'Ivory Coast',   a:'Norway',      date:'Jun 30', time:'12:00', sh:null, sa:null},
+    {h:'Mexico',        a:'Ecuador',     date:'Jun 30', time:'20:00', sh:null, sa:null},
+    {h:'England',       a:'DR Congo',    date:'Jul 1',  time:'11:00', sh:null, sa:null},
+    {h:'Belgium',       a:'Senegal',     date:'Jul 1',  time:'15:00', sh:null, sa:null},
+    {h:'United States', a:'Bosnia',      date:'Jul 1',  time:'19:00', sh:null, sa:null},
+    {h:'Switzerland',   a:'Algeria',     date:'Jul 2',  time:'22:00', sh:null, sa:null},
+    {h:'Australia',     a:'Egypt',       date:'Jul 3',  time:'13:00', sh:null, sa:null},
+    {h:'Argentina',     a:'Cape Verde',  date:'Jul 3',  time:'17:00', sh:null, sa:null},
+    {h:'Colombia',      a:'Ghana',       date:'Jul 3',  time:'20:30', sh:null, sa:null},
+  ],
+  r16: [
+    {h:'TBD',a:'TBD',date:'Jul 4', time:'12:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 4', time:'16:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 5', time:'15:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 5', time:'19:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 6', time:'14:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 6', time:'19:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 7', time:'11:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 7', time:'15:00', sh:null, sa:null},
+  ],
+  qf: [
+    {h:'TBD',a:'TBD',date:'Jul 9',  time:'15:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 10', time:'14:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 11', time:'16:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 11', time:'20:00', sh:null, sa:null},
+  ],
+  sf: [
+    {h:'TBD',a:'TBD',date:'Jul 14', time:'14:00', sh:null, sa:null},
+    {h:'TBD',a:'TBD',date:'Jul 15', time:'14:00', sh:null, sa:null},
+  ],
+  f:     [{h:'TBD',a:'TBD',date:'Jul 19', time:'14:00', sh:null, sa:null}],
+  third: [{h:'TBD',a:'TBD',date:'Jul 18', time:'16:00', sh:null, sa:null}],
 };
-function mapESPNName(n){
-  return ESPN_NAME_MAP[n] || FD_NAME_MAP[n] || n;
+
+function setProgress(pct, msg){
+  const fill=document.getElementById('progFill');
+  const step=document.getElementById('stepMsg');
+  if(fill) fill.style.width=Math.min(100,pct)+'%';
+  if(step&&msg) step.textContent=msg;
 }
 
-async function fetchJSON(url, timeoutMs=7000){
-  const ctrl=new AbortController();
-  const tid=setTimeout(()=>ctrl.abort(), timeoutMs);
-  try{
-    const r=await fetch(url,{signal:ctrl.signal});
-    clearTimeout(tid);
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.json();
-  }catch(e){ clearTimeout(tid); throw e; }
+// ==================== ESPN SYNC ====================
+const ESPN_NAME_MAP={
+  'USA':'United States','US':'United States','United States of America':'United States',
+  'Korea Republic':'South Korea','Republic of Korea':'South Korea',
+  'IR Iran':'Iran','Iran (Islamic Republic)':'Iran',
+  "Cote d'Ivoire":'Ivory Coast','Cote D Ivoire':'Ivory Coast',
+  'Bosnia and Herzegovina':'Bosnia','Bosnia & Herzegovina':'Bosnia',
+  'Democratic Republic of Congo':'DR Congo','Congo DR':'DR Congo','Congo, DR':'DR Congo',
+  'Cabo Verde':'Cape Verde',
+  'Czech Republic':'Czechia',
+};
+function mapESPNName(raw){
+  if(!raw) return raw;
+  return ESPN_NAME_MAP[raw.trim()]||raw.trim();
 }
-
-async function fetchWithProxies(url){
-  // 1) Intento directo
-  try{ return await fetchJSON(url, 5000); }catch(e){}
-  // 2) allorigins.win
-  try{ return await fetchJSON(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 8000); }catch(e){}
-  // 3) corsproxy.io
-  return await fetchJSON(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 8000);
-}
-
-function parseESPNEvents(events){
+function parseESPNEvents(data,teamSet){
   const results={};
+  const events=(data&&data.events)||
+    (data&&data.sports&&data.sports[0]&&data.sports[0].leagues&&
+     data.sports[0].leagues[0]&&data.sports[0].leagues[0].events)||[];
   for(const ev of events){
-    const comp=ev.competitions?.[0];
-    if(!comp) continue;
-    const status=comp.status?.type?.name||'';
-    if(status!=='STATUS_FINAL'&&status!=='STATUS_FULL_TIME') continue;
-    const home=comp.competitors?.find(c=>c.homeAway==='home');
-    const away=comp.competitors?.find(c=>c.homeAway==='away');
-    if(!home||!away) continue;
-    const h=mapESPNName(home.team?.displayName||home.team?.shortDisplayName||'');
-    const a=mapESPNName(away.team?.displayName||away.team?.shortDisplayName||'');
-    if(!h||!a||h===a) continue;
-    const hG=parseInt(home.score??'-1');
-    const aG=parseInt(away.score??'-1');
-    if(isNaN(hG)||isNaN(aG)||hG<0) continue;
-    results[`${h}-${a}`]={h:hG,a:aG,played:true};
+    const comps=ev.competitions||[];
+    for(const c of comps){
+      const teams=c.competitors||[];
+      if(teams.length<2) continue;
+      const homeObj=teams.find(function(t){return t.homeAway==='home';})||teams[0];
+      const awayObj=teams.find(function(t){return t.homeAway==='away';})||teams[1];
+      const h=mapESPNName((homeObj.team&&(homeObj.team.displayName||homeObj.team.name))||'');
+      const a=mapESPNName((awayObj.team&&(awayObj.team.displayName||awayObj.team.name))||'');
+      if(!h||!a||h===a) continue;
+      if(teamSet&&!teamSet.has(h)&&!teamSet.has(a)) continue;
+      const completed=!!(c.status&&c.status.type&&
+        (c.status.type.completed||c.status.type.name==='STATUS_FINAL'||
+         c.status.type.id==='3'));
+      if(!completed) continue;
+      const sh=parseInt(homeObj.score,10), sa=parseInt(awayObj.score,10);
+      if(isNaN(sh)||isNaN(sa)) continue;
+      let penH,penA;
+      const notes=c.notes||[];
+      for(let ni=0;ni<notes.length;ni++){
+        const nm=((notes[ni].headline||notes[ni].text)||'').match(/(\d+)[^\d](\d+)\s*(pen|pens|penalties)/i);
+        if(nm){penH=parseInt(nm[1]);penA=parseInt(nm[2]);break;}
+      }
+      const entry={h:sh,a:sa,played:true};
+      if(penH!==undefined){entry.penH=penH;entry.penA=penA;}
+      entry.winnerTeam=penH!==undefined?(penH>penA?h:a):(sh>sa?h:sa>sh?a:null);
+      results[h+'-'+a]=entry;
+    }
   }
   return results;
 }
-
+async function fetchJSON(url){
+  const resp=await fetch(url,{signal:AbortSignal.timeout(7000)});
+  if(!resp.ok) throw new Error('HTTP '+resp.status);
+  return resp.json();
+}
+async function fetchWithProxies(url){
+  try{return await fetchJSON(url);}catch(e){}
+  const px=[
+    function(u){return 'https://corsproxy.io/?'+encodeURIComponent(u);},
+    function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);},
+    function(u){return 'https://thingproxy.freeboard.io/fetch/'+u;},
+  ];
+  for(let pi=0;pi<px.length;pi++){try{return await fetchJSON(px[pi](url));}catch(e){}}
+  throw new Error('All proxies failed');
+}
 async function syncFromAPI(){
   const btn=document.getElementById('syncBtn');
-  btn.classList.add('syncing');
-  document.getElementById('syncStatus').textContent='Buscando...';
+  const dot=document.getElementById('statusDot');
+  if(btn) btn.textContent='⏳';
+  if(dot) dot.className='sdot';
   try{
-    // ESPN public scoreboard — FIFA World Cup 2026
-    // Intentamos múltiples slugs que ESPN puede usar para el torneo
-    const espnSlugs=['fifa.world','fifa.worldcup','fifaworldcup','international.world','soccer.fifa','fifa.worldq','soccer.fifa.world','mens.worldcup'];
-    let newResults=null;
-    // Intento 1: rango completo
-    for(const slug of espnSlugs){
+    const teamSet=new Set(ALL_TEAMS);
+    const slugs=['fifa.world','fifa.worldcup','fifaworldcup','international.world','soccer.fifa','fifa.worldq','soccer.fifa.world','mens.worldcup'];
+    let found={};
+    // Pass 1: date-range query
+    for(let si=0;si<slugs.length;si++){
       try{
-        const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=20260611-20261219&limit=500`;
-        const data=await fetchWithProxies(url);
-        const parsed=parseESPNEvents(data.events||[]);
-        if(Object.keys(parsed).length>0){ newResults=parsed; break; }
+        const d=await fetchWithProxies('https://site.api.espn.com/apis/site/v2/sports/soccer/'+slugs[si]+'/scoreboard?dates=20260628-20260719&limit=100');
+        const p=parseESPNEvents(d,teamSet);
+        if(Object.keys(p).length){Object.assign(found,p);break;}
       }catch(e){}
     }
-    // Intento 2: consultas por fecha individual (fallback si rango no funciona)
-    if(!newResults){
-      const allKoDates=['20260628','20260629','20260630','20260701','20260702','20260703',
-                        '20260704','20260705','20260706','20260707'];
-      const combined={};
-      let gotData=false;
-      for(const slug of espnSlugs.slice(0,3)){
-        for(const d of allKoDates){
-          try{
-            const url=`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=${d}`;
-            const data=await fetchWithProxies(url);
-            if(data?.events?.length){ Object.assign(combined, parseESPNEvents(data.events)); gotData=true; }
-          }catch(e){}
+    // Pass 2: per-date supplement for last 5 days
+    const now2=new Date();
+    for(let dd=0;dd<=5;dd++){
+      const dt=new Date(now2);dt.setDate(dt.getDate()-dd);
+      const ds=dt.getFullYear()+''+String(dt.getMonth()+1).padStart(2,'0')+String(dt.getDate()).padStart(2,'0');
+      for(let si2=0;si2<Math.min(4,slugs.length);si2++){
+        try{
+          const data=await fetchWithProxies('https://site.api.espn.com/apis/site/v2/sports/soccer/'+slugs[si2]+'/scoreboard?dates='+ds);
+          const p2=parseESPNEvents(data,teamSet);
+          if(Object.keys(p2).length){Object.assign(found,p2);break;}
+        }catch(e){}
+      }
+    }
+    // Merge found results into REAL_RESULTS (validate both teams in ALL_TEAMS)
+    const foundKeys=Object.keys(found);
+    for(let ki=0;ki<foundKeys.length;ki++){
+      const key=foundKeys[ki]; const v=found[key];
+      if(!v||!v.played) continue;
+      const parts=key.split('-');
+      let h2=null,a2=null;
+      for(let i=1;i<parts.length;i++){
+        const th=parts.slice(0,i).join('-'),ta=parts.slice(i).join('-');
+        if(teamSet.has(th)&&teamSet.has(ta)){h2=th;a2=ta;break;}
+      }
+      if(!h2||!a2||h2===a2) continue;
+      const rk=h2+'-'+a2;
+      if(!REAL_RESULTS[rk]||!REAL_RESULTS[rk].played){
+        REAL_RESULTS[rk]=v;
+      } else {
+        if(v.penH!==undefined&&REAL_RESULTS[rk].penH===undefined){
+          REAL_RESULTS[rk].penH=v.penH;REAL_RESULTS[rk].penA=v.penA;
         }
-        if(gotData){ newResults=combined; break; }
+        if(v.winnerTeam&&!REAL_RESULTS[rk].winnerTeam) REAL_RESULTS[rk].winnerTeam=v.winnerTeam;
       }
     }
-    // TheSportsDB como respaldo (clave pública "3", sin auth)
-    if(!newResults){
-      const url='https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4328&s=2026';
-      const data=await fetchWithProxies(url);
-      const events=(data.events||[]).map(e=>({
-        competitions:[{
-          status:{type:{name:e.strStatus==='Match Finished'?'STATUS_FINAL':''}},
-          competitors:[
-            {homeAway:'home',team:{displayName:e.strHomeTeam},score:e.intHomeScore},
-            {homeAway:'away',team:{displayName:e.strAwayTeam},score:e.intAwayScore},
-          ]
-        }]
-      }));
-      newResults=parseESPNEvents(events);
-    }
-    if(!newResults||Object.keys(newResults).length===0){
-      throw new Error('No se encontraron resultados. ¿El torneo ya tiene partidos terminados?');
-    }
-    // FILTRO DE SEGURIDAD: solo aceptar resultados de partidos en fechas <= hoy
-    // Para fase de grupos: usar CALENDAR_MATCHES. Para KO: usar BRACKET_KO directamente.
-    const validKeys=new Set();
-    for(const [date,ms] of Object.entries(CALENDAR_MATCHES)){
-      if(date<=todayStr) for(const m of ms){
-        if(m.home!=='TBD'&&m.away!=='TBD') validKeys.add(`${m.home}-${m.away}`);
-      }
-    }
-    // Agregar partidos KO conocidos de BRACKET_KO (incluso si CALENDAR_MATCHES tiene TBD)
-    const _koAll=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[]),...(BRACKET_KO.third||[])];
-    _koAll.forEach(m=>{ if(m.h!=='TBD'&&m.a!=='TBD') validKeys.add(`${m.h}-${m.a}`); });
-    const safeResults={};
-    for(const [k,v] of Object.entries(newResults)){
-      if(validKeys.has(k)) safeResults[k]=v;
-    }
-    // Mezclar: resultados del servidor (solo fechas pasadas) + manuales del usuario (manual tiene prioridad)
-    const manual=JSON.parse(localStorage.getItem('footiq_results')||'{}');
-    Object.assign(REAL_RESULTS, safeResults, manual);
-    _clearStandings(); _clearPredCache(); invalidateCache('results');
+    // Persist to localStorage
+    try{
+      const save={};
+      const allRRKeys=Object.keys(REAL_RESULTS);
+      for(let i=0;i<allRRKeys.length;i++){const rv=REAL_RESULTS[allRRKeys[i]];if(rv&&rv.played)save[allRRKeys[i]]=rv;}
+      localStorage.setItem('footiq_results',JSON.stringify(save));
+    }catch(e){}
     recalibrateELO();
+    invalidateCache('all');
     renderHoy();
-    renderDuel();
     renderChamp();
-    if(document.getElementById('page-comp')?.classList.contains('active')) renderComparativa();
-    const now=new Date();
-    const ts=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    document.getElementById('syncStatus').textContent=`✓ ${ts}`;
-    showToast(`✅ ${Object.keys(REAL_RESULTS).length} resultados actualizados`);
-  }catch(e){
-    document.getElementById('syncStatus').textContent='⚠';
-    showToast('⚠ Sin datos en línea — usa ✏️ para ingresar manualmente', false);
-    console.warn('FootIQ auto-sync:',e.message);
-  }finally{
-    btn.classList.remove('syncing');
+    const atab=document.querySelector('.tab.active');
+    if(atab){
+      const ao=atab.getAttribute('onclick')||'';
+      if(ao.indexOf('comp')>-1) renderComparativa();
+      else if(ao.indexOf('duel')>-1){computeModelScores();renderDuel();}
+    }
+    computeModelScores();
+    const ms=MODEL_SCORES.actual;
+    const pill=document.getElementById('modelScore');
+    if(pill&&ms.total) pill.textContent=Math.round(ms.cw/ms.total*100)+'%';
+    if(dot) dot.className='sdot ok';
+    if(btn) btn.textContent='🔄';
+  }catch(err){
+    if(btn) btn.textContent='🔄';
+    if(dot) dot.className='sdot';
+    console.warn('[FootIQ] sync error:',err);
   }
 }
 
-// processAPIData eliminado (código muerto desde migración a syncFromAPI)
+// ==================== PERSISTENCIA ====================
+function loadSavedResults(){
+  try{
+    const raw=localStorage.getItem('footiq_results');
+    if(!raw) return;
+    const saved=JSON.parse(raw);
+    const savedKeys=Object.keys(saved);
+    for(let i=0;i<savedKeys.length;i++){
+      const k=savedKeys[i]; const v=saved[k];
+      if(!v||!v.played) continue;
+      if(!REAL_RESULTS[k]||!REAL_RESULTS[k].played){
+        REAL_RESULTS[k]=v;
+      } else {
+        if(v.penH!==undefined&&REAL_RESULTS[k].penH===undefined){
+          REAL_RESULTS[k].penH=v.penH;REAL_RESULTS[k].penA=v.penA;
+        }
+        if(v.winnerTeam&&!REAL_RESULTS[k].winnerTeam) REAL_RESULTS[k].winnerTeam=v.winnerTeam;
+      }
+    }
+  }catch(e){console.warn('[FootIQ] loadSavedResults:',e);}
+}
 
-function _applyRealResultsToElo(){
-  for(const [key,res] of Object.entries(REAL_RESULTS)){
-    if(!res.played) continue;
-    const [h,a]=key.split('-');
-    const K=30;
-    const eh=G.elo[h]||1500, ea=G.elo[a]||1500;
-    const expH=1/(1+Math.pow(10,(ea-eh)/400));
-    const actualH=res.h>res.a?1:res.h===res.a?0.5:0;
-    // Multiplicador por diferencia de goles (estándar World Football Elo):
-    // gd=1→×1.0 | gd=2→×1.5 | gd=3→×1.75 | gd=4+→×1.75+0.5*ln(gd-2)
-    const gd=Math.abs(res.h-res.a);
-    const kdAdj=gd<=1?1:gd===2?1.5:gd===3?1.75:1.75+0.5*Math.log(gd-2);
-    const Keff=Math.round(K*kdAdj);
-    G.elo[h]=Math.round(eh+Keff*(actualH-expH));
-    G.elo[a]=Math.round(ea+Keff*((1-actualH)-(1-expH)));
+// ==================== ELO RECALIBRACIÓN ====================
+function _applyRealResultsToElo(elo){
+  if(!elo) elo=G.elo;
+  const K=32;
+  const rrKeys=Object.keys(REAL_RESULTS);
+  for(let i=0;i<rrKeys.length;i++){
+    const key=rrKeys[i]; const r=REAL_RESULTS[key];
+    if(!r||!r.played) continue;
+    const parts=key.split('-');
+    if(parts.length<2) continue;
+    const h=parts[0],a=parts.slice(1).join('-');
+    if(!h||!a||h===a) continue;
+    const eH=elo[h]||1500,eA=elo[a]||1500;
+    const expH=1/(1+Math.pow(10,(eA-eH)/400));
+    const actH=Number(r.h)>Number(r.a)?1:Number(r.a)>Number(r.h)?0:0.5;
+    elo[h]=Math.round(eH+K*(actH-expH));
+    elo[a]=Math.round(eA+K*((1-actH)-(1-expH)));
   }
 }
 function recalibrateELO(){
-  // Partir siempre de ELO pre-torneo y aplicar resultados reales en orden cronológico.
-  // Evita el doble conteo de partidos ya incorporados en initElo().
-  ALL_TEAMS.forEach(t=>G.elo[t]=ELO_PRE[t]||1500);
-  _applyRealResultsToElo();
-  updateDynamicRatings();
+  const elo=Object.assign({},ELO_PRE);
+  _applyRealResultsToElo(elo);
+  G.elo=elo;
+  _clearPredCache();
+  if(FOOTIQ_CACHE&&FOOTIQ_CACHE.predictions) FOOTIQ_CACHE.predictions.clear();
 }
 
-// ==================== BRACKET ELIMINATORIO ====================
-// Equipos se llenan automáticamente cuando se agreguen resultados de eliminatorias.
-// Claves: h/a = equipos, sh/sa = goles, pen = penales (si aplica), date/time en COT
-let BRACKET_KO = {
-  // ── FUENTE OFICIAL: ESPN bracket visual (espn.com.co/futbol/cuadro) ──
-  // Orden visual top→bottom tal como aparece en el cuadro ESPN.
-  // codeH/codeA = código de posición de grupo ("1F","2C","3rd-ABCDF").
-  // h/a = equipos confirmados. Parejas: r32[0]+r32[1]→r16[0], r32[2]+r32[3]→r16[1], etc.
-  // Fuente bracket: ESPN/FIFA oficial. 3ros asignados: PAR→3D, SWE→3F, ECU→3E, DR C→3K, SEN→3I, BOS→3B, ALG→3J, GHA→3L
-  r32:[
-    // [0] P74 → par con [1], feeds r16[0] — AET: Alemania eliminada (Pens 3-4)
-    {h:'Germany',       a:'Paraguay',    sh:1,sa:1,pen_h:3,pen_a:4,date:'Jun 29',time:'15:30'},
-    // [1] P77
-    {h:'France',        a:'Sweden',      sh:null,sa:null,date:'Jun 30',time:'16:00'},
-    // [2] P73 → par con [3], feeds r16[1] — FT: South Africa 0-1 Canada
-    {h:'South Africa',  a:'Canada',      sh:0,   sa:1,   date:'Jun 28',time:'14:00'},
-    // [3] P75 — AET: Países Bajos eliminado (Pens 2-3) ¡SORPRESA MUNDIAL!
-    {h:'Netherlands',   a:'Morocco',     sh:1,sa:1,pen_h:2,pen_a:3,date:'Jun 29',time:'20:00'},
-    // [4] P83 → par con [5], feeds r16[2]
-    {h:'Portugal',      a:'Croatia',     sh:null,sa:null,date:'Jul 2', time:'18:00'},
-    // [5] P84
-    {h:'Spain',         a:'Austria',     sh:null,sa:null,date:'Jul 2', time:'14:00'},
-    // [6] P81 → par con [7], feeds r16[3]
-    {h:'United States', a:'Bosnia',      sh:null,sa:null,date:'Jul 1', time:'19:00'},
-    // [7] P82
-    {h:'Belgium',       a:'Senegal',     sh:null,sa:null,date:'Jul 1', time:'15:00'},
-    // [8] P76 → par con [9], feeds r16[4] — FT: Brasil clasifica
-    {h:'Brazil',        a:'Japan',       sh:2,sa:1,date:'Jun 29',time:'12:00'},
-    // [9] P78
-    {h:'Ivory Coast',   a:'Norway',      sh:1,sa:2,      date:'Jun 30',time:'12:00'},
-    // [10] P79 → par con [11], feeds r16[5]
-    {h:'Mexico',        a:'Ecuador',     sh:null,sa:null,date:'Jun 30',time:'20:00'},
-    // [11] P80
-    {h:'England',       a:'DR Congo',    sh:null,sa:null,date:'Jul 1', time:'11:00'},
-    // [12] P86 → par con [13], feeds r16[6]
-    {h:'Argentina',     a:'Cape Verde',  sh:null,sa:null,date:'Jul 3', time:'17:00'},
-    // [13] P88
-    {h:'Australia',     a:'Egypt',       sh:null,sa:null,date:'Jul 3', time:'13:00'},
-    // [14] P85 → par con [15], feeds r16[7]
-    {h:'Switzerland',   a:'Algeria',     sh:null,sa:null,date:'Jul 2', time:'22:00'},
-    // [15] P87
-    {h:'Colombia',      a:'Ghana',       sh:null,sa:null,date:'Jul 3', time:'20:30'},
-  ],
-  r16:[
-    {h:'TBD',    a:'TBD',    sh:null,sa:null,date:'Jul 4', time:'12:00'},  // P90 — Paraguay vs {France|Sweden}
-    {h:'Canada', a:'Morocco',sh:null,sa:null,date:'Jul 4', time:'16:00'},  // P89 ✓ confirmado
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 5', time:'15:00'},  // P91
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 5', time:'19:00'},  // P92
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 6', time:'14:00'},  // P93
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 6', time:'19:00'},  // P94
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 7', time:'11:00'},  // P95
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 7', time:'15:00'},  // P96
-  ],
-  qf:[
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 9', time:'15:00'},  // P97
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 11',time:'16:00'},  // P99
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 10',time:'14:00'},  // P98
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 11',time:'20:00'},  // P100
-  ],
-  sf:[
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 14',time:'14:00'},  // P101
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 15',time:'14:00'},  // P102
-  ],
-  third:[
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 18',time:'16:00'},
-  ],
-  f:[
-    {h:'TBD',a:'TBD',sh:null,sa:null,date:'Jul 19',time:'14:00'},
-  ]
-};
-
-// ── MAPA DE NOMBRES ESPN → FOOTIQ ──
-const ESPN_NAME={
-  "Côte d'Ivoire":"Ivory Coast","Cote d'Ivoire":"Ivory Coast","Ivory Coast":"Ivory Coast",
-  "Bosnia and Herzegovina":"Bosnia","Bosnia & Herzegovina":"Bosnia","Bosnia":"Bosnia",
-  "Democratic Republic of Congo":"DR Congo","DR Congo":"DR Congo","Congo DR":"DR Congo","Dem. Rep. of Congo":"DR Congo",
-  "United States":"United States","USA":"United States",
-  "Cape Verde":"Cape Verde","Cabo Verde":"Cape Verde",
-  "South Korea":"South Korea","Korea Republic":"South Korea",
-  "Saudi Arabia":"Saudi Arabia",
-  "New Zealand":"New Zealand",
-  "Trinidad and Tobago":"Trinidad and Tobago",
-  "Curaçao":"Curacao","Curacao":"Curacao",
-};
-const _espnName=n=>ESPN_NAME[n]||n;
-
-// ── SYNC AUTOMÁTICO DESDE ESPN API ──
-async function syncFromESPN(){
-  const btn=document.getElementById('sync-espn-btn');
-  if(btn){btn.textContent='⏳ Actualizando...';btn.disabled=true;}
-  let updated=0, tried=[];
-
-  const tryFetch=async(url)=>{
-    try{
-      const ctrl=new AbortController();
-      const tid=setTimeout(()=>ctrl.abort(),6000);
-      const r=await fetch(url,{signal:ctrl.signal});
-      clearTimeout(tid);
-      if(!r.ok) return null;
-      return await r.json();
-    }catch(e){ tried.push(e.message); return null; }
-  };
-
-  // Recolectar eventos de todas las fechas KO
-  const slugs=['fifa.world','fifa.worldcup'];
-  const dates=['20260628','20260629','20260630','20260701','20260702','20260703',
-               '20260704','20260705','20260706','20260707','20260709','20260710',
-               '20260711','20260714','20260715','20260718','20260719'];
-  const allEvents=[];
-  let workingSlug=null;
-
-  for(const slug of slugs){
-    const testD=await tryFetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard?dates=20260630`);
-    if(testD?.events?.length){ workingSlug=slug; break; }
-  }
-  if(!workingSlug){ // sin CORS? intentar sin fechas
-    for(const slug of slugs){
-      const testD=await tryFetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/scoreboard`);
-      if(testD?.events?.length){ workingSlug=slug; break; }
-    }
-  }
-
-  if(workingSlug){
-    for(const date of dates){
-      const d=await tryFetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${workingSlug}/scoreboard?dates=${date}`);
-      if(d?.events) allEvents.push(...d.events);
-    }
-  }
-
-  // Parsear cada evento completado
-  for(const ev of allEvents){
-    const comp=ev.competitions?.[0];
-    if(!comp?.status?.type?.completed) continue;
-    const comps=comp.competitors||[];
-    if(comps.length<2) continue;
-    const homeC=comps.find(c=>c.homeAway==='home')||comps[0];
-    const awayC=comps.find(c=>c.homeAway==='away')||comps[1];
-    const hName=_espnName(homeC.team?.displayName||'');
-    const aName=_espnName(awayC.team?.displayName||'');
-    if(!hName||!aName) continue;
-    const hScore=parseInt(homeC.score||'0');
-    const aScore=parseInt(awayC.score||'0');
-    const key=`${hName}-${aName}`;
-    const existing=REAL_RESULTS[key];
-    if(existing?.played) continue; // ya lo tenemos
-    // Detectar ganador (útil para penales donde marcador es empate)
-    const winnerC=comps.find(c=>c.winner===true);
-    const winnerName=winnerC?_espnName(winnerC.team?.displayName||''):null;
-    const isPen=(hScore===aScore&&winnerName!==null);
-    const entry={h:hScore,a:aScore,played:true};
-    if(isPen&&winnerName) entry.winnerTeam=winnerName;
-    REAL_RESULTS[key]=entry;
-    updated++;
-  }
-
-  if(updated>0){
-    invalidateCache('results');
-    renderHoy();
-  }
-  if(btn){
-    btn.textContent=updated>0?`✅ ${updated} resultados nuevos`:allEvents.length>0?'✔ Ya actualizado':'⚠️ API no disponible';
-    btn.disabled=false;
-    setTimeout(()=>{if(btn)btn.textContent='🔄 Actualizar';},4000);
-  }
-  return updated;
-}
-
-// Obtiene [1°, 2°, 3°] de un grupo según PTS > GD > GF
+// ==================== BRACKET HELPERS ====================
 function getGroupRanked(grp){
-  const st=getGroupStandings();
-  const g=st[grp]; if(!g) return [];
-  return Object.entries(g)
-    .sort((a,b)=>b[1].pts-a[1].pts||b[1].gd-a[1].gd||b[1].gf-a[1].gf)
-    .map(([t,s])=>({t,s}));
-}
-
-// Rellena BRACKET_KO.r32 con predicciones cuando aún no hay equipos confirmados.
-// Pairing aproximado WC 2026 (12 grupos, ganadores vs. subcampeones de grupos adyacentes)
-function resolveSlotCode(code){
-  // Convierte "1F","2C" → nombre de equipo según standings reales
-  // Ignora "3rd-..." (mejores 3ros, demasiado complejo sin datos completos)
-  if(!code) return null;
-  if(code.startsWith('3rd')) return null; // TBD
-  const m=code.match(/^([12])([A-L])$/);
-  if(!m) return null;
-  const pos=parseInt(m[1])-1;
-  const grp=m[2];
-  const ranked=getGroupRanked(grp);
-  return ranked[pos]?.t||null;
-}
-
-function fillBracketPredictions(){
-  // Resuelve códigos de grupo (codeH/codeA) a nombres de equipo reales.
-  // Solo actualiza si el slot actual es 'TBD' — nunca sobreescribe confirmados.
-  BRACKET_KO.r32.forEach(slot=>{
-    if(slot.h==='TBD' && slot.codeH){
-      const t=resolveSlotCode(slot.codeH);
-      if(t) slot.h=t;
+  const teams=GRUPOS[grp]||[];
+  const pts={},gd={},gf={};
+  for(let i=0;i<teams.length;i++){pts[teams[i]]=0;gd[teams[i]]=0;gf[teams[i]]=0;}
+  const ts=new Set(teams);
+  const rrKeys=Object.keys(REAL_RESULTS);
+  for(let ki=0;ki<rrKeys.length;ki++){
+    const key=rrKeys[ki]; const r=REAL_RESULTS[key];
+    if(!r||!r.played) continue;
+    const parts=key.split('-');
+    let h=null,a=null;
+    for(let i=1;i<parts.length;i++){
+      const th=parts.slice(0,i).join('-'),ta=parts.slice(i).join('-');
+      if(ts.has(th)&&ts.has(ta)){h=th;a=ta;break;}
     }
-    if(slot.a==='TBD' && slot.codeA){
-      const t=resolveSlotCode(slot.codeA);
-      if(t) slot.a=t;
-    }
+    if(!h||!a) continue;
+    const sh=Number(r.h),sa=Number(r.a);
+    gf[h]+=sh;gf[a]+=sa;gd[h]+=(sh-sa);gd[a]+=(sa-sh);
+    if(sh>sa)pts[h]+=3; else if(sa>sh)pts[a]+=3; else{pts[h]++;pts[a]++;}
+  }
+  return teams.slice().sort(function(a,b){
+    if(pts[b]!==pts[a]) return pts[b]-pts[a];
+    if(gd[b]!==gd[a]) return gd[b]-gd[a];
+    return gf[b]-gf[a];
   });
+}
+function resolveSlotCode(code){
+  if(!code||code==='TBD') return 'TBD';
+  const m=code.match(/^([12])([A-L])$/);
+  if(m){
+    const ranked=getGroupRanked(m[2]);
+    return ranked[parseInt(m[1])-1]||'TBD';
+  }
+  return code;
+}
+function fillBracketPredictions(){
+  const all=[].concat(BRACKET_KO.r32,BRACKET_KO.r16,BRACKET_KO.qf,
+    BRACKET_KO.sf,(BRACKET_KO.f||[]),(BRACKET_KO.third||[]));
+  for(let i=0;i<all.length;i++){
+    const m=all[i];
+    if(m.h!=='TBD'&&m.a!=='TBD'&&m.sh===null){
+      try{getCachedPrediction(m.h,m.a,null);}catch(e){}
+    }
+  }
+}
+
+// ==================== UI MODALES ====================
+function closeSettings(){
+  const el=document.getElementById('settingsModal');
+  if(el) el.classList.add('gone');
+}
+function openSettings(){
+  const el=document.getElementById('settingsModal');
+  if(el) el.classList.remove('gone');
+}
+let _currentResultMatch={h:'',a:''};
+function openResultModal(h,a,dateStr){
+  _currentResultMatch={h:h,a:a,dateStr:dateStr};
+  const titleEl=document.getElementById('resultModalTitle');
+  const subEl=document.getElementById('resultModalSub');
+  if(titleEl) titleEl.textContent=FLAG(h)+' '+h+' vs '+a+' '+FLAG(a);
+  if(subEl) subEl.textContent='Ingresa el marcador final';
+  const ih=document.getElementById('scoreHome'),ia=document.getElementById('scoreAway');
+  if(ih) ih.value=''; if(ia) ia.value='';
+  const modal=document.getElementById('resultModal');
+  if(modal) modal.classList.remove('gone');
+  setTimeout(function(){if(ih)ih.focus();},100);
+}
+function closeResultModal(){
+  const modal=document.getElementById('resultModal');
+  if(modal) modal.classList.add('gone');
+}
+function saveManualResult(){
+  const homeEl=document.getElementById('scoreHome');
+  const awayEl=document.getElementById('scoreAway');
+  const sh=homeEl?parseInt(homeEl.value,10):NaN;
+  const sa=awayEl?parseInt(awayEl.value,10):NaN;
+  if(isNaN(sh)||isNaN(sa)||sh<0||sa<0){
+    const subEl=document.getElementById('resultModalSub');
+    if(subEl) subEl.textContent='Ingresa un marcador valido';
+    return;
+  }
+  const h=_currentResultMatch.h, a=_currentResultMatch.a;
+  if(!h||!a){closeResultModal();return;}
+  const entry={h:sh,a:sa,played:true,winnerTeam:sh>sa?h:sa>sh?a:null};
+  REAL_RESULTS[h+'-'+a]=entry;
+  try{
+    const save={};
+    const allRRKeys2=Object.keys(REAL_RESULTS);
+    for(let i=0;i<allRRKeys2.length;i++){const rv2=REAL_RESULTS[allRRKeys2[i]];if(rv2&&rv2.played)save[allRRKeys2[i]]=rv2;}
+    localStorage.setItem('footiq_results',JSON.stringify(save));
+  }catch(e){}
+  recalibrateELO();
+  invalidateCache('all');
+  closeResultModal();
+  renderHoy();
+  renderChamp();
+  const atab2=document.querySelector('.tab.active');
+  if(atab2){
+    const ao2=atab2.getAttribute('onclick')||'';
+    if(ao2.indexOf('duel')>-1){computeModelScores();renderDuel();}
+    if(ao2.indexOf('comp')>-1) renderComparativa();
+  }
+}
+function showToast(msg,duration){
+  const t=document.getElementById('syncToast');
+  if(!t) return;
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid=setTimeout(function(){t.classList.remove('show');},duration||2500);
+}
+
+// ==================== BOOT ====================
+async function boot(){
+  setProgress(5,'Cargando resultados guardados...');
+  loadSavedResults();
+  setProgress(15,'Calibrando ELO...');
+  recalibrateELO();
+  updateDynamicRatings();
+  setProgress(25,'Corriendo simulacion Monte Carlo...');
+  try{
+    await runMC(2000,null,function(pcts){Object.assign(G.mc,pcts);});
+  }catch(e){console.warn('[FootIQ] MC error:',e);}
+  setProgress(92,'Preparando predicciones...');
+  fillBracketPredictions();
+  computeModelScores();
+  const ms2=MODEL_SCORES.actual;
+  const pill2=document.getElementById('modelScore');
+  if(pill2&&ms2.total) pill2.textContent=Math.round(ms2.cw/ms2.total*100)+'%';
+  const ct=document.getElementById('colTime');
+  if(ct){const n2=new Date();ct.textContent=String(n2.getHours()).padStart(2,'0')+':'+String(n2.getMinutes()).padStart(2,'0');}
+  setProgress(100,'Listo!');
+  setTimeout(function(){
+    const ov=document.getElementById('overlay');
+    if(ov) ov.classList.add('gone');
+    renderChamp();
+  },350);
+  setTimeout(function(){syncFromAPI().catch(function(){});},1000);
 }
 
 function renderHoy(){
