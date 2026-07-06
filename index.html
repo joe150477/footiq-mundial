@@ -272,7 +272,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
 <div id="overlay">
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Mundial 2026</div>
-  <div class="ov-sub">Cargando motor de predicción y simulaciones</div>
+  <div class="ov-sub" id="ovSub">Cargando motor de predicción y simulaciones</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
@@ -1457,9 +1457,12 @@ async function runMC(N, modelo, cb){
     terceros.sort((a,b)=>b.pts-a.pts);
     adv.push(...terceros.slice(0,8).map(x=>x.t));
 
+    // Asegurar que adv tenga al menos 32 elementos
+    while(adv.length<32) adv.push('TBD');
+
     // Armar bracket en orden: usar BRACKET_KO como guía, pero asignar equipos reales según adv
     // Seeding: usar el orden de adv (1A,2A,1B,2B,...) que es el estándar.
-    // Pero para simplicidad, usamos el mismo orden que BRACKET_KO.r32 pero reemplazando TBD por adv
+    // Pero para simplicidad, usamos el mismo orden de BRACKET_KO.r32 pero reemplazando TBD por adv
     let bracket = [];
     // Primero, los 32 equipos ya clasificados (adv) en un array
     const bracketTeams = adv.slice(0,32);
@@ -1588,7 +1591,9 @@ async function runMC(N, modelo, cb){
     }
     if(champion) champ[champion] = (champ[champion]||0)+1;
 
+    // Limpiar caché cada 100 iteraciones para no saturar memoria
     if((sim+1)%100===0){
+      _clearPredCache();
       const pct=Math.round((sim+1)/N*100);
       setProgress(20+pct*0.7,`Simulando ${sim+1}/${N}`);
       await new Promise(r=>setTimeout(r,5));
@@ -2165,19 +2170,26 @@ function updateColTime(){
 setInterval(updateColTime, 1000);
 
 async function boot(){
-  updateColTime();
-  loadSavedResults();
-  setProgress(5,'Inicializando ELO…'); initElo();
-  setProgress(15,'Monte Carlo — Modelo Actual (2000)…');
-  await runMC(2000,'actual',res=>{G.mc=res;});
-  setProgress(100,'¡Listo!');
-  document.getElementById('statusDot').className='sdot ok';
-  document.getElementById('modelScore').innerText='✓ OK';
-  setTimeout(()=>{
-    document.getElementById('overlay').classList.add('gone');
-    refreshAll(); // Actualiza brackets y renderiza
-    setTimeout(()=>syncFromAPI(), 1200);
-  },200);
+  try {
+    updateColTime();
+    loadSavedResults();
+    setProgress(5,'Inicializando ELO…'); initElo();
+    setProgress(10,'Recalculando brackets…'); updateBrackets();
+    setProgress(15,'Monte Carlo — Modelo Actual (500)…');
+    await runMC(500, 'actual', res => { G.mc = res; });
+    setProgress(100,'¡Listo!');
+    document.getElementById('statusDot').className = 'sdot ok';
+    document.getElementById('modelScore').innerText = '✓ OK';
+    setTimeout(() => {
+      document.getElementById('overlay').classList.add('gone');
+      refreshAll();
+      setTimeout(() => syncFromAPI(), 1200);
+    }, 200);
+  } catch (e) {
+    document.getElementById('stepMsg').innerText = '❌ Error: ' + e.message;
+    document.getElementById('ovSub').innerHTML = 'Error al cargar. <button onclick="location.reload()" style="background:var(--accent);border:none;border-radius:6px;padding:6px 14px;color:#000;font-weight:700;cursor:pointer;margin-top:10px">Recargar</button>';
+    console.error('FootIQ boot error:', e);
+  }
 }
 
 // ==================== MODALES Y RESULTADOS MANUALES ====================
