@@ -1779,32 +1779,93 @@ function buildMusclesHtml(pred, home, away){
 }
 
 function renderChamp(){
-  let act=ALL_TEAMS.map(t=>({t,f:FLAG(t),p:G.mc[t]||0})).sort((a,b)=>b.p-a.p);
-  if(!act.length||!act[0]) return;
-  document.getElementById('page-champ').innerHTML=`
-    <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:17px;color:var(--muted)">Modelo Actual</div></div>
-    <div class="stitle">📈 Top 16 — Probabilidades de campeonato</div>
-    <div class="card">${act.slice(0,16).map((x,i)=>`<div class="trow"><div style="font-size:19px;color:var(--muted);width:26px;text-align:center">${i+1}</div><div class="tflg">${x.f}</div><div class="tname">${x.t}</div><div class="tpct">${x.p}%</div></div>`).join('')}</div>
-    <div class="card" style="margin-top:8px;background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25)">
-      <div style="font-size:19px;font-weight:800;margin-bottom:8px">❓ ¿Por qué gana Argentina si Francia y España tienen mayor ICC?</div>
-      <div style="font-size:17px;color:var(--text);line-height:1.6">
-        El ICC (Índice de Calidad de Conjunto) mide el <em>nivel estructural actual</em> de una selección: Francia 92, España 91, Argentina 82.
-        <br><br>
-        Pero la probabilidad de <strong>campeón</strong> la calcula la simulación Monte Carlo —
-        no el ICC solo. El ICC es <em>uno</em> de varios factores: también pesan
-        el <strong>bracket</strong> (a quién le toca en cada ronda), el <strong>momentum</strong>
-        (racha de resultados recientes), la <strong>experiencia en partidos a muerte</strong>
-        (eliminatorias directas) y el <strong>ELO histórico</strong>.
-        <br><br>
-        Argentina tiene historial de rendimiento en eliminatorias directas que supera lo que dice su ICC,
-        y el bracket actual le asigna un camino más favorable que el de Francia o España.
-        En 10 000 simulaciones, ese combo de factores hace que Argentina gane el torneo con más frecuencia —
-        aunque partido a partido Francia siga siendo favorita.
-        <br><br>
-        <span style="color:var(--muted);font-size:16px">💡 ICC alto = mejor equipo hoy. ICC alto ≠ garantía de campeón —
-        el bracket, la suerte y el momento también deciden.</span>
-      </div>
-    </div>`;
+  // Sincronizar bracket para saber quiénes siguen vivos
+  syncBracketFromResults();
+
+  // Detectar equipos eliminados (perdieron algún partido KO)
+  const eliminated=new Set();
+  const _getLoser=function(m){
+    if(m.sh===null||m.h==='TBD'||m.a==='TBD') return null;
+    let w=m.winnerTeam;
+    if(!w){if(m.sh>m.sa)w=m.h;else if(m.sa>m.sh)w=m.a;else if(m.pen_h!==undefined)w=m.pen_h>m.pen_a?m.h:m.a;}
+    return w?(w===m.h?m.a:m.h):null;
+  };
+  const allKO=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[])];
+  allKO.forEach(function(m){const l=_getLoser(m);if(l&&l!=='TBD')eliminated.add(l);});
+
+  // Equipos vivos = no eliminados Y en ALL_TEAMS
+  const alive=ALL_TEAMS.filter(function(t){return !eliminated.has(t);});
+
+  // Calcular probabilidades solo con equipos vivos, renormalizar
+  let rawTotal=0;
+  alive.forEach(function(t){rawTotal+=(G.mc[t]||0);});
+  const norm=rawTotal>0?100/rawTotal:1;
+
+  let act=alive.map(function(t){
+    return {t:t,f:FLAG(t),p:+((G.mc[t]||0)*norm).toFixed(2)};
+  }).sort(function(a,b){return b.p-a.p;});
+
+  if(!act.length){
+    document.getElementById('page-champ').innerHTML='<div class="card" style="text-align:center;padding:32px;font-size:18px;color:var(--muted)">Calculando...</div>';
+    return;
+  }
+
+  const top=act[0];
+  const rondaLabel=function(t){
+    // Detectar hasta qué ronda llegó el equipo
+    const rounds=[
+      {arr:BRACKET_KO.sf,lbl:'🏅 Semifinal'},
+      {arr:BRACKET_KO.qf,lbl:'🏅 Cuartos'},
+      {arr:BRACKET_KO.r16,lbl:'🏅 Octavos'},
+      {arr:BRACKET_KO.r32,lbl:'🏅 R32'},
+    ];
+    for(const rd of rounds){
+      if(rd.arr.some(function(m){return m.h===t||m.a===t;})) return rd.lbl;
+    }
+    return '';
+  };
+
+  let rowsHtml='';
+  act.forEach(function(x,i){
+    const badge=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+    const bar=Math.round(x.p)+'%';
+    const barColor=i===0?'var(--gold)':i===1?'#aaa':i===2?'#cd7f32':'var(--accent)';
+    rowsHtml+='<div class="trow" style="flex-direction:column;align-items:stretch;padding:6px 4px;border-bottom:1px solid var(--border)">'
+      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+      +'<div style="font-size:18px;color:var(--muted);width:26px;text-align:center">'+(badge||i+1)+'</div>'
+      +'<div class="tflg">'+x.f+'</div>'
+      +'<div class="tname" style="flex:1">'+x.t+'</div>'
+      +'<div class="tpct" style="color:'+barColor+'">'+x.p+'%</div>'
+      +'</div>'
+      +'<div style="background:rgba(255,255,255,.07);border-radius:4px;height:5px;margin-left:50px">'
+      +'<div style="background:'+barColor+';width:'+bar+';height:5px;border-radius:4px;transition:width .4s"></div>'
+      +'</div>'
+      +'</div>';
+  });
+
+  // Sección de eliminados
+  const elimArr=Array.from(eliminated).filter(function(t){return ALL_TEAMS.includes(t);});
+  let elimHtml='';
+  if(elimArr.length){
+    elimHtml='<div class="stitle" style="margin-top:10px;color:var(--muted)">❌ Eliminados ('+elimArr.length+')</div>'
+      +'<div class="card" style="padding:8px 12px">'
+      +'<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    elimArr.sort().forEach(function(t){
+      elimHtml+='<span style="font-size:17px;color:var(--muted);opacity:.7">'+FLAG(t)+' '+t+'</span>';
+    });
+    elimHtml+='</div></div>';
+  }
+
+  document.getElementById('page-champ').innerHTML=
+    '<div class="champ-wrap">'
+      +'<div class="champ-flag">'+top.f+'</div>'
+      +'<div class="champ-name">'+top.t+'</div>'
+      +'<div class="champ-pct">'+top.p+'%</div>'
+      +'<div style="font-size:15px;color:var(--muted)">entre '+act.length+' equipos activos</div>'
+    +'</div>'
+    +'<div class="stitle">🏆 Probabilidades — equipos activos</div>'
+    +'<div class="card" style="padding:6px 10px">'+rowsHtml+'</div>'
+    +elimHtml;
 }
 function renderDuel(){
   computeModelScores();
@@ -1830,16 +1891,22 @@ function renderDuel(){
   const MN2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const d2=new Date(todayStr+'T23:59:59');
   const todayBD2=MN2[d2.getMonth()]+' '+d2.getDate();
+  // Primero sincronizar el bracket con resultados guardados
+  syncBracketFromResults();
   const koRounds=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[]),...(BRACKET_KO.third||[])];
-  // Partidos cuya fecha ya pasó pero sh sigue null
-  const pending=koRounds.filter(m=>{
-    if(m.sh!==null) return false;
+  // Partidos cuya fecha ya pasó pero sin resultado (verificar REAL_RESULTS directamente también)
+  const pending=koRounds.filter(function(m){
     if(m.h==='TBD'||m.a==='TBD') return false;
-    // Compare date: parse 'Jun 30', 'Jul 1' etc
-    const [mon,day]=m.date.split(' ');
-    const mi=MN2.indexOf(mon);
-    if(mi<0) return false;
-    const mDate=new Date(2026,mi,parseInt(day));
+    // Si ya tiene resultado en REAL_RESULTS, no está pendiente
+    const rr=REAL_RESULTS[m.h+'-'+m.a];
+    if(rr&&rr.played) return false;
+    if(m.sh!==null) return false;
+    // Verificar que la fecha ya pasó
+    const parts=m.date.split(' ');
+    if(parts.length<2) return false;
+    const mi2=MN2.indexOf(parts[0]);
+    if(mi2<0) return false;
+    const mDate=new Date(2026,mi2,parseInt(parts[1]));
     return mDate<=d2;
   });
   let pendHtml='';
@@ -2243,12 +2310,12 @@ let BRACKET_KO = {
     {h:'Brazil',        a:'Japan',       date:'Jun 29', time:'12:00', sh:null, sa:null},
     {h:'Germany',       a:'Paraguay',    date:'Jun 29', time:'15:30', sh:null, sa:null},
     {h:'Netherlands',   a:'Morocco',     date:'Jun 29', time:'20:00', sh:null, sa:null},
-    {h:'Spain',         a:'Austria',     date:'Jul 2',  time:'14:00', sh:null, sa:null},
-    {h:'Portugal',      a:'Croatia',     date:'Jul 2',  time:'18:00', sh:null, sa:null},
     {h:'France',        a:'Sweden',      date:'Jun 30', time:'16:00', sh:null, sa:null},
     {h:'Ivory Coast',   a:'Norway',      date:'Jun 30', time:'12:00', sh:null, sa:null},
     {h:'Mexico',        a:'Ecuador',     date:'Jun 30', time:'20:00', sh:null, sa:null},
     {h:'England',       a:'DR Congo',    date:'Jul 1',  time:'11:00', sh:null, sa:null},
+    {h:'Spain',         a:'Austria',     date:'Jul 2',  time:'14:00', sh:null, sa:null},
+    {h:'Portugal',      a:'Croatia',     date:'Jul 2',  time:'18:00', sh:null, sa:null},
     {h:'Belgium',       a:'Senegal',     date:'Jul 1',  time:'15:00', sh:null, sa:null},
     {h:'United States', a:'Bosnia',      date:'Jul 1',  time:'19:00', sh:null, sa:null},
     {h:'Switzerland',   a:'Algeria',     date:'Jul 2',  time:'22:00', sh:null, sa:null},
@@ -2279,6 +2346,58 @@ let BRACKET_KO = {
   f:     [{h:'TBD',a:'TBD',date:'Jul 19', time:'14:00', sh:null, sa:null}],
   third: [{h:'TBD',a:'TBD',date:'Jul 18', time:'16:00', sh:null, sa:null}],
 };
+
+// Sincroniza BRACKET_KO con REAL_RESULTS y propaga ganadores a rondas siguientes.
+// Llamar al arrancar, tras sync y tras ingresar resultado manual.
+function syncBracketFromResults(){
+  const _syncScore=function(m){
+    if(m.h==='TBD'||m.a==='TBD') return;
+    const r=REAL_RESULTS[m.h+'-'+m.a];
+    if(r&&r.played){
+      if(m.sh===null){m.sh=Number(r.h);m.sa=Number(r.a);}
+      if(r.penH!==undefined&&m.pen_h===undefined){m.pen_h=r.penH;m.pen_a=r.penA;}
+      if(r.winnerTeam&&!m.winnerTeam)m.winnerTeam=r.winnerTeam;
+    }
+  };
+  const _winner=function(m){
+    if(m.sh===null) return null;
+    if(m.winnerTeam) return m.winnerTeam;
+    if(m.sh>m.sa) return m.h;
+    if(m.sa>m.sh) return m.a;
+    if(m.pen_h!==undefined) return m.pen_h>m.pen_a?m.h:m.a;
+    return null;
+  };
+  const _loser=function(m){
+    const w=_winner(m);
+    return (w&&m.sh!==null)?(w===m.h?m.a:m.h):null;
+  };
+  const _adv=function(s0,s1,dst){
+    if(!dst) return;
+    const w0=_winner(s0),w1=_winner(s1);
+    if(w0&&dst.h==='TBD') dst.h=w0;
+    if(w1&&dst.a==='TBD') dst.a=w1;
+  };
+  BRACKET_KO.r32.forEach(_syncScore);
+  for(let i=0;i<BRACKET_KO.r32.length;i+=2){
+    _adv(BRACKET_KO.r32[i],BRACKET_KO.r32[i+1],BRACKET_KO.r16[i/2]);
+    _syncScore(BRACKET_KO.r16[i/2]);
+  }
+  for(let i=0;i<BRACKET_KO.r16.length;i+=2){
+    _adv(BRACKET_KO.r16[i],BRACKET_KO.r16[i+1],BRACKET_KO.qf[i/2]);
+    _syncScore(BRACKET_KO.qf[i/2]);
+  }
+  for(let i=0;i<BRACKET_KO.qf.length;i+=2){
+    _adv(BRACKET_KO.qf[i],BRACKET_KO.qf[i+1],BRACKET_KO.sf[i/2]);
+    _syncScore(BRACKET_KO.sf[i/2]);
+  }
+  const sf0=BRACKET_KO.sf[0],sf1=BRACKET_KO.sf[1],fs=BRACKET_KO.f[0],tp=BRACKET_KO.third[0];
+  const fw0=_winner(sf0),fw1=_winner(sf1),fl0=_loser(sf0),fl1=_loser(sf1);
+  if(fw0&&fs&&fs.h==='TBD') fs.h=fw0;
+  if(fw1&&fs&&fs.a==='TBD') fs.a=fw1;
+  if(fl0&&tp&&tp.h==='TBD') tp.h=fl0;
+  if(fl1&&tp&&tp.a==='TBD') tp.a=fl1;
+  _syncScore(fs); _syncScore(tp);
+}
 
 function setProgress(pct, msg){
   const fill=document.getElementById('progFill');
@@ -2413,6 +2532,7 @@ async function syncFromAPI(){
       localStorage.setItem('footiq_results',JSON.stringify(save));
     }catch(e){}
     recalibrateELO();
+    syncBracketFromResults();
     invalidateCache('all');
     renderHoy();
     renderChamp();
@@ -2578,6 +2698,7 @@ function saveManualResult(){
     localStorage.setItem('footiq_results',JSON.stringify(save));
   }catch(e){}
   recalibrateELO();
+  syncBracketFromResults();
   invalidateCache('all');
   closeResultModal();
   renderHoy();
@@ -2605,6 +2726,8 @@ async function boot(){
   setProgress(15,'Calibrando ELO...');
   recalibrateELO();
   updateDynamicRatings();
+  setProgress(20,'Sincronizando bracket...');
+  syncBracketFromResults();
   setProgress(25,'Corriendo simulacion Monte Carlo...');
   try{
     await runMC(2000,null,function(pcts){Object.assign(G.mc,pcts);});
@@ -2627,18 +2750,12 @@ async function boot(){
 }
 
 function renderHoy(){
-  // Cascade sync: fill BRACKET_KO team names from REAL_RESULTS
-  const _syncScore=m=>{
-    if(m.h!=='TBD'&&m.a!=='TBD'){
-      const r=REAL_RESULTS[m.h+'-'+m.a];
-      if(r?.played){
-        if(m.sh===null){m.sh=r.h;m.sa=r.a;}
-        if(r.penH!==undefined&&m.pen_h===undefined){m.pen_h=r.penH;m.pen_a=r.penA;}
-        if(r.winnerTeam&&!m.winnerTeam)m.winnerTeam=r.winnerTeam;
-      }
-    }
-  };
-  const _winner=m=>{
+  // Usar syncBracketFromResults para llenar slots de BRACKET_KO desde REAL_RESULTS
+  fillBracketPredictions();
+  syncBracketFromResults();
+
+  // helpers locales para display
+  const _winner=function(m){
     if(m.sh===null)return null;
     if(m.winnerTeam)return m.winnerTeam;
     if(m.sh>m.sa)return m.h;
@@ -2646,37 +2763,6 @@ function renderHoy(){
     if(m.pen_h!==undefined)return m.pen_h>m.pen_a?m.h:m.a;
     return null;
   };
-  const _loser=m=>{ const w=_winner(m); return(w&&m.sh!==null)?(w===m.h?m.a:m.h):null; };
-  const _adv=(s0,s1,dst)=>{
-    if(!dst)return;
-    const w0=_winner(s0),w1=_winner(s1);
-    if(w0&&dst.h==='TBD')dst.h=w0;
-    if(w1&&dst.a==='TBD')dst.a=w1;
-  };
-
-  fillBracketPredictions();
-  BRACKET_KO.r32.forEach(_syncScore);
-  for(let i=0;i<BRACKET_KO.r32.length;i+=2){
-    _adv(BRACKET_KO.r32[i],BRACKET_KO.r32[i+1],BRACKET_KO.r16[i/2]);
-    _syncScore(BRACKET_KO.r16[i/2]);
-  }
-  for(let i=0;i<BRACKET_KO.r16.length;i+=2){
-    _adv(BRACKET_KO.r16[i],BRACKET_KO.r16[i+1],BRACKET_KO.qf[i/2]);
-    _syncScore(BRACKET_KO.qf[i/2]);
-  }
-  for(let i=0;i<BRACKET_KO.qf.length;i+=2){
-    _adv(BRACKET_KO.qf[i],BRACKET_KO.qf[i+1],BRACKET_KO.sf[i/2]);
-    _syncScore(BRACKET_KO.sf[i/2]);
-  }
-  {
-    const sf0=BRACKET_KO.sf[0],sf1=BRACKET_KO.sf[1],fs=BRACKET_KO.f[0],tp=BRACKET_KO.third[0];
-    const fw0=_winner(sf0),fw1=_winner(sf1),fl0=_loser(sf0),fl1=_loser(sf1);
-    if(fw0&&fs&&fs.h==='TBD')fs.h=fw0;
-    if(fw1&&fs&&fs.a==='TBD')fs.a=fw1;
-    if(fl0&&tp&&tp.h==='TBD')tp.h=fl0;
-    if(fl1&&tp&&tp.a==='TBD')tp.a=fl1;
-    _syncScore(fs); _syncScore(tp);
-  }
 
   // Find today's matches across all rounds
   const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
