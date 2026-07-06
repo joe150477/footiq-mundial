@@ -2113,9 +2113,20 @@ function renderComparativa(){
   const played = Object.entries(REAL_RESULTS)
     .filter(([,r]) => r.played)
     .map(([key, r]) => {
-      const [h, a] = key.split('-');
+      // Split on first hyphen that separates two team names
+      // All team names are known — find separator index
+      const parts = key.split('-');
+      if(parts.length < 2) return null;
+      // Rejoin: h = parts[0], a = parts[1..] OR find correct split via ALL_TEAMS
+      let h = null, a = null;
+      for(let i=1;i<parts.length;i++){
+        const th=parts.slice(0,i).join('-'), ta=parts.slice(i).join('-');
+        if(ALL_TEAMS.includes(th)&&ALL_TEAMS.includes(ta)){h=th;a=ta;break;}
+      }
+      if(!h){ h=parts[0]; a=parts.slice(1).join('-'); }
       return {h, a, sh:r.h, sa:r.a, key};
-    });
+    })
+    .filter(Boolean);
 
   if(!played.length){
     pg.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">No hay resultados aún para comparar modelos.</div>';
@@ -2132,19 +2143,22 @@ function renderComparativa(){
   };
 
   played.forEach(m => {
+    // Skip if team name split was bad (fallback guard)
+    if(!m.h || !m.a || m.h===m.a) return;
     let pred;
-    try { pred = ensemblePredict(m.h, m.a, null); } catch(e){ return; }
-    if(!pred) return;
+    try { pred = getCachedPrediction(m.h, m.a, null); } catch(e){ return; }
+    if(!pred || typeof pred.pH!=='number') return;
 
     const rH = m.sh, rA = m.sa;
+    if(typeof rH!=='number' || typeof rA!=='number') return;
     let actual;
     if(rH > rA)       actual = 'H';
     else if(rH < rA)  actual = 'A';
     else               actual = 'D';
 
     // Probabilidades por modelo
-    const iccH = getCachedICC(m.h), iccA = getCachedICC(m.a);
-    const eloH = G.elo[m.h]||1500,  eloA = G.elo[m.a]||1500;
+    const iccH = getCachedICC(m.h)||50, iccA = getCachedICC(m.a)||50;
+    const eloH = G.elo[m.h]||1500,      eloA = G.elo[m.a]||1500;
     const momH = getCachedMomentum(m.h), momA = getCachedMomentum(m.a);
 
     const pModels = {
@@ -2463,7 +2477,7 @@ async function syncFromAPI(){
   try{
     // ESPN public scoreboard — FIFA World Cup 2026
     // Intentamos múltiples slugs que ESPN puede usar para el torneo
-    const espnSlugs=['fifa.world','fifa.worldcup','fifaworldcup','international.world','soccer.fifa','fifa.worldq'];
+    const espnSlugs=['fifa.world','fifa.worldcup','fifaworldcup','international.world','soccer.fifa','fifa.worldq','soccer.fifa.world','mens.worldcup'];
     let newResults=null;
     // Intento 1: rango completo
     for(const slug of espnSlugs){
@@ -2844,18 +2858,40 @@ function renderHoy(){
     ...(BRACKET_KO.f||[]).map(m=>Object.assign({},m,{rnd:'Final'})),
     ...(BRACKET_KO.third||[]).map(m=>Object.assign({},m,{rnd:'3er Puesto'})),
   ];
-  const slots=allSlots.filter(m=>m.date===todayBD);
+  // Yesterday fallback date
+  const d0y=new Date(todayStr+'T12:00:00');
+  d0y.setDate(d0y.getDate()-1);
+  const MNy=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const yesterdayBD=MNy[d0y.getMonth()]+' '+d0y.getDate();
+
+  const slotsToday=allSlots.filter(m=>m.date===todayBD);
+  const slotsYest=allSlots.filter(m=>m.date===yesterdayBD);
 
   const pg=document.getElementById('page-hoy');
+
+  // If today has no known teams (all TBD), also show yesterday for context
+  const todayHasReal=slotsToday.some(m=>m.h!=='TBD'&&m.a!=='TBD');
+  const slots=[...slotsToday];
+  if(!todayHasReal && slotsYest.length){
+    slotsYest.forEach(m=>slots.unshift(Object.assign({},m,{_isYest:true})));
+  }
 
   if(!slots.length){
     pg.innerHTML='<div class="card" style="text-align:center;padding:32px;color:var(--muted);font-size:18px">📭 Sin partidos hoy ('+todayBD+')</div>';
     return;
   }
 
-  let html='<div class="stitle" style="margin:8px 0 10px">📅 Partidos de hoy — '+todayBD+'</div>';
+  let html='<div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 10px">'+
+    '<div class="stitle" style="margin:0">📅 '+todayBD+'</div>'+
+    '<button onclick="syncFromAPI()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:15px;font-weight:700;cursor:pointer">🔄 Actualizar</button>'+
+    '</div>';
 
   slots.forEach(function(m){
+    // Also check REAL_RESULTS directly in case cascade hasn't set sh yet
+    if(m.sh===null && m.h!=='TBD' && m.a!=='TBD'){
+      const _rr=REAL_RESULTS[m.h+'-'+m.a];
+      if(_rr?.played){m.sh=_rr.h;m.sa=_rr.a;if(_rr.penH!==undefined){m.pen_h=_rr.penH;m.pen_a=_rr.penA;}}
+    }
     const played=m.sh!==null;
     const hasBoth=m.h!=='TBD'&&m.a!=='TBD';
     const pred=(hasBoth&&!played)?getCachedPrediction(m.h,m.a,m.group||null):null;
@@ -2864,6 +2900,7 @@ function renderHoy(){
     html+='<div class="mcard-dual">';
 
     // ─ Header ─
+    if(m._isYest) html+='<div style="font-size:13px;color:var(--muted);padding:4px 8px 0">📅 Ayer — '+m.date+'</div>';
     html+='<div class="match-header">';
     html+='<div class="tflg">'+(hasBoth?FLAG(m.h):'')+'</div>';
     html+='<div class="tname">'+(m.h==='TBD'?'Por definir':m.h)+'</div>';
