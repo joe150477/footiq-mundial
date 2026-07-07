@@ -278,7 +278,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span style="font-size:15px;opacity:0.5;font-weight:normal">v-jul6-banca</span></div>
+  <div class="logo">Foot<em>IQ</em> <span style="font-size:15px;opacity:0.5;font-weight:normal">v-jul7-b</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -323,7 +323,6 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
 <div class="tabs">
   <div class="tab active" onclick="showTab(this,'champ')"><span class="ti">🏆</span>Campeón</div>
   <div class="tab" onclick="showTab(this,'hoy')"><span class="ti">📅</span>Partidos Hoy</div>
-  <div class="tab" onclick="showTab(this,'duel')"><span class="ti">⚔️</span>Duelo</div>
   <div class="tab" onclick="showTab(this,'comp')"><span class="ti">📊</span>Comparativa</div>
   <div class="tab" onclick="showTab(this,'banca')"><span class="ti">💵</span>Mi Banca</div>
 </div>
@@ -331,7 +330,6 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
 <div class="pages">
   <div class="page active" id="page-champ"></div>
   <div class="page" id="page-hoy"></div>
-  <div class="page" id="page-duel"><div id="duelBody"></div></div>
   <div class="page" id="page-comp"></div>
   <div class="page" id="page-banca"></div>
 </div>
@@ -1063,7 +1061,6 @@ function refreshAll(){
       const id = active.id.replace('page-','');
       if(id==='champ') renderChamp();
       else if(id==='hoy') renderHoy();
-      else if(id==='duel') renderDuel();
       else if(id==='comp') renderComparativa();
       else if(id==='banca') renderBanca();
     }
@@ -1673,9 +1670,9 @@ function showTab(el,name){
   document.getElementById('page-'+name).classList.add('active');
   if(name==='champ')     renderChamp();
   else if(name==='hoy')  renderHoy();
-  else if(name==='duel') renderDuel();
   else if(name==='comp') renderComparativa();
   else if(name==='banca') renderBanca();
+  // (pestaña Duelo eliminada)
 }
 
 // ==================== RENDER COMPARATIVA (sin cambios, pero actualizado) ====================
@@ -1847,6 +1844,50 @@ function _mus_mom(momH, momA){
   const draw=Math.max(0.14,Math.min(0.30,0.30-Math.abs(rH-rA)*0.20));
   const pH=pW*(1-draw), pA=(1-pW)*(1-draw);
   return {pH, pD:1-pH-pA, pA};
+}
+
+// Marcador probable de CADA modelo + un ponderado por precisión histórica.
+// Cada modelo (ELO/ICC/Momentum) solo da 1X2, así que su marcador se estima
+// inclinando el xG del modelo Principal según lo optimista que sea cada modelo.
+function buildScorelinesHtml(pred, home, away){
+  const xgH0=parseFloat(pred.xgH), xgA0=parseFloat(pred.xgA);
+  if(isNaN(xgH0)||isNaN(xgA0)){
+    return '<div class="mscore-big">'+pred.score+'</div><div class="mscore-label">Marcador probable</div>';
+  }
+  const elo=_mus_elo(G.elo[home]||1500, G.elo[away]||1500);
+  const icc=_mus_icc(getCachedICC(home), getCachedICC(away));
+  const mom=_mus_mom(getCachedMomentum(home), getCachedMomentum(away));
+  const w=MODEL_WEIGHTS||{principal:.25,elo:.25,icc:.25,mom:.25};
+  const clamp=v=>Math.max(0.2, Math.min(4.5, v));
+  const tilt=(base,pm,pp)=>clamp(base*Math.pow((pm+0.05)/(pp+0.05), 0.6));
+  const models=[
+    {lbl:'🎯 Principal', k:'principal', pH:pred.pH, pA:pred.pA},
+    {lbl:'⚡ ELO',       k:'elo',       pH:elo.pH,  pA:elo.pA},
+    {lbl:'🏗️ ICC',      k:'icc',       pH:icc.pH,  pA:icc.pA},
+    {lbl:'🔥 Momentum',  k:'mom',       pH:mom.pH,  pA:mom.pA},
+  ];
+  let wH=0,wA=0,wSum=0, rows='';
+  models.forEach(m=>{
+    const xgH=tilt(xgH0, m.pH, pred.pH), xgA=tilt(xgA0, m.pA, pred.pA);
+    const sc=poissonBestScore(xgH, xgA);
+    const wt=w[m.k]||0.25; wH+=xgH*wt; wA+=xgA*wt; wSum+=wt;
+    rows+='<tr><td style="padding:3px 6px;color:var(--muted);font-size:15px;white-space:nowrap">'+m.lbl+'</td>'+
+      '<td style="padding:3px 6px;text-align:center;font-size:18px;font-weight:800">'+sc+'</td>'+
+      '<td style="padding:3px 6px;text-align:center;font-size:13px;color:var(--muted)">'+xgH.toFixed(1)+'–'+xgA.toFixed(1)+'</td></tr>';
+  });
+  wH/=(wSum||1); wA/=(wSum||1);
+  const wScore=poissonBestScore(wH, wA);
+  return '<div style="margin:8px 0 2px">'+
+    '<div class="mscore-label" style="margin-bottom:4px;text-align:left">⚽ Marcador probable por modelo</div>'+
+    '<table style="width:100%;border-collapse:collapse">'+
+      '<thead><tr style="color:var(--muted);font-size:13px"><th style="text-align:left;padding:2px 6px">Modelo</th><th style="padding:2px 6px">Marcador</th><th style="padding:2px 6px">xG</th></tr></thead>'+
+      '<tbody>'+rows+
+        '<tr style="border-top:1px solid rgba(255,255,255,.15)">'+
+          '<td style="padding:5px 6px;font-weight:800;color:var(--gold)">📊 Ponderado</td>'+
+          '<td style="padding:5px 6px;text-align:center;font-size:22px;font-weight:900;color:var(--gold)">'+wScore+'</td>'+
+          '<td style="padding:5px 6px;text-align:center;font-size:13px;color:var(--muted)">'+wH.toFixed(1)+'–'+wA.toFixed(1)+'</td>'+
+        '</tr>'+
+      '</tbody></table></div>';
 }
 
 function buildMusclesHtml(pred, home, away){
@@ -2193,8 +2234,18 @@ function renderHoy(){
   let valueHtml='';
   try {
     computeModelWeights(); _CONS_CACHE={};
-    const valUp = allSlots.filter(m=> m.h!=='TBD' && m.a!=='TBD' && m.sh===null &&
-      !(REAL_RESULTS[m.h+'-'+m.a] && REAL_RESULTS[m.h+'-'+m.a].played));
+    const _MNv=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const _today0=new Date(todayStr+'T00:00:00');
+    const valUp = allSlots.filter(m=>{
+      if(m.h==='TBD'||m.a==='TBD') return false;
+      if(m.sh!==null) return false;
+      if(REAL_RESULTS[m.h+'-'+m.a] && REAL_RESULTS[m.h+'-'+m.a].played) return false;
+      // Solo partidos con fecha REAL de ESPN de HOY en adelante (nunca partidos pasados)
+      const lbl=MATCH_DATES[m.h+'-'+m.a]; if(!lbl) return false;
+      const parts=lbl.split(' '); const mi=_MNv.indexOf(parts[0]);
+      if(mi<0) return false;
+      return new Date(2026,mi,parseInt(parts[1])) >= _today0;
+    });
     const valPicks=[];
     valUp.forEach(m=>{
       let pm; try{ pm=consensusPredict(m.h,m.a,'KO'); }catch(e){ return; }
@@ -2301,9 +2352,7 @@ function renderHoy(){
       html+='<div class="mprob-mini"><div class="mpv">'+Math.round(pred.pD*100)+'%</div><div class="mlabel">Emp</div></div>';
       html+='<div class="mprob-mini"><div class="mpv">'+Math.round(pred.pA*100)+'%</div><div class="mlabel">'+aShort+'</div></div>';
       html+='</div>';
-      html+='<div class="mscore-big">'+pred.score+'</div>';
-      html+='<div class="mscore-label">Marcador probable</div>';
-      html+='<div class="mscore">xG: '+pred.xgH+' – '+pred.xgA+'</div>';
+      html+=buildScorelinesHtml(pred, m.h, m.a);
       html+='</div></div>';
       html+=buildMusclesHtml(pred,m.h,m.a);
       // Sorpresa unificada
