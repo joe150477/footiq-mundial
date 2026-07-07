@@ -278,7 +278,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span style="font-size:15px;opacity:0.5;font-weight:normal">v30jun-c</span></div>
+  <div class="logo">Foot<em>IQ</em> <span style="font-size:15px;opacity:0.5;font-weight:normal">v-jul6-banca</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -325,6 +325,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
   <div class="tab" onclick="showTab(this,'hoy')"><span class="ti">📅</span>Partidos Hoy</div>
   <div class="tab" onclick="showTab(this,'duel')"><span class="ti">⚔️</span>Duelo</div>
   <div class="tab" onclick="showTab(this,'comp')"><span class="ti">📊</span>Comparativa</div>
+  <div class="tab" onclick="showTab(this,'banca')"><span class="ti">💵</span>Mi Banca</div>
 </div>
 
 <div class="pages">
@@ -332,6 +333,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
   <div class="page" id="page-hoy"></div>
   <div class="page" id="page-duel"><div id="duelBody"></div></div>
   <div class="page" id="page-comp"></div>
+  <div class="page" id="page-banca"></div>
 </div>
 
 <script>
@@ -1063,6 +1065,7 @@ function refreshAll(){
       else if(id==='hoy') renderHoy();
       else if(id==='duel') renderDuel();
       else if(id==='comp') renderComparativa();
+      else if(id==='banca') renderBanca();
     }
     updateModelScore();
   } catch(e) {
@@ -1416,166 +1419,111 @@ function ensemblePredict(h,a,grp=''){
 }
 
 // ==================== MONTE CARLO CONDICIONADO ====================
+// Desempate de eliminatoria por "clutch" (evita ganadores null que rompen el bracket)
+function _koTie(h,a){
+  const c1=(CLUTCH[h]||65)/100, c2=(CLUTCH[a]||65)/100;
+  return Math.random() < (0.5+(c1-c2)*0.3) ? h : a;
+}
+
+// ===== Ensamble ponderado por precisión histórica de cada modelo =====
+let MODEL_WEIGHTS = {principal:0.40, elo:0.20, icc:0.20, mom:0.20};
+function _splitKeyTeams(key){
+  const parts=key.split('-');
+  for(let i=1;i<parts.length;i++){
+    const th=parts.slice(0,i).join('-'), ta=parts.slice(i).join('-');
+    if(ALL_TEAMS.includes(th)&&ALL_TEAMS.includes(ta)) return [th,ta];
+  }
+  return [parts[0], parts.slice(1).join('-')];
+}
+function _modelPreds(h,a){
+  return {
+    principal: safePredict(h,a,null),
+    elo: _mus_elo(G.elo[h]||1500, G.elo[a]||1500),
+    icc: _mus_icc(getCachedICC(h), getCachedICC(a)),
+    mom: _mus_mom(getCachedMomentum(h), getCachedMomentum(a)),
+  };
+}
+function _argMax3(p){ return (p.pH>=p.pA&&p.pH>=p.pD)?'H':(p.pA>=p.pH&&p.pA>=p.pD)?'A':'D'; }
+function computeModelWeights(){
+  const hits={principal:0,elo:0,icc:0,mom:0}, tot={principal:0,elo:0,icc:0,mom:0};
+  for(const [key,real] of Object.entries(REAL_RESULTS)){
+    if(!real.played) continue;
+    const [h,a]=_splitKeyTeams(key);
+    if(!ALL_TEAMS.includes(h)||!ALL_TEAMS.includes(a)||h===a) continue;
+    const actual = real.h>real.a?'H':real.h<real.a?'A':'D';
+    const preds=_modelPreds(h,a);
+    for(const m in preds){ tot[m]++; if(_argMax3(preds[m])===actual) hits[m]++; }
+  }
+  // Peso = habilidad por encima de una base del 45% (un modelo peor que eso casi se excluye)
+  const base=0.45, floor=0.02; let raw={}, sum=0;
+  for(const m in hits){ const acc=tot[m]?hits[m]/tot[m]:0.5; raw[m]=Math.max(floor, acc-base); sum+=raw[m]; }
+  const w={}; for(const m in raw) w[m]= sum>0 ? raw[m]/sum : 0.25;
+  MODEL_WEIGHTS=w;
+  return w;
+}
+let _CONS_CACHE={};
+function consensusPredict(h,a,grp=''){
+  const ck=`C:${h}:${a}:${grp}`;
+  if(_CONS_CACHE[ck]) return _CONS_CACHE[ck];
+  const pred=ensemblePredict(h,a,grp);
+  const elo=_mus_elo(G.elo[h]||1500, G.elo[a]||1500);
+  const icc=_mus_icc(getCachedICC(h), getCachedICC(a));
+  const mom=_mus_mom(getCachedMomentum(h), getCachedMomentum(a));
+  const w=MODEL_WEIGHTS;
+  let pH=pred.pH*w.principal+elo.pH*w.elo+icc.pH*w.icc+mom.pH*w.mom;
+  let pD=pred.pD*w.principal+elo.pD*w.elo+icc.pD*w.icc+mom.pD*w.mom;
+  let pA=pred.pA*w.principal+elo.pA*w.elo+icc.pA*w.icc+mom.pA*w.mom;
+  const s=pH+pD+pA; if(s>0){pH/=s;pD/=s;pA/=s;}
+  const out={pH,pD,pA,score:pred.score,xgH:pred.xgH,xgA:pred.xgA};
+  _CONS_CACHE[ck]=out;
+  return out;
+}
+function safeConsensusPredict(h,a,grp){
+  if(!h||!a||h==='TBD'||a==='TBD'||!ALL_TEAMS.includes(h)||!ALL_TEAMS.includes(a)){
+    return {pH:0.33,pD:0.34,pA:0.33,score:'? - ?',xgH:'?',xgA:'?'};
+  }
+  return consensusPredict(h,a,grp);
+}
+
+let MC_SIMS = 0;
 async function runMC(N, cb){
   try {
-    // Construir lista de partidos de grupos con sus grupos
-    const groupMatches = [];
-    for(const [date, ms] of Object.entries(CALENDAR_MATCHES)){
-      for(const m of ms){
-        if(m.group && m.group.length===1 && m.home!=='TBD' && m.away!=='TBD'){
-          const key = m.home+'-'+m.away;
-          const real = REAL_RESULTS[key];
-          groupMatches.push({home:m.home, away:m.away, group:m.group, real, date});
-        }
+    MC_SIMS = N;
+    // Recalcular pesos del ensamble según precisión histórica y limpiar caché de consenso
+    computeModelWeights();
+    _CONS_CACHE={};
+    // Ganador de un cruce eliminatorio: usa el resultado REAL si ya se jugó
+    // (en cualquier orden), si no lo predice. Así los equipos ya eliminados
+    // nunca reaparecen y quedan en 0% de campeón.
+    const _koRes = (h,a) => {
+      if(!h||!a||h==='TBD'||a==='TBD') return null;
+      const d = REAL_RESULTS[h+'-'+a], r = REAL_RESULTS[a+'-'+h];
+      if(d && d.played){
+        if(d.h>d.a) return h; if(d.a>d.h) return a;
+        return d.penH!==undefined ? (d.penH>d.penA?h:a) : _koTie(h,a);
       }
-    }
+      if(r && r.played){ // mismo partido guardado al revés
+        if(r.h>r.a) return a; if(r.a>r.h) return h;
+        return r.penH!==undefined ? (r.penH>r.penA?a:h) : _koTie(h,a);
+      }
+      const p = safeConsensusPredict(h,a,'KO');
+      const rnd = Math.random();
+      if(rnd < p.pH) return h;
+      if(rnd < p.pH+p.pD) return _koTie(h,a);
+      return a;
+    };
+    // Avanza una ronda: empareja ganadores consecutivos según la estructura del bracket
+    const _nextRound = (winners, bkRound) =>
+      bkRound.map((_,idx)=> _koRes(winners[idx*2]||'TBD', winners[idx*2+1]||'TBD'));
 
     let champ={}; ALL_TEAMS.forEach(t=>champ[t]=0);
     for(let sim=0; sim<N; sim++){
-      // Simular fase de grupos (solo partidos no jugados)
-      let pts={};
-      ALL_TEAMS.forEach(t=>pts[t]=0);
-      for(const gm of groupMatches){
-        if(gm.real && gm.real.played){
-          const r = gm.real;
-          if(r.h>r.a) pts[gm.home]+=3;
-          else if(r.h<r.a) pts[gm.away]+=3;
-          else { pts[gm.home]+=1; pts[gm.away]+=1; }
-        } else {
-          const p = safePredict(gm.home, gm.away, gm.group);
-          const rnd = Math.random();
-          if(rnd < p.pH) pts[gm.home]+=3;
-          else if(rnd < p.pH+p.pD){ pts[gm.home]+=1; pts[gm.away]+=1; }
-          else pts[gm.away]+=3;
-        }
-      }
-      // Clasificar grupos
-      let adv=[], terceros=[];
-      for(const [g, eqs] of Object.entries(GRUPOS)){
-        let ord = eqs.slice().sort((a,b)=> {
-          if(pts[b]!==pts[a]) return pts[b]-pts[a];
-          return a.localeCompare(b);
-        });
-        adv.push(ord[0], ord[1]);
-        terceros.push({t:ord[2], pts:pts[ord[2]]||0});
-      }
-      terceros.sort((a,b)=>b.pts-a.pts);
-      adv.push(...terceros.slice(0,8).map(x=>x.t));
-      while(adv.length<32) adv.push('TBD');
-
-      // Armar bracket R32 según el orden fijo pero reemplazando con clasificados reales
-      let bracketR32 = BRACKET_KO.r32.map((slot, idx) => {
-        const h = adv[idx*2] || 'TBD';
-        const a = adv[idx*2+1] || 'TBD';
-        return {h, a, sh:null, sa:null};
-      });
-
-      // Simular R32
-      let r32winners = bracketR32.map(slot => {
-        if(slot.h==='TBD'||slot.a==='TBD') return null;
-        const key = slot.h+'-'+slot.a;
-        const real = REAL_RESULTS[key];
-        if(real && real.played){
-          return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
-        }
-        const p = safePredict(slot.h, slot.a, 'KO');
-        const rnd = Math.random();
-        if(rnd < p.pH) return slot.h;
-        if(rnd < p.pH+p.pD){
-          const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
-          return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
-        }
-        return slot.a;
-      });
-
-      // R16
-      let r16Slots = BRACKET_KO.r16.map((slot, idx) => {
-        const h = r32winners[idx*2] || 'TBD';
-        const a = r32winners[idx*2+1] || 'TBD';
-        return {h, a, sh:null, sa:null};
-      });
-      let r16winners = r16Slots.map(slot => {
-        if(slot.h==='TBD'||slot.a==='TBD') return null;
-        const key = slot.h+'-'+slot.a;
-        const real = REAL_RESULTS[key];
-        if(real && real.played){
-          return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
-        }
-        const p = safePredict(slot.h, slot.a, 'KO');
-        const rnd = Math.random();
-        if(rnd < p.pH) return slot.h;
-        if(rnd < p.pH+p.pD){
-          const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
-          return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
-        }
-        return slot.a;
-      });
-
-      // QF
-      let qfSlots = BRACKET_KO.qf.map((slot, idx) => {
-        const h = r16winners[idx*2] || 'TBD';
-        const a = r16winners[idx*2+1] || 'TBD';
-        return {h, a, sh:null, sa:null};
-      });
-      let qfWinners = qfSlots.map(slot => {
-        if(slot.h==='TBD'||slot.a==='TBD') return null;
-        const key = slot.h+'-'+slot.a;
-        const real = REAL_RESULTS[key];
-        if(real && real.played){
-          return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
-        }
-        const p = safePredict(slot.h, slot.a, 'KO');
-        const rnd = Math.random();
-        if(rnd < p.pH) return slot.h;
-        if(rnd < p.pH+p.pD){
-          const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
-          return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
-        }
-        return slot.a;
-      });
-
-      // SF
-      let sfSlots = BRACKET_KO.sf.map((slot, idx) => {
-        const h = qfWinners[idx*2] || 'TBD';
-        const a = qfWinners[idx*2+1] || 'TBD';
-        return {h, a, sh:null, sa:null};
-      });
-      let sfWinners = sfSlots.map(slot => {
-        if(slot.h==='TBD'||slot.a==='TBD') return null;
-        const key = slot.h+'-'+slot.a;
-        const real = REAL_RESULTS[key];
-        if(real && real.played){
-          return real.h>real.a?slot.h:real.h<real.a?slot.a: (real.penH!==undefined? (real.penH>real.penA?slot.h:slot.a): null);
-        }
-        const p = safePredict(slot.h, slot.a, 'KO');
-        const rnd = Math.random();
-        if(rnd < p.pH) return slot.h;
-        if(rnd < p.pH+p.pD){
-          const c1=(CLUTCH[slot.h]||65)/100, c2=(CLUTCH[slot.a]||65)/100;
-          return Math.random() < (0.5+(c1-c2)*0.3) ? slot.h : slot.a;
-        }
-        return slot.a;
-      });
-
-      // Final
-      let finalH = sfWinners[0] || 'TBD';
-      let finalA = sfWinners[1] || 'TBD';
-      let champion = null;
-      if(finalH!=='TBD' && finalA!=='TBD'){
-        const key = finalH+'-'+finalA;
-        const real = REAL_RESULTS[key];
-        if(real && real.played){
-          champion = real.h>real.a?finalH:real.h<real.a?finalA: (real.penH!==undefined? (real.penH>real.penA?finalH:finalA): null);
-        } else {
-          const p = safePredict(finalH, finalA, 'KO');
-          const rnd = Math.random();
-          if(rnd < p.pH) champion = finalH;
-          else if(rnd < p.pH+p.pD){
-            const c1=(CLUTCH[finalH]||65)/100, c2=(CLUTCH[finalA]||65)/100;
-            champion = Math.random() < (0.5+(c1-c2)*0.3) ? finalH : finalA;
-          } else champion = finalA;
-        }
-      }
+      // Simular SOLO desde el bracket real actual (R32 con emparejamientos reales)
+      let w = BRACKET_KO.r32.map(m=> _koRes(m.h, m.a)); // 16 ganadores de R32
+      w = _nextRound(w, BRACKET_KO.r16);                // Octavos
+      w = _nextRound(w, BRACKET_KO.qf);                 // Cuartos
+      w = _nextRound(w, BRACKET_KO.sf);                 // Semis
+      const champion = _koRes(w[0]||'TBD', w[1]||'TBD');// Final
       if(champion) champ[champion] = (champ[champion]||0)+1;
 
       // Limpiar caché y actualizar progreso cada 50 iteraciones para no bloquear UI
@@ -1600,29 +1548,50 @@ async function runMC(N, cb){
 function renderChamp(){
   let act=ALL_TEAMS.map(t=>({t,f:FLAG(t),p:G.mc[t]||0})).sort((a,b)=>b.p-a.p);
   if(!act.length||!act[0]) return;
-  document.getElementById('page-champ').innerHTML=`
-    <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:17px;color:var(--muted)">Modelo Actual (${Object.keys(REAL_RESULTS).length} resultados fijados)</div></div>
-    <div class="stitle">📈 Top 16 — Probabilidades de campeonato</div>
-    <div class="card">${act.slice(0,16).map((x,i)=>`<div class="trow"><div style="font-size:19px;color:var(--muted);width:26px;text-align:center">${i+1}</div><div class="tflg">${x.f}</div><div class="tname">${x.t}</div><div class="tpct">${x.p}%</div></div>`).join('')}</div>
-    <div class="card" style="margin-top:8px;background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25)">
-      <div style="font-size:19px;font-weight:800;margin-bottom:8px">❓ ¿Por qué gana Argentina si Francia y España tienen mayor ICC?</div>
+  const alive=act.filter(x=>x.p>0); // solo equipos que siguen con opción al título
+  const w=computeModelWeights();
+  const wp=v=>Math.round(v*100)+'%';
+  const weightsHtml=`<div class="card" style="background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25);font-size:16px">
+    <div style="font-weight:800;margin-bottom:4px">⚖️ Ensamble ponderado por precisión histórica</div>
+    <div style="color:var(--muted);line-height:1.6">🎯 Principal ${wp(w.principal)} · ⚡ ELO ${wp(w.elo)} · 🏗️ ICC ${wp(w.icc)} · 🔥 Momentum ${wp(w.mom)}</div>
+  </div>`;
+
+  // ----- Explicación dinámica del favorito -----
+  const champ=act[0].t, champPct=act[0].p;
+  const iccList=ALL_TEAMS.map(t=>({t,icc:Math.round(getCachedICC(t)||50)})).sort((a,b)=>b.icc-a.icc);
+  const champICC=Math.round(getCachedICC(champ)||50);
+  const iccRank=iccList.findIndex(x=>x.t===champ)+1;
+  const iccLeader=iccList[0];
+  const topICC=iccList.slice(0,3).map(x=>`${x.t} ${x.icc}`).join(', ');
+  const sims=MC_SIMS||200;
+  let explainHtml;
+  if(champICC>=iccLeader.icc){
+    explainHtml=`<div style="font-size:19px;font-weight:800;margin-bottom:8px">❓ ¿Por qué ${champ} es el favorito al título (${champPct}%)?</div>
       <div style="font-size:17px;color:var(--text);line-height:1.6">
-        El ICC (Índice de Calidad de Conjunto) mide el <em>nivel estructural actual</em> de una selección: Francia 92, España 91, Argentina 82.
+        ${champ} está entre los de mayor <strong>ICC</strong> (Índice de Calidad de Conjunto: ${champICC}) y la simulación también lo favorece.
+        La probabilidad de campeón sale de <strong>${sims} simulaciones</strong> Monte Carlo que combinan —ponderados por su acierto histórico— los modelos ELO, ICC, Momentum y Principal, más el <strong>bracket</strong>, la <strong>experiencia en eliminatorias</strong> (clutch) y la suerte.
         <br><br>
-        Pero la probabilidad de <strong>campeón</strong> la calcula la simulación Monte Carlo —
-        no el ICC solo. El ICC es <em>uno</em> de varios factores: también pesan
-        el <strong>bracket</strong> (a quién le toca en cada ronda), el <strong>momentum</strong>
-        (racha de resultados recientes), la <strong>experiencia en partidos a muerte</strong>
-        (eliminatorias directas) y el <strong>ELO histórico</strong>.
+        <span style="color:var(--muted);font-size:16px">💡 ICC alto = mejor equipo hoy; el título también depende del cruce y del momento.</span>
+      </div>`;
+  } else {
+    explainHtml=`<div style="font-size:19px;font-weight:800;margin-bottom:8px">❓ ¿Por qué ${champ} es favorito al título (${champPct}%) si ${iccLeader.t} tiene mayor ICC?</div>
+      <div style="font-size:17px;color:var(--text);line-height:1.6">
+        El <strong>ICC</strong> mide el nivel estructural actual: ${topICC}… — ${champ} tiene ${champICC} (puesto ${iccRank} en ICC).
         <br><br>
-        Argentina tiene historial de rendimiento en eliminatorias directas que supera lo que dice su ICC,
-        y el bracket actual le asigna un camino más favorable que el de Francia o España.
-        En 10 000 simulaciones, ese combo de factores hace que Argentina gane el torneo con más frecuencia —
-        aunque partido a partido Francia siga siendo favorita.
+        Pero la probabilidad de <strong>campeón</strong> no la decide el ICC solo, sino <strong>${sims} simulaciones</strong> Monte Carlo que combinan —ponderados por su acierto histórico— los modelos ELO, ICC, Momentum y Principal, junto con el <strong>bracket</strong> (a quién le toca cada ronda), el <strong>momentum</strong> reciente, la <strong>experiencia en partidos a muerte</strong> (clutch) y el <strong>ELO histórico</strong>.
         <br><br>
-        <span style="color:var(--muted);font-size:16px">💡 ICC alto = mejor equipo hoy. ICC alto ≠ garantía de campeón —
-        el bracket, la suerte y el momento también deciden.</span>
-      </div>
+        Con ese combo, ${champ} sale campeón más veces que ${iccLeader.t}, aunque partido a partido ${iccLeader.t} pueda seguir siendo favorito.
+        <br><br>
+        <span style="color:var(--muted);font-size:16px">💡 ICC alto = mejor equipo hoy, no garantía de campeón — el cruce, la suerte y el momento también deciden.</span>
+      </div>`;
+  }
+  document.getElementById('page-champ').innerHTML=`
+    <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:17px;color:var(--muted)">Ensamble ponderado de 4 modelos (${Object.keys(REAL_RESULTS).length} resultados)</div></div>
+    ${weightsHtml}
+    <div class="stitle">📈 Aún con opción al título · ${alive.length} equipo${alive.length===1?'':'s'}</div>
+    <div class="card">${alive.map((x,i)=>`<div class="trow"><div style="font-size:19px;color:var(--muted);width:26px;text-align:center">${i+1}</div><div class="tflg">${x.f}</div><div class="tname">${x.t}</div><div class="tpct">${x.p}%</div></div>`).join('')}</div>
+    <div class="card" style="margin-top:8px;background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25)">
+      ${explainHtml}
     </div>`;
 }
 
@@ -1647,6 +1616,7 @@ function renderDuel(){
 
   const MN2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const d2=new Date(todayStr+'T23:59:59');
+  const todayStart=new Date(todayStr+'T00:00:00');
   const todayBD2=MN2[d2.getMonth()]+' '+d2.getDate();
   const koRounds=[...BRACKET_KO.r32,...BRACKET_KO.r16,...BRACKET_KO.qf,...BRACKET_KO.sf,...(BRACKET_KO.f||[]),...(BRACKET_KO.third||[])];
   const pending=koRounds.filter(m=>{
@@ -1657,7 +1627,8 @@ function renderDuel(){
     const mi=MN2.indexOf(mon);
     if(mi<0) return false;
     const mDate=new Date(2026,mi,parseInt(day));
-    return mDate<=d2;
+    // Solo partidos de días ANTERIORES a hoy (los de hoy pueden no haberse jugado aún)
+    return mDate<todayStart;
   });
   let pendHtml='';
   if(pending.length){
@@ -1704,6 +1675,7 @@ function showTab(el,name){
   else if(name==='hoy')  renderHoy();
   else if(name==='duel') renderDuel();
   else if(name==='comp') renderComparativa();
+  else if(name==='banca') renderBanca();
 }
 
 // ==================== RENDER COMPARATIVA (sin cambios, pero actualizado) ====================
@@ -1831,7 +1803,7 @@ function renderComparativa(){
   });
   h += '</tr></thead><tbody>';
 
-  const refMatches = stats['Principal'].matches;
+  const refMatches = stats[models[0]].matches;
   refMatches.forEach((rm, idx) => {
     const row_bg = idx%2===0?'rgba(255,255,255,.02)':'transparent';
     h += '<tr style="background:'+row_bg+';border-bottom:1px solid rgba(255,255,255,.04)">';
@@ -2036,6 +2008,169 @@ function calcSurpriseFactor(home,away,pred){
   return {ud, fav, score:finalScore, prob:udProb, reasons};
 }
 
+// ==================== VALOR vs BETPLAY (EV + Kelly) ====================
+// Se llama al escribir la cuota real de BetPlay: calcula EV y tamaño de apuesta.
+function calcValueEV(input, prob){
+  const out = input.parentElement.querySelector('.ev-out');
+  if(!out) return;
+  const row = input.closest('[data-valrow]');
+  const clearRow = ()=>{ if(row){ row.style.background=''; row.style.borderLeft=''; row.style.paddingLeft=''; } };
+  const cuota = parseFloat(input.value);
+  if(!cuota || cuota<=1){ out.textContent='— escribe la cuota'; out.style.color='var(--muted)'; clearRow(); return; }
+  const ev = prob*cuota - 1;                 // EV por unidad apostada
+  const b = cuota - 1;
+  const kelly = (prob*b - (1-prob))/b;       // fracción óptima de Kelly
+  const half = Math.max(0, kelly*0.5);       // ½ Kelly (menos riesgo de ruina)
+  if(ev<=0){
+    out.innerHTML = '❌ EV '+(ev*100).toFixed(1)+'% — sin valor a esa cuota';
+    out.style.color = 'var(--red)'; clearRow(); return;
+  }
+  // Apuesta SÓLIDA: probabilidad decente de ganar Y EV claramente positivo
+  const solida = prob>=0.45 && ev>=0.10;
+  const stake = '· apostar ~'+(half*100).toFixed(1)+'% del bankroll (½ Kelly)';
+  if(solida){
+    out.innerHTML = '<span style="background:var(--green);color:#001b0a;font-weight:900;padding:2px 9px;border-radius:99px;font-size:14px;margin-right:6px">💎 APUESTA SÓLIDA</span>EV +'+(ev*100).toFixed(1)+'% '+stake;
+    if(row){ row.style.background='rgba(32,192,90,.14)'; row.style.borderLeft='4px solid var(--green)'; row.style.paddingLeft='8px'; }
+  } else {
+    out.innerHTML = '✅ Valor (con varianza) · EV +'+(ev*100).toFixed(1)+'% '+stake;
+    clearRow();
+  }
+  out.style.color = 'var(--green)';
+}
+
+// ==================== MI BANCA (gestión de presupuesto + Kelly) ====================
+function loadBank(){
+  try{ const b=JSON.parse(localStorage.getItem('footiq_bank')||'null');
+    if(b && typeof b.initial==='number' && Array.isArray(b.bets)) return b; }catch(e){}
+  return { initial:0, risk:'equil', bets:[] };
+}
+function saveBank(b){ try{ localStorage.setItem('footiq_bank', JSON.stringify(b)); }catch(e){} }
+function bankCurrent(b){
+  let c=b.initial;
+  for(const bet of b.bets){
+    if(bet.status==='won') c+=bet.stake*(bet.cuota-1);
+    else if(bet.status==='lost') c-=bet.stake;
+  }
+  return c;
+}
+function _riskMult(r){ return r==='cons'?0.25 : r==='agr'?0.75 : 0.5; }
+function _riskCap(r){ return r==='cons'?0.06 : r==='agr'?0.15 : 0.10; }
+function suggestStakeFrac(prob, cuota, risk){
+  const b=cuota-1; if(b<=0) return 0;
+  const kelly=(prob*b-(1-prob))/b;
+  return Math.min(Math.max(0, kelly*_riskMult(risk)), _riskCap(risk));
+}
+const _money=n=>'$'+Math.round(n).toLocaleString('es-CO');
+
+function setBudget(){
+  const v=parseFloat(document.getElementById('bankInput').value);
+  if(!v||v<=0){ showToast('Ingresa un presupuesto válido', false); return; }
+  const b=loadBank();
+  b.initial=v; saveBank(b); renderBanca(); showToast('✅ Presupuesto: '+_money(v));
+}
+function setRisk(r){ const b=loadBank(); b.risk=r; saveBank(b); renderBanca(); }
+function settleBet(id, won){ const b=loadBank(); const bet=b.bets.find(x=>x.id===id); if(bet) bet.status=won?'won':'lost'; saveBank(b); renderBanca(); }
+function unsettleBet(id){ const b=loadBank(); const bet=b.bets.find(x=>x.id===id); if(bet) bet.status='pending'; saveBank(b); renderBanca(); }
+function deleteBet(id){ const b=loadBank(); b.bets=b.bets.filter(x=>x.id!==id); saveBank(b); renderBanca(); }
+function resetBank(){ if(!confirm('¿Reiniciar banca? Se borra el historial (se conserva el presupuesto inicial).')) return; const b=loadBank(); saveBank({initial:b.initial, risk:b.risk, bets:[]}); renderBanca(); }
+function addBetToBank(desc, prob, cuota){
+  const b=loadBank();
+  if(!b.initial){ showToast('Primero define tu presupuesto en 💵 Mi Banca', false); return; }
+  const stake=Math.round(bankCurrent(b)*suggestStakeFrac(prob, cuota, b.risk));
+  if(stake<=0){ showToast('Sin valor a esa cuota — no se recomienda apostar', false); return; }
+  b.bets.push({ id:'b'+Date.now()+Math.floor(Math.random()*1000), desc, prob, cuota, stake, status:'pending', date:todayStr });
+  saveBank(b); showToast('✅ Añadida a Mi Banca: '+_money(stake));
+}
+function addBetFromRow(btn){
+  const row=btn.closest('[data-valrow]'); if(!row) return;
+  const input=row.querySelector('input[type=number]');
+  const cuota=input?parseFloat(input.value):NaN;
+  if(!cuota||cuota<=1){ showToast('Escribe la cuota de BetPlay primero', false); return; }
+  addBetToBank(row.dataset.desc||'Apuesta', parseFloat(row.dataset.prob)||0.5, cuota);
+}
+
+function renderBanca(){
+  const pg=document.getElementById('page-banca'); if(!pg) return;
+  const b=loadBank();
+  const cur=bankCurrent(b);
+  const settled=b.bets.filter(x=>x.status!=='pending');
+  const pend=b.bets.filter(x=>x.status==='pending');
+  const wins=settled.filter(x=>x.status==='won').length;
+  const invested=settled.reduce((s,x)=>s+x.stake,0);
+  const pl=cur-b.initial;
+  const roi=invested>0?(pl/invested*100):0;
+  const winRate=settled.length?(wins/settled.length*100):0;
+  const plC=pl>=0?'var(--green)':'var(--red)';
+  const riskLbl={cons:'Conservador (¼ Kelly)',equil:'Equilibrado (½ Kelly)',agr:'Agresivo (¾ Kelly)'};
+
+  let h='<div class="stitle" style="margin-top:8px">💵 Mi Banca</div>';
+  h+='<div class="card">';
+  h+='<div style="font-size:16px;color:var(--muted);margin-bottom:6px">Presupuesto inicial (tu tope de riesgo total)</div>';
+  h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+  h+='<input id="bankInput" type="number" inputmode="numeric" placeholder="100000" value="'+(b.initial||'')+'" style="flex:1;min-width:120px;padding:8px 10px;font-size:17px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text)">';
+  h+='<button onclick="setBudget()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:16px;font-weight:700;cursor:pointer">Guardar</button></div>';
+  h+='<div style="font-size:16px;color:var(--muted);margin:12px 0 6px">Nivel de riesgo — más agresivo = más ganancia potencial y más volatilidad</div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  [['cons','🛡️ Conservador'],['equil','⚖️ Equilibrado'],['agr','🔥 Agresivo']].forEach(function(o){
+    const on=b.risk===o[0];
+    h+='<button onclick="setRisk(\''+o[0]+'\')" style="flex:1;min-width:96px;padding:8px;border-radius:8px;border:1px solid '+(on?'var(--accent)':'var(--border)')+';background:'+(on?'rgba(47,168,245,.15)':'var(--bg2)')+';color:'+(on?'var(--accent)':'var(--muted)')+';font-weight:'+(on?'800':'600')+';font-size:15px;cursor:pointer">'+o[1]+'</button>';
+  });
+  h+='</div>';
+  h+='<div style="font-size:14px;color:var(--muted);margin-top:6px">Actual: <b>'+riskLbl[b.risk]+'</b> · tope por apuesta: '+Math.round(_riskCap(b.risk)*100)+'% de la banca</div></div>';
+
+  if(!b.initial){
+    h+='<div class="card" style="text-align:center;color:var(--muted);font-size:16px">Define tu presupuesto para empezar. Luego, en 📅 Partidos Hoy, cada apuesta de valor tendrá un botón <b>➕ Mi Banca</b>.</div>';
+    pg.innerHTML=h; return;
+  }
+
+  h+='<div class="card" style="background:linear-gradient(135deg,#090f1e,#0d1c35)">';
+  h+='<div style="text-align:center"><div style="font-size:16px;color:var(--muted)">Banca actual</div>';
+  h+='<div style="font-size:38px;font-weight:900;color:'+plC+'">'+_money(cur)+'</div>';
+  h+='<div style="font-size:18px;font-weight:700;color:'+plC+'">'+(pl>=0?'+':'')+_money(pl)+' ('+(pl>=0?'+':'')+roi.toFixed(1)+'% ROI)</div></div>';
+  h+='<div style="display:flex;justify-content:space-around;margin-top:12px;font-size:15px;text-align:center">';
+  h+='<div><div style="color:var(--muted)">Inicial</div><b>'+_money(b.initial)+'</b></div>';
+  h+='<div><div style="color:var(--muted)">Apuestas</div><b>'+settled.length+'</b></div>';
+  h+='<div><div style="color:var(--muted)">Aciertos</div><b>'+wins+'/'+settled.length+' ('+winRate.toFixed(0)+'%)</b></div>';
+  h+='<div><div style="color:var(--muted)">Apostado</div><b>'+_money(invested)+'</b></div></div></div>';
+
+  if(pend.length){
+    h+='<div class="stitle">⏳ Apuestas pendientes</div><div class="card">';
+    pend.forEach(function(x){
+      h+='<div style="border-top:1px solid rgba(255,255,255,.08);padding:8px 0">';
+      h+='<div style="font-size:16px;font-weight:700">'+x.desc+'</div>';
+      h+='<div style="font-size:15px;color:var(--muted);margin:2px 0">Apostado '+_money(x.stake)+' @ '+x.cuota+' · si gana: +'+_money(x.stake*(x.cuota-1))+'</div>';
+      h+='<div style="display:flex;gap:6px;margin-top:4px">';
+      h+='<button onclick="settleBet(\''+x.id+'\',true)" style="flex:1;background:rgba(32,192,90,.2);color:var(--green);border:1px solid var(--green);border-radius:8px;padding:6px;font-weight:700;cursor:pointer">✅ Ganó</button>';
+      h+='<button onclick="settleBet(\''+x.id+'\',false)" style="flex:1;background:rgba(232,64,74,.2);color:var(--red);border:1px solid var(--red);border-radius:8px;padding:6px;font-weight:700;cursor:pointer">❌ Perdió</button>';
+      h+='<button onclick="deleteBet(\''+x.id+'\')" style="background:var(--bg2);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer">🗑️</button>';
+      h+='</div></div>';
+    });
+    h+='</div>';
+  }
+
+  if(settled.length){
+    h+='<div class="stitle">📋 Historial</div><div class="card">';
+    settled.slice().reverse().forEach(function(x){
+      const won=x.status==='won';
+      const delta=won?x.stake*(x.cuota-1):-x.stake;
+      h+='<div class="trow" style="font-size:15px"><div style="flex:1">'+(won?'✅':'❌')+' '+x.desc+' <span style="color:var(--muted)">@'+x.cuota+'</span></div>';
+      h+='<div style="color:'+(won?'var(--green)':'var(--red)')+';font-weight:700;white-space:nowrap">'+(delta>=0?'+':'')+_money(delta)+'</div>';
+      h+='<button onclick="unsettleBet(\''+x.id+'\')" title="Deshacer" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;margin-left:6px">↩︎</button></div>';
+    });
+    h+='</div>';
+  }
+
+  h+='<div style="text-align:center;margin:8px 0"><button onclick="resetBank()" style="background:var(--bg2);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer">🔄 Reiniciar banca</button></div>';
+  h+='<div class="card" style="background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25);font-size:15px;line-height:1.6">';
+  h+='<b>¿Cómo funciona la estrategia?</b><br>';
+  h+='1️⃣ Defines tu presupuesto (lo máximo que arriesgas en total).<br>';
+  h+='2️⃣ En 📅 Partidos Hoy escribes la cuota de BetPlay; el sistema calcula cuánto apostar con <b>Kelly</b> (la fórmula que maximiza el crecimiento a largo plazo) según tu nivel de riesgo.<br>';
+  h+='3️⃣ Pulsas <b>➕ Mi Banca</b> y aquí marcas si ganó o perdió.<br>';
+  h+='4️⃣ La banca se recalcula sola y la próxima apuesta se dimensiona sobre el <b>nuevo</b> saldo (interés compuesto: si ganas apuestas más, si pierdes menos → te protege).<br>';
+  h+='<span style="color:var(--muted)">Kelly apuesta más donde hay más ventaja, maximizando ganancias con el riesgo justo. El tope por apuesta evita la ruina.</span></div>';
+  pg.innerHTML=h;
+}
+
 // ==================== RENDER HOY ====================
 function renderHoy(){
   updateBrackets(); // Asegurar que los brackets están al día
@@ -2053,6 +2188,48 @@ function renderHoy(){
   ];
   // Sobrescribir la fecha del cuadro con la fecha REAL de ESPN cuando exista
   allSlots.forEach(m=>{ const d=MATCH_DATES[m.h+'-'+m.a]; if(d) m.date=d; });
+
+  // ---- VALOR vs BetPlay: escanear próximos partidos con equipos definidos ----
+  let valueHtml='';
+  try {
+    computeModelWeights(); _CONS_CACHE={};
+    const valUp = allSlots.filter(m=> m.h!=='TBD' && m.a!=='TBD' && m.sh===null &&
+      !(REAL_RESULTS[m.h+'-'+m.a] && REAL_RESULTS[m.h+'-'+m.a].played));
+    const valPicks=[];
+    valUp.forEach(m=>{
+      let pm; try{ pm=consensusPredict(m.h,m.a,'KO'); }catch(e){ return; }
+      const mk=_mus_elo(MERCADO[m.h]||1500, MERCADO[m.a]||1500);
+      const cands=[
+        {lbl:'Gana '+m.h.split(' ')[0], pm:pm.pH, mk:mk.pH},
+        {lbl:'Empate',                  pm:pm.pD, mk:mk.pD},
+        {lbl:'Gana '+m.a.split(' ')[0], pm:pm.pA, mk:mk.pA},
+      ].map(c=>({...c, edge:c.pm-c.mk}));
+      const best=cands.slice().sort((a,b)=>b.edge-a.edge)[0];
+      if(best.edge>=0.03 && best.pm>=0.15) valPicks.push({h:m.h,a:m.a,...best});
+    });
+    valPicks.sort((a,b)=>b.edge-a.edge);
+    valPicks.splice(6); // solo las 6 mejores oportunidades
+    if(valPicks.length){
+      valueHtml='<div class="stitle" style="margin-top:4px">💰 Valor vs BetPlay · próximos</div>'+
+        '<div class="card" style="background:rgba(32,192,90,.06);border-color:rgba(32,192,90,.25)">'+
+        '<div style="font-size:15px;color:var(--muted);margin-bottom:6px;line-height:1.5">Ordenado por la ventaja del <b>ensamble ponderado</b> sobre el mercado. Escribe la <b>cuota real de BetPlay</b> para ver el EV y cuánto apostar (½ Kelly). Solo hay valor si la cuota supera la "cuota justa".</div>';
+      valPicks.forEach(p=>{
+        const fair=(1/p.pm).toFixed(2);
+        valueHtml+='<div data-valrow data-prob="'+p.pm.toFixed(4)+'" data-desc="'+p.h+' vs '+p.a+' — '+p.lbl+'" style="border-top:1px solid rgba(255,255,255,.08);padding:8px 0;transition:background .15s">'+
+          '<div style="font-size:17px;font-weight:700">'+FLAG(p.h)+' '+p.h+' vs '+p.a+' '+FLAG(p.a)+'</div>'+
+          '<div style="font-size:16px;margin:2px 0"><b style="color:var(--green)">'+p.lbl+'</b> · Modelo '+Math.round(p.pm*100)+'% · Mercado '+Math.round(p.mk*100)+'% · <span style="color:var(--green)">Ventaja +'+Math.round(p.edge*100)+'%</span></div>'+
+          '<div style="font-size:15px;color:var(--muted)">Cuota justa (break-even): '+fair+' — hay valor si BetPlay paga más.</div>'+
+          '<div style="font-size:16px;margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Cuota BetPlay: '+
+            '<input type="number" step="0.01" min="1" inputmode="decimal" placeholder="'+fair+'" style="width:92px;padding:5px 8px;font-size:16px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text)" oninput="calcValueEV(this,'+p.pm.toFixed(4)+')">'+
+            '<span class="ev-out" style="font-size:15px;color:var(--muted)">— escribe la cuota</span>'+
+            '<button onclick="addBetFromRow(this)" style="background:var(--gold);color:#1a1200;border:none;border-radius:8px;padding:5px 10px;font-size:14px;font-weight:800;cursor:pointer">➕ Mi Banca</button>'+
+          '</div>'+
+        '</div>';
+      });
+      valueHtml+='<div style="font-size:13px;color:var(--muted);margin-top:8px">⚠️ Estimación educativa, no garantía. Apuesta con responsabilidad; ½ Kelly reduce el riesgo de ruina.</div></div>';
+    }
+  } catch(e){ console.warn('valor:',e); }
+
   const d0y=new Date(todayStr+'T12:00:00');
   d0y.setDate(d0y.getDate()-1);
   const MNy=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2077,6 +2254,8 @@ function renderHoy(){
     '<div class="stitle" style="margin:0">📅 '+todayBD+'</div>'+
     '<button onclick="syncFromAPI()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:15px;font-weight:700;cursor:pointer">🔄 Actualizar</button>'+
     '</div>';
+
+  html += valueHtml;
 
   slots.forEach(function(m){
     if(m.sh===null && m.h!=='TBD' && m.a!=='TBD'){
@@ -2262,12 +2441,14 @@ function closeSettings(){ document.getElementById('settingsModal').classList.add
 const ESPN_NAME_MAP = {
   'South Korea':'South Korea','Korea Republic':'South Korea',
   'Ivory Coast':'Ivory Coast',"Côte d'Ivoire":'Ivory Coast',"Cote d'Ivoire":'Ivory Coast',
-  'Bosnia and Herzegovina':'Bosnia','Bosnia Herzegovina':'Bosnia',
+  'Bosnia and Herzegovina':'Bosnia','Bosnia Herzegovina':'Bosnia','Bosnia-Herzegovina':'Bosnia','Bosnia & Herzegovina':'Bosnia',
   'Czech Republic':'Czechia','Czechia':'Czechia',
   'DR Congo':'DR Congo','Congo DR':'DR Congo','Democratic Republic of Congo':'DR Congo',
   "Curaçao":'Curaçao','Curacao':'Curaçao',
   'USA':'United States','United States':'United States',
   'Cape Verde':'Cape Verde','Saudi Arabia':'Saudi Arabia',
+  'Türkiye':'Turkey','Turkiye':'Turkey','Turkey':'Turkey',
+  'IR Iran':'Iran','Iran':'Iran','South Africa':'South Africa',
 };
 function mapESPNName(n){
   return ESPN_NAME_MAP[n] || n;
