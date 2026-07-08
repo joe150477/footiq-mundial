@@ -278,7 +278,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span style="font-size:15px;opacity:0.5;font-weight:normal">v-jul7-b</span></div>
+  <div class="logo">Foot<em>IQ</em> <span style="font-size:15px;opacity:0.5;font-weight:normal">v-jul7-d</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -322,7 +322,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:21px
 
 <div class="tabs">
   <div class="tab active" onclick="showTab(this,'champ')"><span class="ti">🏆</span>Campeón</div>
-  <div class="tab" onclick="showTab(this,'hoy')"><span class="ti">📅</span>Partidos Hoy</div>
+  <div class="tab" onclick="showTab(this,'hoy')"><span class="ti">📅</span>Partidos</div>
   <div class="tab" onclick="showTab(this,'comp')"><span class="ti">📊</span>Comparativa</div>
   <div class="tab" onclick="showTab(this,'banca')"><span class="ti">💵</span>Mi Banca</div>
 </div>
@@ -2056,7 +2056,7 @@ function calcValueEV(input, prob){
   if(!out) return;
   const row = input.closest('[data-valrow]');
   const clearRow = ()=>{ if(row){ row.style.background=''; row.style.borderLeft=''; row.style.paddingLeft=''; } };
-  const cuota = parseFloat(input.value);
+  const cuota = parseFloat(String(input.value).replace(',','.'));
   if(!cuota || cuota<=1){ out.textContent='— escribe la cuota'; out.style.color='var(--muted)'; clearRow(); return; }
   const ev = prob*cuota - 1;                 // EV por unidad apostada
   const b = cuota - 1;
@@ -2124,8 +2124,8 @@ function addBetToBank(desc, prob, cuota){
 }
 function addBetFromRow(btn){
   const row=btn.closest('[data-valrow]'); if(!row) return;
-  const input=row.querySelector('input[type=number]');
-  const cuota=input?parseFloat(input.value):NaN;
+  const input=row.querySelector('.cuota-in');
+  const cuota=input?parseFloat(String(input.value).replace(',','.')):NaN;
   if(!cuota||cuota<=1){ showToast('Escribe la cuota de BetPlay primero', false); return; }
   addBetToBank(row.dataset.desc||'Apuesta', parseFloat(row.dataset.prob)||0.5, cuota);
 }
@@ -2160,7 +2160,7 @@ function renderBanca(){
   h+='<div style="font-size:14px;color:var(--muted);margin-top:6px">Actual: <b>'+riskLbl[b.risk]+'</b> · tope por apuesta: '+Math.round(_riskCap(b.risk)*100)+'% de la banca</div></div>';
 
   if(!b.initial){
-    h+='<div class="card" style="text-align:center;color:var(--muted);font-size:16px">Define tu presupuesto para empezar. Luego, en 📅 Partidos Hoy, cada apuesta de valor tendrá un botón <b>➕ Mi Banca</b>.</div>';
+    h+='<div class="card" style="text-align:center;color:var(--muted);font-size:16px">Define tu presupuesto para empezar. Luego, en 📅 Partidos, cada apuesta de valor tendrá un botón <b>➕ Mi Banca</b>.</div>';
     pg.innerHTML=h; return;
   }
 
@@ -2205,7 +2205,7 @@ function renderBanca(){
   h+='<div class="card" style="background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25);font-size:15px;line-height:1.6">';
   h+='<b>¿Cómo funciona la estrategia?</b><br>';
   h+='1️⃣ Defines tu presupuesto (lo máximo que arriesgas en total).<br>';
-  h+='2️⃣ En 📅 Partidos Hoy escribes la cuota de BetPlay; el sistema calcula cuánto apostar con <b>Kelly</b> (la fórmula que maximiza el crecimiento a largo plazo) según tu nivel de riesgo.<br>';
+  h+='2️⃣ En 📅 Partidos escribes la cuota de BetPlay; el sistema calcula cuánto apostar con <b>Kelly</b> (la fórmula que maximiza el crecimiento a largo plazo) según tu nivel de riesgo.<br>';
   h+='3️⃣ Pulsas <b>➕ Mi Banca</b> y aquí marcas si ganó o perdió.<br>';
   h+='4️⃣ La banca se recalcula sola y la próxima apuesta se dimensiona sobre el <b>nuevo</b> saldo (interés compuesto: si ganas apuestas más, si pierdes menos → te protege).<br>';
   h+='<span style="color:var(--muted)">Kelly apuesta más donde hay más ventaja, maximizando ganancias con el riesgo justo. El tope por apuesta evita la ruina.</span></div>';
@@ -2271,7 +2271,7 @@ function renderHoy(){
           '<div style="font-size:16px;margin:2px 0"><b style="color:var(--green)">'+p.lbl+'</b> · Modelo '+Math.round(p.pm*100)+'% · Mercado '+Math.round(p.mk*100)+'% · <span style="color:var(--green)">Ventaja +'+Math.round(p.edge*100)+'%</span></div>'+
           '<div style="font-size:15px;color:var(--muted)">Cuota justa (break-even): '+fair+' — hay valor si BetPlay paga más.</div>'+
           '<div style="font-size:16px;margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Cuota BetPlay: '+
-            '<input type="number" step="0.01" min="1" inputmode="decimal" placeholder="'+fair+'" style="width:92px;padding:5px 8px;font-size:16px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text)" oninput="calcValueEV(this,'+p.pm.toFixed(4)+')">'+
+            '<input type="text" inputmode="decimal" class="cuota-in" placeholder="'+fair+'" style="width:92px;padding:5px 8px;font-size:16px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text)" oninput="calcValueEV(this,'+p.pm.toFixed(4)+')">'+
             '<span class="ev-out" style="font-size:15px;color:var(--muted)">— escribe la cuota</span>'+
             '<button onclick="addBetFromRow(this)" style="background:var(--gold);color:#1a1200;border:none;border-radius:8px;padding:5px 10px;font-size:14px;font-weight:800;cursor:pointer">➕ Mi Banca</button>'+
           '</div>'+
@@ -2281,34 +2281,40 @@ function renderHoy(){
     }
   } catch(e){ console.warn('valor:',e); }
 
-  const d0y=new Date(todayStr+'T12:00:00');
-  d0y.setDate(d0y.getDate()-1);
-  const MNy=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const yesterdayBD=MNy[d0y.getMonth()]+' '+d0y.getDate();
-
-  const slotsToday=allSlots.filter(m=>m.date===todayBD);
-  const slotsYest=allSlots.filter(m=>m.date===yesterdayBD);
+  // Ventana de partidos: recientes (jugados) + hoy + próximos, para no perderse ninguno
+  const _MNh=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const today0h=new Date(todayStr+'T00:00:00');
+  const _parseLbl=lbl=>{ const p=(lbl||'').split(' '); const mi=_MNh.indexOf(p[0]); return mi>=0?new Date(2026,mi,parseInt(p[1])):null; };
+  const _from=new Date(today0h); _from.setDate(_from.getDate()-3);
+  const _to=new Date(today0h);   _to.setDate(_to.getDate()+4);
+  let slots=allSlots.filter(m=>m.h!=='TBD'&&m.a!=='TBD')
+    .map(m=>Object.assign({},m,{_d:_parseLbl(m.date)}))
+    .filter(m=>m._d && m._d>=_from && m._d<=_to);
+  const _seenP={}; slots=slots.filter(m=>{ const k=m.h+'|'+m.a; if(_seenP[k])return false; _seenP[k]=1; return true; });
+  slots.sort((a,b)=> a._d-b._d);
 
   const pg=document.getElementById('page-hoy');
-  const todayHasReal=slotsToday.some(m=>m.h!=='TBD'&&m.a!=='TBD');
-  const slots=[...slotsToday];
-  if(!todayHasReal && slotsYest.length){
-    slotsYest.forEach(m=>slots.unshift(Object.assign({},m,{_isYest:true})));
-  }
-
   if(!slots.length){
-    pg.innerHTML='<div class="card" style="text-align:center;padding:32px;color:var(--muted);font-size:18px">📭 Sin partidos hoy ('+todayBD+')</div>';
+    pg.innerHTML='<div class="card" style="text-align:center;padding:32px;color:var(--muted);font-size:18px">📭 Sin partidos en estos días</div>';
     return;
   }
 
   let html='<div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 10px">'+
-    '<div class="stitle" style="margin:0">📅 '+todayBD+'</div>'+
+    '<div class="stitle" style="margin:0">📅 Partidos</div>'+
     '<button onclick="syncFromAPI()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:15px;font-weight:700;cursor:pointer">🔄 Actualizar</button>'+
     '</div>';
 
   html += valueHtml;
+  let _lastDate=null;
 
   slots.forEach(function(m){
+    // Cabecera cuando cambia el día (Ayer / Hoy / Mañana / fecha)
+    if(m.date!==_lastDate){
+      _lastDate=m.date;
+      const dd=Math.round((m._d-today0h)/86400000);
+      const rel=dd===0?'🟢 Hoy':dd===-1?'Ayer':dd===1?'Mañana':(dd<0?('Hace '+(-dd)+' días'):('En '+dd+' días'));
+      html+='<div class="stitle" style="margin:16px 0 6px;font-size:18px">📅 '+m.date+' · '+rel+'</div>';
+    }
     if(m.sh===null && m.h!=='TBD' && m.a!=='TBD'){
       const _rr=REAL_RESULTS[m.h+'-'+m.a];
       if(_rr?.played){m.sh=_rr.h;m.sa=_rr.a;if(_rr.penH!==undefined){m.pen_h=_rr.penH;m.pen_a=_rr.penA;}}
@@ -2319,7 +2325,6 @@ function renderHoy(){
     const w=played?(()=>{if(m.sh>m.sa)return m.h;if(m.sa>m.sh)return m.a;if(m.pen_h!==undefined)return m.pen_h>m.pen_a?m.h:m.a;return null;})():null;
 
     html+='<div class="mcard-dual">';
-    if(m._isYest) html+='<div style="font-size:13px;color:var(--muted);padding:4px 8px 0">📅 Ayer — '+m.date+'</div>';
     html+='<div class="match-header">';
     html+='<div class="tflg">'+(hasBoth?FLAG(m.h):'')+'</div>';
     html+='<div class="tname">'+(m.h==='TBD'?'Por definir':m.h)+'</div>';
@@ -2395,6 +2400,12 @@ setInterval(updateColTime, 1000);
 
 // Carga segura de resultados guardados
 function loadSavedResults(){
+  // 1) resultados de ESPN cacheados de la sesión anterior
+  try {
+    const espn = localStorage.getItem('footiq_espn');
+    if (espn) { const pe = JSON.parse(espn); for (const [k, v] of Object.entries(pe)) REAL_RESULTS[k] = v; }
+  } catch (e) { try { localStorage.removeItem('footiq_espn'); } catch (ex) {} }
+  // 2) resultados manuales (tienen prioridad sobre ESPN)
   try {
     const saved = localStorage.getItem('footiq_results');
     if (saved) {
@@ -2616,6 +2627,11 @@ async function syncFromAPI(){
     const manual=JSON.parse(localStorage.getItem('footiq_results')||'{}');
     Object.assign(REAL_RESULTS, safeResults, manual);
     updateBrackets();
+    // Guardar resultados de ESPN para que el próximo arranque ya los tenga
+    try { localStorage.setItem('footiq_espn', JSON.stringify(safeResults)); }catch(e){}
+    // Recalcular las probabilidades de CAMPEÓN con los resultados nuevos
+    // (si no, seguirían apareciendo equipos ya eliminados como Portugal)
+    await runMC(200, res => { G.mc = res; });
     refreshAll();
     const now=new Date();
     const ts=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
