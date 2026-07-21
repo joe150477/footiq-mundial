@@ -122,13 +122,13 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:20px
 const TORNEOS = {
   betplay: {
     nombre:'Liga BetPlay 2026-II', corto:'🇨🇴 BetPlay', espn:'col.1',
-    inicio:'2026-07-24', fin:'2026-12-15', estado:'activo',
+    inicio:'2026-07-24', fin:'2026-12-15', estado:'activo', seedDesde:'2026-01-15', seedHasta:'2026-07-23',
     nota:'20 equipos · 19 fechas todos contra todos (hasta 8 nov) + cuadrangulares. Inicia vie 24 jul. Campeón Apertura 2026-I: Atlético Junior (3-1 global a Nacional).',
     baseDraw:0.28, baseFav:0.46
   },
   laliga: {
     nombre:'LaLiga 2026-27', corto:'🇪🇸 LaLiga', espn:'esp.1',
-    inicio:'2026-08-15', fin:'2027-05-30', estado:'activo',
+    inicio:'2026-08-15', fin:'2027-05-30', estado:'activo', seedDesde:'2025-08-10', seedHasta:'2026-06-01',
     nota:'Jornada 1: sáb 15 ago (Alavés–Getafe 19:00). Partidos de equipos con mundialistas pueden aplazarse al 25-27 ago.',
     baseDraw:0.25, baseFav:0.49
   },
@@ -299,7 +299,16 @@ function walkForward(t){
   const hits={},tot={},log=[];
   MOTORES.forEach(m=>{hits[m]=0;tot[m]=0;});
   const played=st.matches.filter(m=>m.played).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  let scored=0;
   for(const m of played){
+    if(m.seed){
+      // Historia previa (Apertura / temporada pasada): solo calibra ELO y forma
+      eloUpdate(elo,m.h,m.a,m.sh,m.sa);
+      (form[m.h]=form[m.h]||[]).push(m.sh>m.sa?3:m.sh===m.sa?1:0);
+      (form[m.a]=form[m.a]||[]).push(m.sa>m.sh?3:m.sh===m.sa?1:0);
+      continue;
+    }
+    scored++;
     const rH=elo[m.h]??1500, rA=elo[m.a]??1500;
     const f5=team=>{const arr=(form[team]||[]).slice(-5);return {pts:arr.reduce((s,x)=>s+x,0),n:arr.length};};
     const preds={
@@ -335,7 +344,7 @@ function walkForward(t){
   }
   const w={};
   for(const k of MOTORES) w[k]=sum>0?raw[k]/sum:(k==='elo'?1:0); // arranque: solo ELO
-  return {elo,form,anom,hits,tot,weights:w,log,playedCount:played.length};
+  return {elo,form,anom,hits,tot,weights:w,log,playedCount:scored,seedCount:played.length-scored};
 }
 
 let WF={}; // cache por torneo
@@ -406,7 +415,7 @@ function oddsToProbs(oddsObj){
   }catch(e){ return null; }
 }
 
-function parseEvents(t,events){
+function parseEvents(t,events,isSeed){
   const st=loadState(t);
   const byId={}; st.matches.forEach(m=>byId[m.id]=m);
   let nuevos=0,actualizados=0;
@@ -424,7 +433,7 @@ function parseEvents(t,events){
     const status=comp.status?.type?.name||'';
     const done=comp.status?.type?.completed===true||['STATUS_FINAL','STATUS_FULL_TIME','STATUS_FINAL_PEN','STATUS_FINAL_AET'].includes(status);
     let m=byId[id];
-    if(!m){ m={id,h:hName,a:aName,sh:null,sa:null,played:false,odds:null}; st.matches.push(m); byId[id]=m; nuevos++; }
+    if(!m){ m={id,h:hName,a:aName,sh:null,sa:null,played:false,odds:null}; if(isSeed)m.seed=true; st.matches.push(m); byId[id]=m; nuevos++; }
     m.date=(ev.date||'').slice(0,16); // ISO con hora
     if(done){
       const sh=parseInt(home.score??'-1'), sa=parseInt(away.score??'-1');
@@ -448,6 +457,16 @@ async function syncTorneo(t){
   const cfg=TORNEOS[t];
   if(!cfg||cfg.estado==='futuro'||cfg.estado==='finalizado') return {nuevos:0,actualizados:0};
   const base=`https://site.api.espn.com/apis/site/v2/sports/soccer/${cfg.espn}/scoreboard`;
+  const st0=loadState(t);
+  // Siembra (una sola vez): historia previa para calibrar el ELO antes de la jornada 1
+  if(cfg.seedDesde && !st0.seedDone){
+    try{
+      const s0=new Date(cfg.seedDesde+'T00:00:00'), s1=new Date(cfg.seedHasta+'T00:00:00');
+      const sd=await fetchWithProxies(`${base}?dates=${_fmtD(s0)}-${_fmtD(s1)}&limit=500`);
+      parseEvents(t,sd.events||[],true);
+      st0.seedDone=true; saveState(t);
+    }catch(e){ console.warn('seed:',e.message); }
+  }
   // Temporada completa: calendario entero para poder simular el título
   const d0=new Date(cfg.inicio+'T00:00:00');
   const d1=cfg.fin?new Date(cfg.fin+'T00:00:00'):(()=>{const x=new Date();x.setDate(x.getDate()+30);return x;})();
@@ -522,7 +541,7 @@ function computeStandings(t){
   const st=loadState(t);
   const tbl={};
   for(const m of st.matches){
-    if(!m.played) continue;
+    if(!m.played||m.seed) continue;
     tbl[m.h]=tbl[m.h]||{pts:0,pj:0,gf:0,gc:0};
     tbl[m.a]=tbl[m.a]||{pts:0,pj:0,gf:0,gc:0};
     tbl[m.h].pj++; tbl[m.a].pj++;
@@ -539,7 +558,7 @@ function computeStandings(t){
 // ==================== MONTE CARLO TÍTULO (fase regular) ====================
 function simTitle(t,N=300){
   const st=loadState(t);
-  const pend=st.matches.filter(m=>!m.played);
+  const pend=st.matches.filter(m=>!m.played&&!m.seed);
   const stand=computeStandings(t);
   if(!stand.length||!pend.length) return null;
   const basePts={}; stand.forEach(s=>basePts[s.team]=s.pts);
@@ -659,6 +678,7 @@ function renderHoy(){
   const from=new Date(now); from.setDate(from.getDate()-2);
   const to=new Date(now); to.setDate(to.getDate()+7);
   const win=st.matches.filter(m=>{
+    if(m.seed) return false;
     const d=new Date(m.date); return !isNaN(d)&&d>=from&&d<=to;
   }).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   if(!win.length){
@@ -712,7 +732,8 @@ function renderComparativa(){
   }
   const wf=getWF(ACTIVE);
   if(!wf.playedCount){
-    pg.innerHTML='<div class="card future-card"><div class="future-icon">📊</div><div class="future-note">Aún no hay partidos jugados. La precisión de cada motor aparecerá aquí, medida SOLO con predicciones hechas antes de cada partido (walk-forward, sin trampa estadística).</div></div>';
+    const seedNote=wf.seedCount?`<br><br>✅ ELO ya calibrado con <b>${wf.seedCount}</b> partidos de historia previa (Apertura / temporada pasada) — por eso las predicciones ya distinguen a los equipos.`:'';
+    pg.innerHTML='<div class="card future-card"><div class="future-icon">📊</div><div class="future-note">Aún no hay partidos jugados en este torneo. La precisión de cada motor aparecerá aquí, medida SOLO con predicciones hechas antes de cada partido (walk-forward, sin trampa estadística).'+seedNote+'</div></div>';
     return;
   }
   let h='<div class="card" style="background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25);font-size:15px;line-height:1.5">'+
