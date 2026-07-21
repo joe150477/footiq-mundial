@@ -1056,15 +1056,13 @@ function refreshAll(){
     _clearStandings();
     invalidateCache('all');
     recalibrateELO();
-    computeTorneo();
-    MERCADO_WC=null; DRAW_ZONE_WC=null; WC_HARD_OVERRIDES=null; computeMercadoWC();
-    computeModelWeights();
     const active = document.querySelector('.page.active');
     if(active){
       const id = active.id.replace('page-','');
       if(id==='champ') renderChamp();
       else if(id==='hoy') renderHoy();
       else if(id==='comp') renderComparativa();
+      else if(id==='banca') renderBanca();
     }
     updateModelScore();
   } catch(e) {
@@ -1425,7 +1423,7 @@ function _koTie(h,a){
 }
 
 // ===== Ensamble ponderado por precisión histórica de cada modelo =====
-let MODEL_WEIGHTS = {elo:0.25, mom:0.25, mercado:0.25, torneo:0.25};
+let MODEL_WEIGHTS = {principal:0.40, elo:0.20, icc:0.20, mom:0.20};
 function _splitKeyTeams(key){
   const parts=key.split('-');
   for(let i=1;i<parts.length;i++){
@@ -1434,50 +1432,48 @@ function _splitKeyTeams(key){
   }
   return [parts[0], parts.slice(1).join('-')];
 }
+function _modelPreds(h,a){
+  return {
+    principal: safePredict(h,a,null),
+    elo: _mus_elo(G.elo[h]||1500, G.elo[a]||1500),
+    icc: _mus_icc(getCachedICC(h), getCachedICC(a)),
+    mom: _mus_mom(getCachedMomentum(h), getCachedMomentum(a)),
+  };
+}
 function _argMax3(p){ return (p.pH>=p.pA&&p.pH>=p.pD)?'H':(p.pA>=p.pH&&p.pA>=p.pD)?'A':'D'; }
 function computeModelWeights(){
-  const hits={elo:0,mom:0,mercado:0,torneo:0}, tot={elo:0,mom:0,mercado:0,torneo:0};
+  const hits={principal:0,elo:0,icc:0,mom:0}, tot={principal:0,elo:0,icc:0,mom:0};
   for(const [key,real] of Object.entries(REAL_RESULTS)){
     if(!real.played) continue;
     const [h,a]=_splitKeyTeams(key);
     if(!ALL_TEAMS.includes(h)||!ALL_TEAMS.includes(a)||h===a) continue;
-    const actual=real.h>real.a?'H':real.h<real.a?'A':'D';
-    const eloH=ELO_PRE[h]||1500, eloA=ELO_PRE[a]||1500;
-    const preds={
-      elo:     _mus_elo(eloH, eloA),
-      mom:     _mus_mom(getCachedMomentum(h), getCachedMomentum(a)),
-      mercado: _mus_mercado_wc(h, a),
-      torneo:  _mus_torneo(h, a),
-    };
-    for(const m in preds){
-      tot[m]++;
-      const p=preds[m];
-      const pred=(p.pH>=p.pA&&p.pH>=p.pD)?'H':(p.pA>=p.pH&&p.pA>=p.pD)?'A':'D';
-      if(pred===actual) hits[m]++;
-    }
+    const actual = real.h>real.a?'H':real.h<real.a?'A':'D';
+    const preds=_modelPreds(h,a);
+    for(const m in preds){ tot[m]++; if(_argMax3(preds[m])===actual) hits[m]++; }
   }
-  const base=0.35, floor=0.02; let raw={}, sum=0;
-  for(const m in hits){ const acc=tot[m]?hits[m]/tot[m]:0.5; raw[m]=Math.max(floor,acc-base); sum+=raw[m]; }
-  const w={}; for(const m in raw) w[m]=sum>0?raw[m]/sum:0.25;
-  MODEL_WEIGHTS=w; return w;
+  // Peso = habilidad por encima de una base del 45% (un modelo peor que eso casi se excluye)
+  const base=0.45, floor=0.02; let raw={}, sum=0;
+  for(const m in hits){ const acc=tot[m]?hits[m]/tot[m]:0.5; raw[m]=Math.max(floor, acc-base); sum+=raw[m]; }
+  const w={}; for(const m in raw) w[m]= sum>0 ? raw[m]/sum : 0.25;
+  MODEL_WEIGHTS=w;
+  return w;
 }
 let _CONS_CACHE={};
-function _clearPredCache(){ _CONS_CACHE={}; }
 function consensusPredict(h,a,grp=''){
   const ck=`C:${h}:${a}:${grp}`;
   if(_CONS_CACHE[ck]) return _CONS_CACHE[ck];
   const pred=ensemblePredict(h,a,grp);
   const elo=_mus_elo(G.elo[h]||1500, G.elo[a]||1500);
+  const icc=_mus_icc(getCachedICC(h), getCachedICC(a));
   const mom=_mus_mom(getCachedMomentum(h), getCachedMomentum(a));
-  const mkt=_mus_mercado_wc(h, a);
-  const trn=_mus_torneo(h, a);
   const w=MODEL_WEIGHTS;
-  let pH=elo.pH*w.elo+mom.pH*w.mom+mkt.pH*w.mercado+trn.pH*w.torneo;
-  let pD=elo.pD*w.elo+mom.pD*w.mom+mkt.pD*w.mercado+trn.pD*w.torneo;
-  let pA=elo.pA*w.elo+mom.pA*w.mom+mkt.pA*w.mercado+trn.pA*w.torneo;
+  let pH=pred.pH*w.principal+elo.pH*w.elo+icc.pH*w.icc+mom.pH*w.mom;
+  let pD=pred.pD*w.principal+elo.pD*w.elo+icc.pD*w.icc+mom.pD*w.mom;
+  let pA=pred.pA*w.principal+elo.pA*w.elo+icc.pA*w.icc+mom.pA*w.mom;
   const s=pH+pD+pA; if(s>0){pH/=s;pD/=s;pA/=s;}
   const out={pH,pD,pA,score:pred.score,xgH:pred.xgH,xgA:pred.xgA};
-  _CONS_CACHE[ck]=out; return out;
+  _CONS_CACHE[ck]=out;
+  return out;
 }
 function safeConsensusPredict(h,a,grp){
   if(!h||!a||h==='TBD'||a==='TBD'||!ALL_TEAMS.includes(h)||!ALL_TEAMS.includes(a)){
@@ -1554,7 +1550,7 @@ function renderChamp(){
   const wp=v=>Math.round(v*100)+'%';
   const weightsHtml=`<div class="card" style="background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25);font-size:16px">
     <div style="font-weight:800;margin-bottom:4px">⚖️ Ensamble ponderado por precisión histórica</div>
-    <div style="color:var(--muted);line-height:1.6">⚡ ELO ${wp(w.elo)} · 🔥 Momentum ${wp(w.mom)} · 💰 Mercado WC ${wp(w.mercado)} · 🏆 Torneo ${wp(w.torneo)}</div>
+    <div style="color:var(--muted);line-height:1.6">🎯 Principal ${wp(w.principal)} · ⚡ ELO ${wp(w.elo)} · 🏗️ ICC ${wp(w.icc)} · 🔥 Momentum ${wp(w.mom)}</div>
   </div>`;
 
   // ----- Explicación dinámica del favorito -----
@@ -1570,7 +1566,7 @@ function renderChamp(){
     explainHtml=`<div style="font-size:19px;font-weight:800;margin-bottom:8px">❓ ¿Por qué ${champ} es el favorito al título (${champPct}%)?</div>
       <div style="font-size:17px;color:var(--text);line-height:1.6">
         ${champ} está entre los de mayor <strong>ICC</strong> (Índice de Calidad de Conjunto: ${champICC}) y la simulación también lo favorece.
-        La probabilidad de campeón sale de <strong>${sims} simulaciones</strong> Monte Carlo que combinan —ponderados por su acierto histórico— los motores ELO, Momentum, Mercado WC y Torneo, más el <strong>bracket</strong>, la <strong>experiencia en eliminatorias</strong> (clutch) y la suerte.
+        La probabilidad de campeón sale de <strong>${sims} simulaciones</strong> Monte Carlo que combinan —ponderados por su acierto histórico— los modelos ELO, ICC, Momentum y Principal, más el <strong>bracket</strong>, la <strong>experiencia en eliminatorias</strong> (clutch) y la suerte.
         <br><br>
         <span style="color:var(--muted);font-size:16px">💡 ICC alto = mejor equipo hoy; el título también depende del cruce y del momento.</span>
       </div>`;
@@ -1579,7 +1575,7 @@ function renderChamp(){
       <div style="font-size:17px;color:var(--text);line-height:1.6">
         El <strong>ICC</strong> mide el nivel estructural actual: ${topICC}… — ${champ} tiene ${champICC} (puesto ${iccRank} en ICC).
         <br><br>
-        Pero la probabilidad de <strong>campeón</strong> no la decide el ICC solo, sino <strong>${sims} simulaciones</strong> Monte Carlo que combinan —ponderados por su acierto histórico— los motores ELO, Momentum, Mercado WC y Torneo, junto con el <strong>bracket</strong> (a quién le toca cada ronda), el <strong>momentum</strong> reciente y la <strong>experiencia en partidos a muerte</strong> (clutch).
+        Pero la probabilidad de <strong>campeón</strong> no la decide el ICC solo, sino <strong>${sims} simulaciones</strong> Monte Carlo que combinan —ponderados por su acierto histórico— los modelos ELO, ICC, Momentum y Principal, junto con el <strong>bracket</strong> (a quién le toca cada ronda), el <strong>momentum</strong> reciente, la <strong>experiencia en partidos a muerte</strong> (clutch) y el <strong>ELO histórico</strong>.
         <br><br>
         Con ese combo, ${champ} sale campeón más veces que ${iccLeader.t}, aunque partido a partido ${iccLeader.t} pueda seguir siendo favorito.
         <br><br>
@@ -1587,7 +1583,7 @@ function renderChamp(){
       </div>`;
   }
   document.getElementById('page-champ').innerHTML=`
-    <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:17px;color:var(--muted)">Ensamble ponderado de 4 motores (${Object.keys(REAL_RESULTS).length} resultados)</div></div>
+    <div class="champ-wrap"><div class="champ-flag">${act[0].f}</div><div class="champ-name">${act[0].t}</div><div class="champ-pct">${act[0].p}%</div><div style="font-size:17px;color:var(--muted)">Ensamble ponderado de 4 modelos (${Object.keys(REAL_RESULTS).length} resultados)</div></div>
     ${weightsHtml}
     <div class="stitle">📈 Aún con opción al título · ${alive.length} equipo${alive.length===1?'':'s'}</div>
     <div class="card">${alive.map((x,i)=>`<div class="trow"><div style="font-size:19px;color:var(--muted);width:26px;text-align:center">${i+1}</div><div class="tflg">${x.f}</div><div class="tname">${x.t}</div><div class="tpct">${x.p}%</div></div>`).join('')}</div>
@@ -1703,12 +1699,12 @@ function renderComparativa(){
     return;
   }
 
-  const models = ['ELO (Historial)','Momentum (Forma)','Mercado WC','Torneo'];
+  const models = ['Principal (Integrado)','ELO (Historial)','ICC (Calidad)','Momentum (Forma)'];
   const stats = {
-    'ELO (Historial)':  {hits:0, total:0, brier:0, matches:[]},
-    'Momentum (Forma)': {hits:0, total:0, brier:0, matches:[]},
-    'Mercado WC':       {hits:0, total:0, brier:0, matches:[]},
-    'Torneo':           {hits:0, total:0, brier:0, matches:[]}
+    'Principal (Integrado)': {hits:0, total:0, brier:0, matches:[]},
+    'ELO (Historial)':       {hits:0, total:0, brier:0, matches:[]},
+    'ICC (Calidad)':         {hits:0, total:0, brier:0, matches:[]},
+    'Momentum (Forma)':      {hits:0, total:0, brier:0, matches:[]}
   };
 
   played.forEach(m => {
@@ -1723,14 +1719,15 @@ function renderComparativa(){
     else if(rH < rA) actual = 'A';
     else actual = 'D';
 
-    const eloH = ELO_PRE[m.h]||1500, eloA = ELO_PRE[m.a]||1500;
+    const iccH = getCachedICC(m.h)||50, iccA = getCachedICC(m.a)||50;
+    const eloH = G.elo[m.h]||1500,      eloA = G.elo[m.a]||1500;
     const momH = getCachedMomentum(m.h), momA = getCachedMomentum(m.a);
 
     const pModels = {
-      'ELO (Historial)':  _mus_elo(eloH, eloA),
-      'Momentum (Forma)': _mus_mom(momH, momA),
-      'Mercado WC':       _mus_mercado_wc(m.h, m.a),
-      'Torneo':           _mus_torneo(m.h, m.a)
+      'Principal (Integrado)': {pH:pred.pH, pD:pred.pD, pA:pred.pA},
+      'ELO (Historial)':       _mus_elo(eloH, eloA),
+      'ICC (Calidad)':         _mus_icc(iccH, iccA),
+      'Momentum (Forma)':      _mus_mom(momH, momA)
     };
 
     models.forEach(mod => {
@@ -1766,23 +1763,8 @@ function renderComparativa(){
 
   let h = '<div style="padding:12px 0">';
   h += '<div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:12px;padding:0 12px">📊 Comparativa de Modelos</div>';
-  h += '<div style="font-size:15px;color:var(--muted);margin-bottom:8px;padding:0 12px">';
-  h += 'Rendimiento real de cada motor desde el partido 1 hasta hoy. '+played.length+' partidos con resultado.</div>';
-
-  // WC accuracy badge for Mercado WC
-  const wcAcc=_mercadoWCAccuracy();
-  const wcLeader=_mercadoWCLeader();
-  if(wcAcc){
-    const nOverrides=WC_HARD_OVERRIDES?Object.keys(WC_HARD_OVERRIDES).length:0;
-    const dzNote=DRAW_ZONE_WC?' · zona-empates umbral='+Math.round(DRAW_ZONE_WC.max)+'pts (+'+DRAW_ZONE_WC.net+' neto)'+(nOverrides>0?' · Fase D: '+nOverrides+' part. memorizados':''):'';
-    const ldrNote=wcLeader?'<br>🏆 Favorito según Mercado WC: <b>'+FLAG(wcLeader.team)+' '+wcLeader.team+'</b> (rating calibrado: '+wcLeader.rating+')':'';
-    const expColor=wcAcc.pct>=90?'var(--green)':wcAcc.pct>=80?'var(--gold)':'var(--red)';
-    h += '<div style="margin:0 8px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:10px 12px">';
-    h += '<div style="font-size:15px;font-weight:800;color:'+expColor+'">💰 Mercado WC — precisión sobre entrenamiento WC2026: '+wcAcc.hits+'/'+wcAcc.total+' ('+wcAcc.pct+'%)</div>';
-    h += '<div style="font-size:13px;color:var(--muted);margin-top:3px">SGD calibrado sobre resultados reales del torneo'+dzNote+'</div>';
-    if(ldrNote) h += '<div style="font-size:14px;margin-top:4px">'+ldrNote+'</div>';
-    h += '</div>';
-  }
+  h += '<div style="font-size:15px;color:var(--muted);margin-bottom:14px;padding:0 12px">';
+  h += 'Rendimiento real de cada modelo desde el partido 1 hasta hoy. '+played.length+' partidos con resultado.</div>';
 
   h += '<div style="padding:0 8px;margin-bottom:16px">';
   sorted.forEach((mod, idx) => {
@@ -1839,163 +1821,17 @@ function renderComparativa(){
 }
 
 // ==================== FUNCIONES AUXILIARES PARA COMPARATIVA ====================
-
-// ===== MOTOR TORNEO =====
-let G_TORNEO = {favMult:1.0, drawMult:1.0, upsetMult:1.0, n:0};
-function computeTorneo(){
-  let favWins=0, draws=0, upsets=0, n=0;
-  for(const [key,real] of Object.entries(REAL_RESULTS)){
-    if(!real.played) continue;
-    const [h,a]=_splitKeyTeams(key);
-    if(!ALL_TEAMS.includes(h)||!ALL_TEAMS.includes(a)||h===a) continue;
-    const eH=ELO_PRE[h]||1500, eA=ELO_PRE[a]||1500;
-    n++;
-    if(real.h===real.a) draws++;
-    else if((eH>=eA&&real.h>real.a)||(eA>eH&&real.a>real.h)) favWins++;
-    else upsets++;
-  }
-  if(n<5){ G_TORNEO={favMult:1.0,drawMult:1.0,upsetMult:1.0,n}; return; }
-  G_TORNEO={
-    favMult:  Math.max(0.5,Math.min(2.0,(favWins/n)/0.48)),
-    drawMult: Math.max(0.5,Math.min(2.0,(draws/n)/0.26)),
-    upsetMult:Math.max(0.5,Math.min(2.0,(upsets/n)/0.26)),
-    n
-  };
-}
-function _mus_torneo(h, a){
-  const t=G_TORNEO;
-  const base=_mus_elo(G.elo[h]||1500, G.elo[a]||1500);
-  const rawH=base.pH*t.favMult, rawD=base.pD*t.drawMult;
-  const rawA=base.pA*(base.pH>base.pA?t.upsetMult:t.favMult);
-  const s=rawH+rawD+rawA;
-  if(s<=0) return {pH:base.pH,pD:base.pD,pA:base.pA};
-  return {pH:rawH/s, pD:rawD/s, pA:rawA/s};
-}
-
-// ==================== MERCADO WC CALIBRADO ====================
-let MERCADO_WC        = null;
-let DRAW_ZONE_WC      = null;
-let WC_HARD_OVERRIDES = null;
-
-function computeMercadoWC(){
-  if(MERCADO_WC) return MERCADO_WC;
-  const cal = Object.assign({}, MERCADO);
-  const matches = [];
-  for(const [key, real] of Object.entries(REAL_RESULTS)){
-    if(!real.played) continue;
-    const [h, a] = _splitKeyTeams(key);
-    if(!ALL_TEAMS.includes(h)||!ALL_TEAMS.includes(a)||h===a) continue;
-    matches.push({h, a, score: real.h>real.a?1:real.h<real.a?0:0.5, isDraw:real.h===real.a});
-  }
-  if(!matches.length){ MERCADO_WC=cal; DRAW_ZONE_WC=null; WC_HARD_OVERRIDES={}; return cal; }
-  const decisive=matches.filter(m=>!m.isDraw), draws=matches.filter(m=>m.isDraw);
-  // Fase A — global calibration
-  for(let iter=0;iter<500;iter++){
-    const K=Math.max(1,64*Math.pow(0.990,iter));
-    matches.slice().sort(()=>Math.random()-0.5).forEach(m=>{
-      const eH=cal[m.h]||1500,eA=cal[m.a]||1500;
-      const pW=1/(1+Math.pow(10,-(eH-eA)/400));
-      cal[m.h]=(cal[m.h]||1500)+K*(m.score-pW);
-      cal[m.a]=(cal[m.a]||1500)+K*((1-m.score)-(1-pW));
-    });
-  }
-  // Fase B — aggressive decisive-only SGD
-  for(let iter=0;iter<2500;iter++){
-    const K=Math.max(0.5,512*Math.pow(0.9955,iter));
-    decisive.slice().sort(()=>Math.random()-0.5).forEach(m=>{
-      const eH=cal[m.h]||1500,eA=cal[m.a]||1500;
-      const pW=1/(1+Math.pow(10,-(eH-eA)/400));
-      cal[m.h]=(cal[m.h]||1500)+K*(m.score-pW);
-      cal[m.a]=(cal[m.a]||1500)+K*((1-m.score)-(1-pW));
-    });
-  }
-  // Fase C — optimal draw zone
-  DRAW_ZONE_WC=null;
-  if(draws.length>0){
-    const allDiffs=matches.map(m=>({isDraw:m.isDraw,diff:Math.abs((cal[m.h]||1500)-(cal[m.a]||1500))}));
-    const drawDiffs=allDiffs.filter(x=>x.isDraw).map(x=>x.diff).sort((a,b)=>a-b);
-    const decidedDiffs=allDiffs.filter(x=>!x.isDraw).map(x=>x.diff);
-    let bestT=0,bestNet=-Infinity;
-    for(const T of drawDiffs){
-      const hits=drawDiffs.filter(d=>d<=T).length, fp=decidedDiffs.filter(d=>d<=T).length;
-      const net=hits-fp; if(net>bestNet){bestNet=net;bestT=T;}
-    }
-    if(bestNet>0) DRAW_ZONE_WC={max:bestT,net:bestNet,nDraws:draws.length};
-  }
-  // Fase D — memorize remaining wrong predictions
-  MERCADO_WC=cal; WC_HARD_OVERRIDES={};
-  for(const m of matches){
-    const diff=Math.abs((cal[m.h]||1500)-(cal[m.a]||1500));
-    const pW=1/(1+Math.pow(10,-((cal[m.h]||1500)-(cal[m.a]||1500))/400));
-    const inZone=DRAW_ZONE_WC&&ALL_TEAMS.includes(m.h)&&ALL_TEAMS.includes(m.a)&&diff<=DRAW_ZONE_WC.max;
-    const draw=inZone?0.50:Math.max(0.10,Math.min(0.28,0.25-diff*0.00012));
-    const pH=pW*(1-draw),pA=(1-pW)*(1-draw),pD=1-pH-pA;
-    const pred=pH>pD&&pH>pA?'H':pA>pD&&pA>pH?'A':'D';
-    const actual=m.score>0.5?'H':m.score<0.5?'A':'D';
-    if(pred!==actual){
-      WC_HARD_OVERRIDES[m.h+'|||'+m.a]=
-        actual==='H'?{pH:0.95,pD:0.030,pA:0.020}:
-        actual==='A'?{pH:0.020,pD:0.030,pA:0.950}:
-                     {pH:0.015,pD:0.970,pA:0.015};
-    }
-  }
-  return cal;
-}
-
-function _mercadoWCAccuracy(){
-  if(!MERCADO_WC) return null;
-  let hits=0,total=0;
-  for(const [key,real] of Object.entries(REAL_RESULTS)){
-    if(!real.played) continue;
-    const [h,a]=_splitKeyTeams(key);
-    if(!ALL_TEAMS.includes(h)||!ALL_TEAMS.includes(a)||h===a) continue;
-    total++;
-    const p=_mus_mercado_wc(h,a);
-    const pred=p.pH>p.pD&&p.pH>p.pA?'H':p.pA>p.pD&&p.pA>p.pH?'A':'D';
-    const actual=real.h>real.a?'H':real.h<real.a?'A':'D';
-    if(pred===actual) hits++;
-  }
-  return total>0?{hits,total,pct:Math.round(hits/total*100)}:null;
-}
-
-function _mercadoWCLeader(){
-  if(!MERCADO_WC) return null;
-  let best=null,bestR=0;
-  for(const t of ALL_TEAMS){const r=MERCADO_WC[t]||0;if(r>bestR){bestR=r;best=t;}}
-  return best?{team:best,rating:Math.round(bestR)}:null;
-}
-
-function _mus_mercado_wc(h,a){
-  if(WC_HARD_OVERRIDES){const ov=WC_HARD_OVERRIDES[h+'|||'+a];if(ov) return ov;}
-  const wc=MERCADO_WC||MERCADO;
-  const mh=(wc[h]!==undefined)?wc[h]:(MERCADO[h]||1500);
-  const ma=(wc[a]!==undefined)?wc[a]:(MERCADO[a]||1500);
-  const diff=mh-ma;
-  const pW=1/(1+Math.pow(10,-diff/400));
-  const bothWC=(typeof ALL_TEAMS!=='undefined')&&ALL_TEAMS.includes(h)&&ALL_TEAMS.includes(a);
-  let draw;
-  if(DRAW_ZONE_WC&&bothWC&&Math.abs(diff)<=DRAW_ZONE_WC.max){
-    draw=0.50;
-  }else{
-    draw=Math.max(0.10,Math.min(0.28,0.25-Math.abs(diff)*0.00012));
-  }
-  const pH=pW*(1-draw),pA=(1-pW)*(1-draw);
-  return {pH,pD:1-pH-pA,pA};
-}
-
-function _mus_mercado(h,a){
-  const mh=MERCADO[h]||1500,ma=MERCADO[a]||1500;
-  const diff=mh-ma;
-  const pW=1/(1+Math.pow(10,-diff/400));
-  const draw=Math.max(0.10,Math.min(0.28,0.25-Math.abs(diff)*0.00012));
-  const pH=pW*(1-draw),pA=(1-pW)*(1-draw);
-  return {pH,pD:1-pH-pA,pA};
-}
-
 function _mus_elo(rH, rA){
   const diff=rH-rA;
   const pW=1/(1+Math.pow(10,-diff/400));
   const draw=Math.max(0.12,Math.min(0.30,0.27-Math.abs(diff)*0.00015));
+  const pH=pW*(1-draw), pA=(1-pW)*(1-draw);
+  return {pH, pD:1-pH-pA, pA};
+}
+function _mus_icc(iH, iA){
+  const diff=iH-iA;
+  const pW=1/(1+Math.pow(10,-diff/25));
+  const draw=Math.max(0.12,Math.min(0.30,0.27-Math.abs(diff)*0.003));
   const pH=pW*(1-draw), pA=(1-pW)*(1-draw);
   return {pH, pD:1-pH-pA, pA};
 }
@@ -2010,24 +1846,25 @@ function _mus_mom(momH, momA){
   return {pH, pD:1-pH-pA, pA};
 }
 
-// Marcador probable por modelo + ponderado — 4 motores (ELO, Momentum, Mercado WC, Torneo)
+// Marcador probable de CADA modelo + un ponderado por precisión histórica.
+// Cada modelo (ELO/ICC/Momentum) solo da 1X2, así que su marcador se estima
+// inclinando el xG del modelo Principal según lo optimista que sea cada modelo.
 function buildScorelinesHtml(pred, home, away){
   const xgH0=parseFloat(pred.xgH), xgA0=parseFloat(pred.xgA);
   if(isNaN(xgH0)||isNaN(xgA0)){
     return '<div class="mscore-big">'+pred.score+'</div><div class="mscore-label">Marcador probable</div>';
   }
   const elo=_mus_elo(G.elo[home]||1500, G.elo[away]||1500);
+  const icc=_mus_icc(getCachedICC(home), getCachedICC(away));
   const mom=_mus_mom(getCachedMomentum(home), getCachedMomentum(away));
-  const mkt=_mus_mercado_wc(home, away);
-  const trn=_mus_torneo(home, away);
-  const w=MODEL_WEIGHTS||{elo:.25,mom:.25,mercado:.25,torneo:.25};
+  const w=MODEL_WEIGHTS||{principal:.25,elo:.25,icc:.25,mom:.25};
   const clamp=v=>Math.max(0.2, Math.min(4.5, v));
   const tilt=(base,pm,pp)=>clamp(base*Math.pow((pm+0.05)/(pp+0.05), 0.6));
   const models=[
-    {lbl:'⚡ ELO (Historial)',    k:'elo',     pH:elo.pH,  pA:elo.pA},
-    {lbl:'🔥 Momentum (Forma)',   k:'mom',     pH:mom.pH,  pA:mom.pA},
-    {lbl:'💰 Mercado WC',         k:'mercado', pH:mkt.pH,  pA:mkt.pA},
-    {lbl:'🏆 Torneo',             k:'torneo',  pH:trn.pH,  pA:trn.pA},
+    {lbl:'🎯 Principal', k:'principal', pH:pred.pH, pA:pred.pA},
+    {lbl:'⚡ ELO',       k:'elo',       pH:elo.pH,  pA:elo.pA},
+    {lbl:'🏗️ ICC',      k:'icc',       pH:icc.pH,  pA:icc.pA},
+    {lbl:'🔥 Momentum',  k:'mom',       pH:mom.pH,  pA:mom.pA},
   ];
   let wH=0,wA=0,wSum=0, rows='';
   models.forEach(m=>{
@@ -2041,9 +1878,9 @@ function buildScorelinesHtml(pred, home, away){
   wH/=(wSum||1); wA/=(wSum||1);
   const wScore=poissonBestScore(wH, wA);
   return '<div style="margin:8px 0 2px">'+
-    '<div class="mscore-label" style="margin-bottom:4px;text-align:left">⚽ Marcador probable por motor</div>'+
+    '<div class="mscore-label" style="margin-bottom:4px;text-align:left">⚽ Marcador probable por modelo</div>'+
     '<table style="width:100%;border-collapse:collapse">'+
-      '<thead><tr style="color:var(--muted);font-size:13px"><th style="text-align:left;padding:2px 6px">Motor</th><th style="padding:2px 6px">Marcador</th><th style="padding:2px 6px">xG</th></tr></thead>'+
+      '<thead><tr style="color:var(--muted);font-size:13px"><th style="text-align:left;padding:2px 6px">Modelo</th><th style="padding:2px 6px">Marcador</th><th style="padding:2px 6px">xG</th></tr></thead>'+
       '<tbody>'+rows+
         '<tr style="border-top:1px solid rgba(255,255,255,.15)">'+
           '<td style="padding:5px 6px;font-weight:800;color:var(--gold)">📊 Ponderado</td>'+
@@ -2054,115 +1891,73 @@ function buildScorelinesHtml(pred, home, away){
 }
 
 function buildMusclesHtml(pred, home, away){
-  const xgH0=parseFloat(pred.xgH)||1.3, xgA0=parseFloat(pred.xgA)||1.1;
-  const pEnsH=pred.pH, pEnsA=pred.pA;
-  const clamp=v=>Math.max(0.2,Math.min(4.5,v));
-  const tiltXG=(base,pm,pp)=>clamp(base*Math.pow((pm+0.05)/(pp+0.05),0.60));
+  const elo = _mus_elo(G.elo[home]||1500, G.elo[away]||1500);
+  const icc = _mus_icc(getCachedICC(home), getCachedICC(away));
+  const mom = _mus_mom(getCachedMomentum(home), getCachedMomentum(away));
+  const mkt = _mus_elo(MERCADO[home]||1500, MERCADO[away]||1500);
 
-  const elo=_mus_elo(G.elo[home]||1500, G.elo[away]||1500);
-  const mom=_mus_mom(getCachedMomentum(home), getCachedMomentum(away));
-  const mkt=_mus_mercado_wc(home, away);
-  const trn=_mus_torneo(home, away);
-  const mktRef=_mus_mercado(home, away);
-
-  const w=MODEL_WEIGHTS||{elo:.25,mom:.25,mercado:.25,torneo:.25};
-  const avgH=elo.pH*w.elo+mom.pH*w.mom+mkt.pH*w.mercado+trn.pH*w.torneo;
-  const avgD=elo.pD*w.elo+mom.pD*w.mom+mkt.pD*w.mercado+trn.pD*w.torneo;
-  const avgA=elo.pA*w.elo+mom.pA*w.mom+mkt.pA*w.mercado+trn.pA*w.torneo;
+  const avgH=(pred.pH+elo.pH+icc.pH+mom.pH)/4;
+  const avgD=(pred.pD+elo.pD+icc.pD+mom.pD)/4;
+  const avgA=(pred.pA+elo.pA+icc.pA+mom.pA)/4;
 
   const p=v=>Math.round(v*100)+'%';
+  const delta=(v,base)=>{
+    const d=Math.round((v-base)*100);
+    return d>0?'<span style="color:var(--green);font-size:14px"> +'+d+'%</span>':
+           d<0?'<span style="color:var(--red);font-size:14px"> '+d+'%</span>':'';
+  };
 
-  // Per-motor verdict function
-  function motorVerdict(m, lbl, icon){
-    const pMax=Math.max(m.pH,m.pD,m.pA);
-    const isDraw=m.pD===pMax||(Math.abs(m.pH-m.pA)<0.04&&m.pD>m.pH-0.05);
-    const isH=!isDraw&&m.pH>m.pA, isA=!isDraw&&!isH;
-    const winner=isDraw?null:isH?home:away;
-    let gH=Math.round(tiltXG(xgH0,m.pH,pEnsH));
-    let gA=Math.round(tiltXG(xgA0,m.pA,pEnsA));
-    if(isH&&gH<=gA) gH=gA+1;
-    if(isA&&gA<=gH) gA=gH+1;
-    if(isDraw&&gH!==gA){const avg=Math.round((gH+gA)/2);gH=avg;gA=avg;}
-    const conf=Math.round(pMax*100);
-    const resultColor=isDraw?'var(--yellow)':isH?'var(--accent)':'var(--orange)';
-    const verdict=isDraw?'🤝 EMPATE':'🏆 '+(winner||'—');
-    return '<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:10px 12px;flex:1;min-width:140px">'+
-      '<div style="font-size:14px;color:var(--muted);margin-bottom:4px">'+icon+' '+lbl+'</div>'+
-      '<div style="font-size:15px;font-weight:800;color:'+resultColor+';margin-bottom:3px">'+verdict+'</div>'+
-      '<div style="font-size:20px;font-weight:900;margin-bottom:3px">'+gH+' – '+gA+'</div>'+
-      '<div style="font-size:13px;color:var(--muted)">'+p(m.pH)+' / '+p(m.pD)+' / '+p(m.pA)+'</div>'+
-      '<div style="font-size:13px;color:var(--gold);margin-top:2px">Confianza: '+conf+'%</div>'+
-    '</div>';
-  }
-
-  const verdictCards=
-    motorVerdict(elo,'ELO (Historial)','⚡')+
-    motorVerdict(mom,'Momentum','🔥')+
-    motorVerdict(mkt,'Mercado WC','💰')+
-    motorVerdict(trn,'Torneo','🏆');
-
-  const edgeH=avgH-mktRef.pH, edgeA=avgA-mktRef.pA, edgeD=avgD-mktRef.pD;
+  const edgeH=avgH-mkt.pH, edgeA=avgA-mkt.pA, edgeD=avgD-mkt.pD;
   const THRESH=0.05;
   let valorHtml='<div style="font-size:16px;color:var(--muted);margin-top:4px">─ Sin ventaja clara frente al mercado</div>';
   const edges=[];
   if(edgeH>=THRESH) edges.push('<span style="color:var(--green);font-weight:800">🟢 Local +'+Math.round(edgeH*100)+'%</span>');
   if(edgeA>=THRESH) edges.push('<span style="color:var(--green);font-weight:800">🟢 Visitante +'+Math.round(edgeA*100)+'%</span>');
   if(edgeD>=THRESH) edges.push('<span style="color:var(--green);font-weight:800">🟢 Empate +'+Math.round(edgeD*100)+'%</span>');
-  if(edges.length) valorHtml='<div style="font-size:17px;margin-top:4px">💰 Posible valor: '+edges.join(' · ')+'</div><div style="font-size:15px;color:var(--muted);margin-top:3px">EV vs línea de apuestas. Umbral: +5%. No garantiza ganancia.</div>';
-  else if(edgeH<-THRESH||edgeA<-THRESH) valorHtml='<div style="font-size:16px;color:var(--red);margin-top:4px">🔴 Mercado sobrevalora este partido vs nuestros motores</div>';
+  if(edges.length) valorHtml='<div style="font-size:17px;margin-top:4px">💰 Posible valor: '+edges.join(' · ')+'</div><div style="font-size:15px;color:var(--muted);margin-top:3px">EV estimado = (prob_modelo − prob_mercado). Umbral: +5%. No garantiza ganancia.</div>';
+  else if(edgeH<-THRESH||edgeA<-THRESH) valorHtml='<div style="font-size:16px;color:var(--red);margin-top:4px">🔴 Mercado sobrevalora este partido vs nuestro modelo</div>';
+
+  const row=(lbl,icon,m,ref)=>'<tr>'+
+    '<td style="padding:5px 8px;font-size:16px;color:var(--muted);white-space:nowrap">'+icon+' '+lbl+'</td>'+
+    '<td style="padding:5px 6px;text-align:center;font-size:17px;font-weight:700">'+p(m.pH)+(ref?delta(m.pH,ref.pH):'')+'</td>'+
+    '<td style="padding:5px 6px;text-align:center;font-size:17px;font-weight:700">'+p(m.pD)+(ref?delta(m.pD,ref.pD):'')+'</td>'+
+    '<td style="padding:5px 6px;text-align:center;font-size:17px;font-weight:700">'+p(m.pA)+(ref?delta(m.pA,ref.pA):'')+'</td>'+
+  '</tr>';
 
   const hShort=home.split(' ')[0], aShort=away.split(' ')[0];
-  const delta=(v,base)=>{
-    const d=Math.round((v-base)*100);
-    return d>0?'<span style="color:var(--green);font-size:13px"> +'+d+'%</span>':
-           d<0?'<span style="color:var(--red);font-size:13px"> '+d+'%</span>':'';
-  };
 
   return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:10px 12px;margin-top:8px">'+
-    '<div style="font-size:18px;font-weight:800;margin-bottom:10px;color:var(--accent)">🧬 Veredicto por Motor</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+verdictCards+'</div>'+
-    '<div style="font-size:16px;font-weight:700;color:var(--muted);margin-bottom:6px">📊 Probabilidades detalladas</div>'+
+    '<div style="font-size:18px;font-weight:800;margin-bottom:8px;color:var(--accent)">🧬 Músculos del Pronóstico</div>'+
     '<table style="width:100%;border-collapse:collapse">'+
       '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.12)">'+
-        '<th style="padding:4px 8px;text-align:left;font-size:14px;color:var(--muted);font-weight:600">Motor</th>'+
-        '<th style="padding:4px 6px;text-align:center;font-size:14px;color:var(--muted);font-weight:600">'+hShort+'</th>'+
-        '<th style="padding:4px 6px;text-align:center;font-size:14px;color:var(--muted);font-weight:600">Emp</th>'+
-        '<th style="padding:4px 6px;text-align:center;font-size:14px;color:var(--muted);font-weight:600">'+aShort+'</th>'+
+        '<th style="padding:4px 8px;text-align:left;font-size:15px;color:var(--muted);font-weight:600">Modelo</th>'+
+        '<th style="padding:4px 6px;text-align:center;font-size:15px;color:var(--muted);font-weight:600">'+hShort+'</th>'+
+        '<th style="padding:4px 6px;text-align:center;font-size:15px;color:var(--muted);font-weight:600">Emp</th>'+
+        '<th style="padding:4px 6px;text-align:center;font-size:15px;color:var(--muted);font-weight:600">'+aShort+'</th>'+
       '</tr></thead>'+
       '<tbody>'+
-        '<tr><td style="padding:4px 8px;font-size:14px;color:var(--muted)">⚡ ELO</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(elo.pH)+delta(elo.pH,pred.pH)+'</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(elo.pD)+delta(elo.pD,pred.pD)+'</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(elo.pA)+delta(elo.pA,pred.pA)+'</td></tr>'+
-        '<tr><td style="padding:4px 8px;font-size:14px;color:var(--muted)">🔥 Momentum</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(mom.pH)+delta(mom.pH,pred.pH)+'</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(mom.pD)+delta(mom.pD,pred.pD)+'</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(mom.pA)+delta(mom.pA,pred.pA)+'</td></tr>'+
-        '<tr><td style="padding:4px 8px;font-size:14px;color:var(--muted)">💰 Mercado WC</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(mkt.pH)+delta(mkt.pH,pred.pH)+'</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(mkt.pD)+delta(mkt.pD,pred.pD)+'</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(mkt.pA)+delta(mkt.pA,pred.pA)+'</td></tr>'+
-        '<tr><td style="padding:4px 8px;font-size:14px;color:var(--muted)">🏆 Torneo</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(trn.pH)+delta(trn.pH,pred.pH)+'</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(trn.pD)+delta(trn.pD,pred.pD)+'</td>'+
-          '<td style="padding:4px 6px;text-align:center;font-size:15px;font-weight:700">'+p(trn.pA)+delta(trn.pA,pred.pA)+'</td></tr>'+
+        row('Principal (Integrado)',  '🎯', pred, null)+
+        row('ELO (Historial)','⚡', elo, pred)+
+        row('ICC (Calidad)','🏗️', icc, pred)+
+        row('Momentum (Forma)','🔥', mom, pred)+
         '<tr style="border-top:1px solid rgba(255,255,255,.12)">'+
-          '<td style="padding:6px 8px;font-size:15px;font-weight:800">📊 Consenso</td>'+
-          '<td style="padding:6px 6px;text-align:center;font-size:16px;font-weight:900;color:var(--accent)">'+p(avgH)+'</td>'+
-          '<td style="padding:6px 6px;text-align:center;font-size:16px;font-weight:900;color:var(--accent)">'+p(avgD)+'</td>'+
-          '<td style="padding:6px 6px;text-align:center;font-size:16px;font-weight:900;color:var(--accent)">'+p(avgA)+'</td>'+
+          '<td style="padding:6px 8px;font-size:16px;font-weight:800">📊 Consenso</td>'+
+          '<td style="padding:6px 6px;text-align:center;font-size:17px;font-weight:900;color:var(--accent)">'+p(avgH)+'</td>'+
+          '<td style="padding:6px 6px;text-align:center;font-size:17px;font-weight:900;color:var(--accent)">'+p(avgD)+'</td>'+
+          '<td style="padding:6px 6px;text-align:center;font-size:17px;font-weight:900;color:var(--accent)">'+p(avgA)+'</td>'+
         '</tr>'+
         '<tr style="border-top:1px dashed rgba(255,255,255,.08)">'+
-          '<td style="padding:5px 8px;font-size:14px;color:var(--muted)">Mercado (ref)</td>'+
-          '<td style="padding:5px 6px;text-align:center;font-size:14px;color:var(--muted)">'+p(mktRef.pH)+'</td>'+
-          '<td style="padding:5px 6px;text-align:center;font-size:14px;color:var(--muted)">'+p(mktRef.pD)+'</td>'+
-          '<td style="padding:5px 6px;text-align:center;font-size:14px;color:var(--muted)">'+p(mktRef.pA)+'</td>'+
+          '<td style="padding:5px 8px;font-size:15px;color:var(--muted)">Mercado implícito</td>'+
+          '<td style="padding:5px 6px;text-align:center;font-size:16px;color:var(--muted)">'+p(mkt.pH)+'</td>'+
+          '<td style="padding:5px 6px;text-align:center;font-size:16px;color:var(--muted)">'+p(mkt.pD)+'</td>'+
+          '<td style="padding:5px 6px;text-align:center;font-size:16px;color:var(--muted)">'+p(mkt.pA)+'</td>'+
         '</tr>'+
       '</tbody>'+
     '</table>'+
     valorHtml+
-    '<div style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4">'+
-      'ELO: rating histórico · Momentum: forma en este torneo · Mercado WC: apuestas calibradas sobre WC2026 · Torneo: anomalías del torneo actual'+
+    '<div style="font-size:14px;color:var(--muted);margin-top:6px;line-height:1.4">'+
+      'ELO: rating histórico puro · Estructura: calidad de plantilla y ADN competitivo · '+
+      'Momentum: forma en este torneo · Consenso: promedio 4 modelos'+
     '</div>'+
   '</div>';
 }
@@ -2631,10 +2426,6 @@ async function boot(){
     loadSavedResults();
     setProgress(5, 'Inicializando ELO…');
     initElo();
-    setProgress(8, 'Calibrando motores…');
-    computeTorneo();
-    computeMercadoWC();
-    computeModelWeights();
     setProgress(10, 'Recalculando brackets…');
     updateBrackets();
     setProgress(15, 'Monte Carlo — Modelo Actual (200)…');
