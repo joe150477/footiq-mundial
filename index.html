@@ -2185,41 +2185,97 @@ function buildMusclesHtml(pred, home, away){
   if(edges.length) valorHtml='<div style="font-size:17px;margin-top:4px">💰 Posible valor: '+edges.join(' · ')+'</div><div style="font-size:15px;color:var(--muted);margin-top:3px">EV estimado = (prob_modelo − prob_mercado). Umbral: +5%. No garantiza ganancia.</div>';
   else if(edgeH<-THRESH||edgeA<-THRESH) valorHtml='<div style="font-size:16px;color:var(--red);margin-top:4px">🔴 Mercado sobrevalora este partido vs nuestro modelo</div>';
 
+  // ── Veredicto por motor: ganador + marcador probable ──────────────────────
+  const xgH0 = isNaN(parseFloat(pred.xgH)) ? 1.2 : Math.max(0.3, parseFloat(pred.xgH));
+  const xgA0 = isNaN(parseFloat(pred.xgA)) ? 1.0 : Math.max(0.3, parseFloat(pred.xgA));
+  const pEnsH = pred.pH||0.40, pEnsA = pred.pA||0.25;
+  const tiltXG = (base, pm, pp) => Math.max(0, Math.min(5,
+    base * Math.pow((pm+0.05)/(pp+0.05), 0.60)));
+
+  function motorVerdict(m){
+    const pMax = Math.max(m.pH, m.pD, m.pA);
+    const isH = m.pH >= pMax - 0.001, isA = m.pA >= pMax - 0.001 && !isH;
+    const isDraw = !isH && !isA;
+    const winner = isH ? home : isA ? away : null;
+    // Marcador probable: tilt el xG base según la confianza de cada motor
+    let gH = Math.round(tiltXG(xgH0, m.pH, pEnsH));
+    let gA = Math.round(tiltXG(xgA0, m.pA, pEnsA));
+    // Ajustar para que el marcador coincida con el ganador pronosticado
+    if(isH  && gH <= gA) gH = gA + 1;
+    if(isA  && gA <= gH) gA = gH + 1;
+    if(isDraw && gH !== gA){ const avg=Math.round((gH+gA)/2); gH=avg; gA=avg; }
+    const conf = Math.round(pMax * 100);
+    return {winner, isDraw, gH, gA, conf};
+  }
+
+  const motorsV = [
+    {icon:'⚡', name:'ELO',        color:'#5bc8f5', m:elo},
+    {icon:'🔥', name:'Momentum',   color:'#ff7c3a', m:mom},
+    {icon:'💰', name:'Mercado WC', color:'#f5c842', m:mkt},
+    {icon:'🌡️',name:'Torneo',     color:'#b07cff', m:trn},
+  ];
+
+  let verdictHtml = '<div style="margin-bottom:10px">';
+  verdictHtml += '<div style="font-size:15px;font-weight:700;color:var(--muted);margin-bottom:6px;letter-spacing:.5px">🔮 VEREDICTO POR MOTOR</div>';
+  motorsV.forEach(mt => {
+    const v = motorVerdict(mt.m);
+    const winnerName = v.winner
+      ? (FLAG(v.winner)+' '+v.winner.split(' ').slice(0,2).join(' ')+' gana')
+      : '🤝 Empate';
+    const winColor = v.winner === home ? 'var(--green)'
+                   : v.winner === away ? 'var(--red)'
+                   : 'var(--gold)';
+    const score = v.gH+'-'+v.gA;
+    verdictHtml +=
+      '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:5px;'+
+      'background:rgba(255,255,255,.04);border-radius:8px;border-left:3px solid '+mt.color+'">'+
+        '<span style="font-size:17px;min-width:22px">'+mt.icon+'</span>'+
+        '<span style="font-size:15px;font-weight:700;color:'+mt.color+';min-width:88px">'+mt.name+'</span>'+
+        '<span style="font-size:16px;font-weight:800;color:'+winColor+';flex:1">'+winnerName+'</span>'+
+        '<span style="font-size:22px;font-weight:900;letter-spacing:2px;min-width:48px;text-align:center">'+score+'</span>'+
+        '<span style="font-size:14px;color:var(--muted);min-width:34px;text-align:right">'+v.conf+'%</span>'+
+      '</div>';
+  });
+  verdictHtml += '</div>';
+
+  // ── Tabla de probabilidades ─────────────────────────────────────────────────
   const row=(lbl,icon,m,ref)=>'<tr>'+
-    '<td style="padding:5px 8px;font-size:16px;color:var(--muted);white-space:nowrap">'+icon+' '+lbl+'</td>'+
-    '<td style="padding:5px 6px;text-align:center;font-size:17px;font-weight:700">'+p(m.pH)+(ref?delta(m.pH,ref.pH):'')+'</td>'+
-    '<td style="padding:5px 6px;text-align:center;font-size:17px;font-weight:700">'+p(m.pD)+(ref?delta(m.pD,ref.pD):'')+'</td>'+
-    '<td style="padding:5px 6px;text-align:center;font-size:17px;font-weight:700">'+p(m.pA)+(ref?delta(m.pA,ref.pA):'')+'</td>'+
+    '<td style="padding:5px 8px;font-size:15px;color:var(--muted);white-space:nowrap">'+icon+' '+lbl+'</td>'+
+    '<td style="padding:5px 6px;text-align:center;font-size:16px;font-weight:700">'+p(m.pH)+(ref?delta(m.pH,ref.pH):'')+'</td>'+
+    '<td style="padding:5px 6px;text-align:center;font-size:16px;font-weight:700">'+p(m.pD)+(ref?delta(m.pD,ref.pD):'')+'</td>'+
+    '<td style="padding:5px 6px;text-align:center;font-size:16px;font-weight:700">'+p(m.pA)+(ref?delta(m.pA,ref.pA):'')+'</td>'+
   '</tr>';
 
   const hShort=home.split(' ')[0], aShort=away.split(' ')[0];
 
   return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:10px 12px;margin-top:8px">'+
-    '<div style="font-size:18px;font-weight:800;margin-bottom:8px;color:var(--accent)">🧬 Músculos del Pronóstico</div>'+
+    '<div style="font-size:18px;font-weight:800;margin-bottom:10px;color:var(--accent)">🧬 Músculos del Pronóstico</div>'+
+    verdictHtml+
+    '<div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:4px;letter-spacing:.5px">📊 PROBABILIDADES DETALLADAS</div>'+
     '<table style="width:100%;border-collapse:collapse">'+
       '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.12)">'+
-        '<th style="padding:4px 8px;text-align:left;font-size:15px;color:var(--muted);font-weight:600">Modelo</th>'+
-        '<th style="padding:4px 6px;text-align:center;font-size:15px;color:var(--muted);font-weight:600">'+hShort+'</th>'+
-        '<th style="padding:4px 6px;text-align:center;font-size:15px;color:var(--muted);font-weight:600">Emp</th>'+
-        '<th style="padding:4px 6px;text-align:center;font-size:15px;color:var(--muted);font-weight:600">'+aShort+'</th>'+
+        '<th style="padding:4px 8px;text-align:left;font-size:14px;color:var(--muted);font-weight:600">Motor</th>'+
+        '<th style="padding:4px 6px;text-align:center;font-size:14px;color:var(--muted);font-weight:600">'+hShort+'</th>'+
+        '<th style="padding:4px 6px;text-align:center;font-size:14px;color:var(--muted);font-weight:600">X</th>'+
+        '<th style="padding:4px 6px;text-align:center;font-size:14px;color:var(--muted);font-weight:600">'+aShort+'</th>'+
       '</tr></thead>'+
       '<tbody>'+
-        row('ELO (Historial)','⚡', elo, null)+
+        row('ELO','⚡', elo, null)+
         row('Momentum','🔥', mom, elo)+
         row('Mercado WC','💰', mkt, elo)+
         row('Torneo','🌡️', trn, elo)+
         '<tr style="border-top:1px solid rgba(255,255,255,.12)">'+
-          '<td style="padding:6px 8px;font-size:16px;font-weight:800">📊 Consenso</td>'+
-          '<td style="padding:6px 6px;text-align:center;font-size:17px;font-weight:900;color:var(--accent)">'+p(avgH)+'</td>'+
-          '<td style="padding:6px 6px;text-align:center;font-size:17px;font-weight:900;color:var(--accent)">'+p(avgD)+'</td>'+
-          '<td style="padding:6px 6px;text-align:center;font-size:17px;font-weight:900;color:var(--accent)">'+p(avgA)+'</td>'+
+          '<td style="padding:6px 8px;font-size:15px;font-weight:800">📊 Consenso</td>'+
+          '<td style="padding:6px 6px;text-align:center;font-size:16px;font-weight:900;color:var(--accent)">'+p(avgH)+'</td>'+
+          '<td style="padding:6px 6px;text-align:center;font-size:16px;font-weight:900;color:var(--accent)">'+p(avgD)+'</td>'+
+          '<td style="padding:6px 6px;text-align:center;font-size:16px;font-weight:900;color:var(--accent)">'+p(avgA)+'</td>'+
         '</tr>'+
       '</tbody>'+
     '</table>'+
     valorHtml+
-    '<div style="font-size:14px;color:var(--muted);margin-top:6px;line-height:1.4">'+
-      'ELO: rating histórico puro · Momentum: forma reciente en el torneo · '+
-      'Mercado WC: apuestas calibradas sobre datos WC 2026 · Torneo: anomalías aprendidas'+
+    '<div style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.4">'+
+      'ELO: rating histórico · Momentum: forma reciente · '+
+      'Mercado WC: apuestas calibradas WC 2026 · Torneo: anomalías aprendidas'+
     '</div>'+
   '</div>';
 }
