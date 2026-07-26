@@ -66,7 +66,19 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:20px
 .motor-table{width:100%;border-collapse:collapse;margin-top:6px;}
 .motor-table th{padding:4px 6px;font-size:14px;color:var(--muted);font-weight:600;}
 .motor-table td{padding:5px 6px;font-size:16px;text-align:center;}
-.motor-table td:first-child{text-align:left;font-size:15px;color:var(--muted);white-space:nowrap;}
+.motor-table td:first-child{text-align:left;font-size:14px;color:var(--muted);white-space:nowrap;}
+.mtab{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:8px;}
+.mtab th,.mtab td{padding:6px 2px;text-align:center;font-size:14px;}
+.mtab th:first-child,.mtab td:first-child{text-align:left;width:34%;font-size:14px;color:var(--muted);}
+.mtab td:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mtab .pk{font-weight:800;font-size:13px;padding:1px 6px;border-radius:6px;background:rgba(47,168,245,.15);color:var(--accent);white-space:nowrap;}
+.bestbet{margin-top:10px;background:rgba(240,188,53,.1);border:1px solid rgba(240,188,53,.4);border-radius:10px;padding:10px 12px;}
+.bestbet .bb-h{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.bestbet .bb-m{font-size:19px;font-weight:900;color:var(--gold);margin-top:2px;}
+.fin-badge{display:inline-block;background:var(--muted);color:#000;font-size:12px;font-weight:800;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.04em;}
+.motor-res{display:flex;justify-content:space-between;align-items:center;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.05);font-size:15px;}
+.motor-res:last-child{border-bottom:none;}
+.value-tag{background:rgba(32,192,90,.18);color:var(--green);font-size:12px;font-weight:800;padding:2px 7px;border-radius:6px;margin-left:6px;}
 .sync-toast{position:fixed;top:58px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 40px 10px 16px;font-size:18px;z-index:9997;opacity:0;transition:opacity .3s;max-width:90vw;line-height:1.4;}
 .sync-toast.show{opacity:1;}
 .toast-close{position:absolute;top:6px;right:10px;font-size:20px;cursor:pointer;color:var(--muted);}
@@ -282,7 +294,22 @@ const ANOMALIAS_WC=[
 ];
 
 const MOTORES=['elo','mom','anomalia'];
-const MOTOR_LBL={elo:'⚡ ELO',mom:'🔥 Momentum',anomalia:'🌀 Anomalía (entrenada WC)'};
+const MOTOR_LBL={elo:'⚡ ELO',mom:'🔥 Momentum',anomalia:'🌀 Anomalía'};
+const MOTOR_SHORT={elo:'⚡',mom:'🔥',anomalia:'🌀'};
+// Sugerencia de apuesta a partir de probabilidades 1X2
+function betSuggest(p){
+  if(!p) return null;
+  const {pH,pD,pA}=p, top=Math.max(pH,pD,pA);
+  const pick=top===pH?'H':top===pA?'A':'D';
+  if(top>=0.50) return pick==='H'?{code:'1',txt:'Gana local'}:pick==='A'?{code:'2',txt:'Gana visitante'}:{code:'X',txt:'Empate'};
+  const low=Math.min(pH,pD,pA);
+  if(low===pA) return {code:'1X',txt:'Local o empate'};
+  if(low===pH) return {code:'X2',txt:'Empate o visitante'};
+  return {code:'12',txt:'Local o visitante'};
+}
+function brierOf(p,actual){ // 0=perfecto, 2=peor
+  return Math.pow(p.pH-(actual==='H'?1:0),2)+Math.pow(p.pD-(actual==='D'?1:0),2)+Math.pow(p.pA-(actual==='A'?1:0),2);
+}
 
 // ==================== PASADA WALK-FORWARD ====================
 // Una sola pasada cronológica por torneo:
@@ -296,8 +323,8 @@ function walkForward(t){
   const cfg=TORNEOS[t];
   const elo={}; const form={}; // form[team]=[resultados recientes: 3/1/0]
   const anom={favW:0,favN:0,draws:0,n:0};
-  const hits={},tot={},log=[];
-  MOTORES.forEach(m=>{hits[m]=0;tot[m]=0;});
+  const hits={},tot={},log=[]; const brier={},mkt={hits:0,tot:0,brier:0};
+  MOTORES.forEach(m=>{hits[m]=0;tot[m]=0;brier[m]=0;});
   const played=st.matches.filter(m=>m.played).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   let scored=0;
   for(const m of played){
@@ -317,14 +344,20 @@ function walkForward(t){
       anomalia: anomaliaProb(m,rH,rA)
     };
     const actual=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
-    const row={id:m.id,h:m.h,a:m.a,sh:m.sh,sa:m.sa,date:m.date,res:{}};
+    const row={id:m.id,h:m.h,a:m.a,sh:m.sh,sa:m.sa,date:m.date,res:{},picks:{}};
     for(const k of MOTORES){
-      if(!preds[k]) { row.res[k]=null; continue; }
+      if(!preds[k]) { row.res[k]=null; row.picks[k]=null; continue; }
       tot[k]++;
-      const ok=argMax3(preds[k])===actual;
+      const pk=argMax3(preds[k]);
+      const ok=pk===actual;
       if(ok) hits[k]++;
-      row.res[k]=ok;
+      brier[k]+=brierOf(preds[k],actual);
+      row.res[k]=ok; row.picks[k]=pk;
     }
+    // Mercado como rival: usa la cuota real de la casa si existía
+    const mk=mercadoProb(m);
+    if(mk){ mkt.tot++; if(argMax3(mk)===actual) mkt.hits++; mkt.brier+=brierOf(mk,actual); row.mkt=argMax3(mk)===actual; }
+    else row.mkt=null;
     log.push(row);
     // actualizar estado con el resultado
     const favIsH=rH>=rA;
@@ -344,7 +377,7 @@ function walkForward(t){
   }
   const w={};
   for(const k of MOTORES) w[k]=sum>0?raw[k]/sum:(k==='elo'?1:0); // arranque: solo ELO
-  return {elo,form,anom,hits,tot,weights:w,log,playedCount:scored,seedCount:played.length-scored};
+  return {elo,form,anom,hits,tot,brier,mkt,weights:w,log,playedCount:scored,seedCount:played.length-scored};
 }
 
 let WF={}; // cache por torneo
@@ -685,36 +718,68 @@ function renderHoy(){
     pg.innerHTML='<div class="card future-card"><div class="future-icon">📭</div><div class="future-note">Sin partidos entre ayer y los próximos 7 días.</div></div>';
     return;
   }
+  const wf=getWF(ACTIVE); const logById={}; wf.log.forEach(r=>logById[r.id]=r);
   let h='',lastDay='';
   const fmtDay=iso=>{ const d=new Date(iso); return d.toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'}); };
   const fmtHr=iso=>{ const d=new Date(iso); return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); };
+  const nm=(t,who)=>{const s=t.split(' ')[0]; return who==='H'?s:who==='A'?s:'Empate';};
   for(const m of win){
     const day=(m.date||'').slice(0,10);
     if(day!==lastDay){ lastDay=day; h+=`<div class="stitle">📅 ${fmtDay(m.date)}</div>`; }
+    const hShort=m.h.split(' ')[0], aShort=m.a.split(' ')[0];
     h+='<div class="mcard">';
-    h+=`<div class="match-header"><div class="tname">${m.h}</div><div style="font-size:16px;font-weight:900;padding:0 4px">vs</div><div class="tname" style="text-align:right">${m.a}</div><div class="match-meta">${fmtHr(m.date)}</div></div>`;
+    h+=`<div class="match-header"><div class="tname">${m.h}</div><div style="font-size:15px;font-weight:900;padding:0 4px">vs</div><div class="tname" style="text-align:right">${m.a}</div><div class="match-meta">${m.played?'<span class=\'fin-badge\'>Finalizada</span>':fmtHr(m.date)}</div></div>`;
     if(m.played){
-      h+=`<div class="result-real"><div class="rscore">${m.sh} — ${m.sa}</div><div class="rlabel">Resultado final ✅</div></div>`;
+      const actual=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
+      const winner=actual==='H'?m.h:actual==='A'?m.a:'Empate';
+      h+=`<div class="result-real"><div class="rscore">${m.sh} — ${m.sa}</div><div class="rlabel">${actual==='D'?'Empate':'Ganó '+winner}</div></div>`;
+      const row=logById[m.id];
+      if(row&&row.picks){
+        h+='<div style="margin-top:8px"><div style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">¿Acertaron los motores?</div>';
+        for(const k of MOTORES){
+          const pk=row.picks[k];
+          if(pk==null){ h+=`<div class="motor-res"><span>${MOTOR_LBL[k]}</span><span style="color:var(--muted);font-size:13px">se abstuvo</span></div>`; continue; }
+          const ok=row.res[k];
+          h+=`<div class="motor-res"><span>${MOTOR_LBL[k]} <span style="color:var(--muted);font-size:13px">dijo ${nm(pk==='H'?m.h:pk==='A'?m.a:'',pk)}</span></span><span style="font-weight:800;color:${ok?'var(--green)':'var(--red)'}">${ok?'✅ Acertó':'❌ Falló'}</span></div>`;
+        }
+        if(row.mkt!=null) h+=`<div class="motor-res"><span>🏛️ Mercado (casa)</span><span style="font-weight:800;color:${row.mkt?'var(--green)':'var(--red)'}">${row.mkt?'✅ Acertó':'❌ Falló'}</span></div>`;
+        h+='</div>';
+      }
     } else {
       const p=predictMatch(ACTIVE,m);
       h+=`<div class="probs">
-        <div class="prob"><div class="pv">${Math.round(p.pH*100)}%</div><div class="pl">${m.h.split(' ')[0]}</div></div>
+        <div class="prob"><div class="pv">${Math.round(p.pH*100)}%</div><div class="pl">${hShort}</div></div>
         <div class="prob"><div class="pv">${Math.round(p.pD*100)}%</div><div class="pl">Emp</div></div>
-        <div class="prob"><div class="pv">${Math.round(p.pA*100)}%</div><div class="pl">${m.a.split(' ')[0]}</div></div>
+        <div class="prob"><div class="pv">${Math.round(p.pA*100)}%</div><div class="pl">${aShort}</div></div>
       </div>`;
-      // Desglose por motor
-      h+='<table class="motor-table"><thead><tr><th style="text-align:left">Motor</th><th>'+m.h.split(' ')[0]+'</th><th>Emp</th><th>'+m.a.split(' ')[0]+'</th></tr></thead><tbody>';
+      // Tabla compacta: motor · % ganador más probable · apuesta sugerida
+      h+='<table class="mtab"><thead><tr><th>Motor</th><th>'+hShort+'</th><th>X</th><th>'+aShort+'</th><th>Apuesta</th></tr></thead><tbody>';
       for(const k of MOTORES){
         const mp=p.preds[k];
-        h+=mp
-          ?`<tr><td>${MOTOR_LBL[k]}</td><td>${Math.round(mp.pH*100)}%</td><td>${Math.round(mp.pD*100)}%</td><td>${Math.round(mp.pA*100)}%</td></tr>`
-          :`<tr><td>${MOTOR_LBL[k]}</td><td colspan="3" style="color:var(--muted);font-size:13px">sin datos — se abstiene</td></tr>`;
+        if(!mp){ h+=`<tr><td>${MOTOR_LBL[k]}</td><td colspan="4" style="color:var(--muted);font-size:12px">se abstiene</td></tr>`; continue; }
+        const bs=betSuggest(mp);
+        const hi=(v,is)=>`<span style="${is?'color:var(--accent);font-weight:800':''}">${Math.round(v*100)}</span>`;
+        const top=Math.max(mp.pH,mp.pD,mp.pA);
+        h+=`<tr><td>${MOTOR_LBL[k]}</td><td>${hi(mp.pH,top===mp.pH)}</td><td>${hi(mp.pD,top===mp.pD)}</td><td>${hi(mp.pA,top===mp.pA)}</td><td><span class="pk">${bs.code}</span></td></tr>`;
       }
       h+='</tbody></table>';
-      if(p.calibrando) h+='<div class="calib">⚠️ Calibrando: menos de 10 partidos jugados en este torneo. Confianza baja al inicio (los motores aprenden partido a partido).</div>';
+      // Mejor propuesta = consenso
+      const bb=betSuggest(p);
+      const conf=Math.round(Math.max(p.pH,p.pD,p.pA)*100);
+      h+=`<div class="bestbet"><div class="bb-h">📊 Mejor propuesta (consenso)</div><div class="bb-m">${bb.code} · ${bb.txt} <span style="font-size:14px;color:var(--muted);font-weight:600">(${conf}% conf.)</span></div>`;
+      // Caza de valor: motor que difiere fuerte del mercado
+      const mk=mercadoProb(m);
+      if(mk){
+        const cand=[['1',p.pH-mk.pH,p.pH],['X',p.pD-mk.pD,p.pD],['2',p.pA-mk.pA,p.pA]].sort((a,b)=>b[1]-a[1])[0];
+        if(cand[1]>=0.08&&cand[2]>=0.30) h+=`<div style="font-size:13px;color:var(--green);margin-top:6px">💎 Posible valor: consenso da <b>${Math.round(cand[2]*100)}%</b> a "${cand[0]}" vs mercado ${Math.round((cand[0]==='1'?mk.pH:cand[0]==='X'?mk.pD:mk.pA)*100)}% (+${Math.round(cand[1]*100)} pts). No es garantía.</div>`;
+      } else {
+        h+=`<div style="font-size:12px;color:var(--muted);margin-top:6px">Sin cuotas de la casa aún — la comparación de valor aparece cuando ESPN publique las cuotas.</div>`;
+      }
+      h+='</div>';
+      if(p.calibrando) h+='<div class="calib">⚠️ Calibrando: pocos partidos jugados en este torneo. Confianza baja al inicio.</div>';
       if(m.odds&&m.odds.first&&m.odds.pH!=null){
         const mov=(m.odds.pH-m.odds.first.pH)*100;
-        if(Math.abs(mov)>=2) h+=`<div style="font-size:14px;color:var(--yellow);margin-top:6px">📈 Movimiento del mercado: el local ${mov>0?'sube':'baja'} ${Math.abs(mov).toFixed(0)}% desde la primera cuota</div>`;
+        if(Math.abs(mov)>=2) h+=`<div style="font-size:13px;color:var(--yellow);margin-top:6px">📈 El mercado movió: el local ${mov>0?'sube':'baja'} ${Math.abs(mov).toFixed(0)}% desde la primera cuota</div>`;
       }
     }
     h+='</div>';
@@ -749,6 +814,28 @@ function renderComparativa(){
       `<div style="font-size:14px;color:var(--muted);margin-top:3px">✅ ${wf.hits[r.k]}/${wf.tot[r.k]} aciertos · peso en el consenso: ${w}%</div>`+
       '</div>';
   });
+  // ---- Marcador honesto CONTRA el mercado (la casa) ----
+  if(wf.mkt && wf.mkt.tot>0){
+    const mAcc=(wf.mkt.hits/wf.mkt.tot*100).toFixed(1);
+    const mBrier=(wf.mkt.brier/wf.mkt.tot).toFixed(3);
+    // mejor motor por Brier (calidad de probabilidad, no solo acierto)
+    let bestK=null,bestB=9;
+    for(const k of MOTORES){ if(wf.tot[k]>=wf.mkt.tot*0.5){ const b=wf.brier[k]/wf.tot[k]; if(b<bestB){bestB=b;bestK=k;} } }
+    const gana = bestK && bestB < parseFloat(mBrier);
+    h+='<div class="stitle">🏛️ Nuestros motores vs la Casa</div>';
+    h+='<div class="card" style="border-color:'+(gana?'rgba(32,192,90,.5)':'rgba(232,64,74,.4)')+';font-size:15px;line-height:1.6">'+
+      '<div style="display:flex;justify-content:space-between"><b>🏛️ Mercado (cuota de cierre)</b><span style="font-weight:800">'+mAcc+'% · Brier '+mBrier+'</span></div>'+
+      (bestK?('<div style="display:flex;justify-content:space-between;margin-top:4px"><b>'+MOTOR_LBL[bestK]+' (nuestro mejor)</b><span style="font-weight:800">'+(wf.hits[bestK]/wf.tot[bestK]*100).toFixed(1)+'% · Brier '+bestB.toFixed(3)+'</span></div>'):'')+
+      '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">'+
+      (gana
+        ? '✅ <b style="color:var(--green)">Por ahora le ganamos a la casa</b> en calidad de probabilidad (Brier menor = mejor). Muestra pequeña — puede cambiar.'
+        : '⚖️ <b>La casa va adelante</b>, como era de esperarse — su cuota de cierre es muy difícil de superar. Esto es lo honesto: lo medimos en vez de prometerlo.')+
+      '</div>'+
+      '<div style="font-size:13px;color:var(--muted);margin-top:6px">Brier = qué tan buenas son las probabilidades (0 = perfecto, menor es mejor). Es la prueba justa: no basta acertar el ganador, hay que asignar bien la confianza.</div>'+
+      '</div>';
+  } else {
+    h+='<div class="card" style="font-size:14px;color:var(--muted);line-height:1.5">🏛️ <b>Comparación vs la Casa:</b> aparece cuando haya partidos con cuotas de apuestas registradas. Ahí se ve, sin humo, si algún motor le gana al mercado (Brier) o no.</div>';
+  }
   // Tarjeta del experimento de sobreajuste
   const anAcc=wf.tot.anomalia?(wf.hits.anomalia/wf.tot.anomalia*100).toFixed(1):null;
   h+=`<div class="card" style="border-color:rgba(240,188,53,.4);font-size:15px;line-height:1.6"><b>🌀 Experimento en curso — ¿transfiere el clon de la casa?</b><br>`+
@@ -765,9 +852,9 @@ function renderComparativa(){
   // log partido a partido (últimos 20)
   const last=wf.log.slice(-20).reverse();
   if(last.length){
-    h+='<div class="stitle">📋 Últimos partidos</div><div class="card" style="padding:8px 12px;overflow-x:auto"><table class="motor-table"><thead><tr><th style="text-align:left">Partido</th>'+MOTORES.map(k=>'<th>'+MOTOR_LBL[k].split(' ')[0]+'</th>').join('')+'</tr></thead><tbody>';
+    h+='<div class="stitle">📋 Últimos partidos</div><div class="card" style="padding:8px 6px"><table class="mtab"><thead><tr><th>Partido</th>'+MOTORES.map(k=>'<th>'+MOTOR_SHORT[k]+'</th>').join('')+'<th>🏛️</th></tr></thead><tbody>';
     for(const r of last){
-      h+='<tr><td>'+r.h+' '+r.sh+'-'+r.sa+' '+r.a+'</td>'+MOTORES.map(k=>'<td>'+(r.res[k]==null?'–':r.res[k]?'✅':'❌')+'</td>').join('')+'</tr>';
+      h+='<tr><td style="font-size:12px">'+r.h.split(" ")[0]+' '+r.sh+'-'+r.sa+' '+r.a.split(" ")[0]+'</td>'+MOTORES.map(k=>'<td>'+(r.res[k]==null?'–':r.res[k]?'✅':'❌')+'</td>').join('')+'<td>'+(r.mkt==null?'–':r.mkt?'✅':'❌')+'</td></tr>';
     }
     h+='</tbody></table></div>';
   }
