@@ -5,104 +5,178 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>FootIQ · Multi-Torneo · BetPlay</title>
 <style>
-:root {
-  --bg:#06080d; --bg2:#0b0e17; --card:#111827; --border:#1c2538;
-  --text:#e2e8f4; --muted:#4a5a72; --accent:#2fa8f5; --gold:#f0bc35;
-  --green:#20c05a; --red:#e8404a; --orange:#f97316; --yellow:#facc15;
-  --dim:#6b7a90;
+:root{
+  --bg:#0b0f16; --bg2:#121824; --card:#161d29; --card2:#1b2331;
+  --border:#232d3d; --border2:#2c3849;
+  --text:#eaeff7; --muted:#7c8aa0; --dim:#5b6779;
+  --accent:#5aa9f0; --accent-soft:rgba(90,169,240,.12);
+  --gold:#e3b24d; --gold-soft:rgba(227,178,77,.12);
+  --green:#3ecf8e; --green-soft:rgba(62,207,142,.13);
+  --red:#f0656f; --red-soft:rgba(240,101,111,.12);
+  --orange:#f0934e; --yellow:#e6c34d;
+  --shadow:0 6px 20px rgba(0,0,0,.28);
+  --r:16px; --r-sm:10px;
 }
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:20px;display:flex;flex-direction:column;min-height:100vh;overflow-y:auto;}
-#overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{
+  background:radial-gradient(120% 80% at 50% 0%,#0e141e 0%,var(--bg) 60%);
+  color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;
+  font-size:17px;line-height:1.45;display:flex;flex-direction:column;min-height:100vh;
+  max-width:640px;margin:0 auto;position:relative;
+  box-shadow:0 0 80px rgba(0,0,0,.45);
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--accent-soft);}
+/* scrollbars discretas */
+::-webkit-scrollbar{width:7px;height:7px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;}
+
+/* ===== OVERLAY ===== */
+#overlay{position:fixed;inset:0;background:radial-gradient(120% 80% at 50% 30%,#0e141e,var(--bg));z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
 #overlay.gone{display:none;}
-.ov-ball{font-size:55px;animation:spin 2s linear infinite;}
-.ov-title{font-size:25px;font-weight:700;}
-.ov-sub{font-size:19px;color:var(--muted);}
-.ov-prog{width:280px;height:5px;background:var(--border);border-radius:3px;}
-.ov-fill{height:100%;background:var(--accent);width:0%;transition:width .2s;}
-.ov-step{font-size:19px;color:var(--muted);}
+.ov-ball{font-size:52px;animation:float 2.6s ease-in-out infinite;}
+.ov-title{font-size:24px;font-weight:800;letter-spacing:-.02em;}
+.ov-sub{font-size:16px;color:var(--muted);}
+.ov-prog{width:220px;height:4px;background:var(--border);border-radius:99px;overflow:hidden;}
+.ov-fill{height:100%;background:linear-gradient(90deg,var(--accent),#8ec7ff);width:0%;transition:width .35s ease;border-radius:99px;}
+.ov-step{font-size:14px;color:var(--dim);}
 @keyframes spin{to{transform:rotate(360deg)}}
-.topbar{display:flex;padding:12px 14px;border-bottom:1px solid var(--border);align-items:center;gap:8px;}
-.logo{font-size:26px;font-weight:900;} .logo em{color:var(--accent);}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ===== TOPBAR ===== */
+.topbar{display:flex;padding:14px 18px;align-items:center;gap:10px;position:sticky;top:0;z-index:50;
+  background:rgba(11,15,22,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);}
+.logo{font-size:22px;font-weight:800;letter-spacing:-.03em;display:flex;align-items:baseline;gap:7px;}
+.logo em{color:var(--accent);font-style:normal;}
 .spacer{flex:1;}
-.col-time{font-size:18px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
-.sync-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bg2);cursor:pointer;font-size:18px;border:1px solid var(--border);}
+.col-time{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.sync-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--card);cursor:pointer;font-size:17px;border:1px solid var(--border2);transition:.2s;}
+.sync-btn:hover{border-color:var(--accent);background:var(--accent-soft);}
 .sync-btn.syncing{animation:spin 1s linear infinite;}
-.sync-status{font-size:18px;color:var(--muted);}
-.sdot{width:10px;height:10px;border-radius:50%;background:var(--muted);}
-.sdot.ok{background:var(--green);}
-.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);}
-.tab{flex:1;text-align:center;padding:10px 2px;font-size:18px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;}
+.sync-status{font-size:13px;color:var(--muted);}
+.sdot{width:9px;height:9px;border-radius:50%;background:var(--dim);transition:.3s;}
+.sdot.ok{background:var(--green);box-shadow:0 0 10px var(--green-soft);}
+
+/* ===== TABS ===== */
+.tabs{display:flex;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:57px;z-index:40;}
+.tab{flex:1;text-align:center;padding:11px 2px 9px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
+  border-bottom:2px solid transparent;transition:.2s;}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
-.tab .ti{font-size:26px;display:block;}
-.torneo-bar{display:flex;gap:6px;overflow-x:auto;padding:10px 12px 6px;scrollbar-width:none;}
+.tab .ti{font-size:23px;display:block;margin-bottom:2px;filter:grayscale(.3);}
+.tab.active .ti{filter:none;}
+
+/* ===== TORNEO BAR ===== */
+.torneo-bar{display:flex;gap:8px;overflow-x:auto;padding:14px 16px 8px;scrollbar-width:none;}
 .torneo-bar::-webkit-scrollbar{display:none;}
-.tpill{padding:7px 14px;border-radius:20px;border:1px solid var(--border);font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--card);color:var(--muted);}
-.tpill.active{background:var(--accent);color:#000;border-color:var(--accent);}
-.tpill.fin{opacity:.7;}
+.tpill{padding:8px 15px;border-radius:99px;border:1px solid var(--border2);font-size:14px;font-weight:600;
+  cursor:pointer;white-space:nowrap;background:var(--card);color:var(--muted);transition:.2s;}
+.tpill:hover{border-color:var(--accent);}
+.tpill.active{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:700;box-shadow:0 3px 12px rgba(90,169,240,.3);}
+.tpill.fin{opacity:.6;}
+
+/* ===== PAGES ===== */
 .pages{flex:1;overflow:hidden;position:relative;}
-.page{position:absolute;inset:0;overflow-y:auto;padding:14px;display:none;}
-.page.active{display:block;}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
-.stitle{font-size:20px;font-weight:700;margin:12px 0 8px;display:flex;align-items:center;gap:6px;}
-.trow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.page{position:absolute;inset:0;overflow-y:auto;padding:8px 16px 40px;display:none;}
+.page.active{display:block;animation:fadeUp .35s ease;}
+
+/* ===== CARDS ===== */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
+.stitle{font-size:15px;font-weight:700;letter-spacing:-.01em;margin:20px 2px 10px;display:flex;align-items:center;gap:7px;color:var(--text);}
+.trow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);}
 .trow:last-child{border-bottom:none;}
-.tname{font-size:20px;font-weight:600;flex:1;}
-.tpct{font-size:20px;font-weight:700;color:var(--accent);}
-.champ-wrap{background:linear-gradient(135deg,#090f1e,#0d1c35);border-radius:16px;padding:22px;text-align:center;margin-bottom:12px;}
-.champ-flag{font-size:55px;} .champ-name{font-size:29px;font-weight:900;}
-.champ-pct{font-size:43px;font-weight:900;color:var(--gold);}
-.mcard{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;}
-.match-header{display:flex;align-items:center;gap:8px;padding:6px 0;margin-bottom:8px;border-bottom:1px solid var(--border);}
-.match-meta{font-size:17px;color:var(--muted);margin-left:auto;white-space:nowrap;}
-.probs{display:flex;gap:5px;margin:8px 0;}
-.prob{flex:1;text-align:center;background:rgba(255,255,255,.05);border-radius:8px;padding:8px 4px;}
-.pv{font-size:29px;font-weight:900;}
-.pl{font-size:16px;color:var(--muted);margin-top:3px;}
-.result-real{background:rgba(32,192,90,.1);border-radius:8px;padding:10px;margin-top:8px;text-align:center;border:1px solid var(--green);}
-.result-real .rscore{font-size:28px;font-weight:900;}
-.result-real .rlabel{font-size:16px;color:var(--muted);margin-top:2px;}
-.calib{background:rgba(240,188,53,.07);border:1px solid rgba(240,188,53,.3);border-radius:8px;padding:8px 10px;font-size:15px;color:var(--yellow);margin-top:8px;}
-.motor-table{width:100%;border-collapse:collapse;margin-top:6px;}
-.motor-table th{padding:4px 6px;font-size:14px;color:var(--muted);font-weight:600;}
-.motor-table td{padding:5px 6px;font-size:16px;text-align:center;}
-.motor-table td:first-child{text-align:left;font-size:14px;color:var(--muted);white-space:nowrap;}
-.mtab{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:8px;}
-.mtab th,.mtab td{padding:6px 2px;text-align:center;font-size:14px;}
-.mtab th:first-child,.mtab td:first-child{text-align:left;width:34%;font-size:14px;color:var(--muted);}
-.mtab td:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mtab .pk{font-weight:800;font-size:13px;padding:1px 6px;border-radius:6px;background:rgba(47,168,245,.15);color:var(--accent);white-space:nowrap;}
-.bestbet{margin-top:10px;background:rgba(240,188,53,.1);border:1px solid rgba(240,188,53,.4);border-radius:10px;padding:10px 12px;}
-.bestbet .bb-h{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
-.bestbet .bb-m{font-size:19px;font-weight:900;color:var(--gold);margin-top:2px;}
-.verdict{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:9px 12px;border-radius:10px;font-size:16px;}
-.verdict b{font-weight:900;}
-.verdict.v-pre{background:rgba(240,188,53,.1);border:1px solid rgba(240,188,53,.4);color:var(--gold);}
-.verdict.v-ok{background:rgba(32,192,90,.12);border:1px solid rgba(32,192,90,.4);}
-.verdict.v-no{background:rgba(232,64,74,.1);border:1px solid rgba(232,64,74,.35);}
-.verdict .v-sign{font-size:20px;}
-.verdict .v-code{font-size:14px;font-weight:800;background:rgba(255,255,255,.1);padding:2px 8px;border-radius:6px;}
-.motor-line{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
-.mchip{font-size:13px;font-weight:700;padding:3px 8px;border-radius:7px;white-space:nowrap;}
-.mchip-ok{background:rgba(32,192,90,.15);color:var(--green);}
-.mchip-no{background:rgba(232,64,74,.14);color:var(--red);}
-.mchip-abs{background:var(--bg2);color:var(--muted);}
-.prob.prob-top{background:rgba(47,168,245,.14);border:1px solid rgba(47,168,245,.4);}
-.fin-badge{display:inline-block;background:var(--muted);color:#000;font-size:12px;font-weight:800;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.04em;}
-.motor-res{display:flex;justify-content:space-between;align-items:center;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.05);font-size:15px;}
+.tname{font-size:17px;font-weight:600;flex:1;}
+.tpct{font-size:17px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;}
+
+/* ===== CHAMPION ===== */
+.champ-wrap{background:linear-gradient(160deg,#12203a 0%,#0d1826 70%);border:1px solid var(--border2);
+  border-radius:20px;padding:30px 22px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow);}
+.champ-flag{font-size:52px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4));}
+.champ-name{font-size:27px;font-weight:800;letter-spacing:-.02em;margin-top:4px;}
+.champ-pct{font-size:44px;font-weight:900;color:var(--gold);letter-spacing:-.03em;margin-top:2px;
+  text-shadow:0 3px 18px rgba(227,178,77,.28);font-variant-numeric:tabular-nums;}
+
+/* ===== MATCH CARD ===== */
+.mcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--shadow);}
+.match-header{display:flex;align-items:center;gap:8px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);}
+.match-header .tname{font-size:16px;}
+.match-meta{font-size:13px;color:var(--muted);margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums;}
+
+/* probabilidades */
+.probs{display:flex;gap:8px;margin:4px 0 2px;}
+.prob{flex:1;text-align:center;background:var(--bg2);border:1px solid transparent;border-radius:var(--r-sm);padding:12px 4px;transition:.2s;}
+.pv{font-size:26px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.pl{font-size:12px;color:var(--muted);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+.prob.prob-top{background:var(--accent-soft);border-color:rgba(90,169,240,.4);}
+.prob.prob-top .pv{color:var(--accent);}
+
+/* resultado final */
+.result-real{background:var(--green-soft);border:1px solid rgba(62,207,142,.35);border-radius:var(--r-sm);padding:12px;margin:6px 0 4px;text-align:center;}
+.result-real .rscore{font-size:30px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;}
+.result-real .rlabel{font-size:14px;color:var(--muted);margin-top:2px;font-weight:600;}
+
+/* veredicto / dictamen */
+.verdict{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:12px 14px;border-radius:var(--r-sm);font-size:16px;font-weight:600;}
+.verdict b{font-weight:800;}
+.verdict.v-pre{background:var(--gold-soft);border:1px solid rgba(227,178,77,.35);color:var(--gold);}
+.verdict.v-ok{background:var(--green-soft);border:1px solid rgba(62,207,142,.35);color:var(--green);}
+.verdict.v-no{background:var(--red-soft);border:1px solid rgba(240,101,111,.3);color:var(--red);}
+.verdict .v-sign{font-size:19px;}
+.verdict .v-code{font-size:13px;font-weight:800;background:rgba(255,255,255,.09);padding:3px 9px;border-radius:99px;color:var(--text);}
+
+/* motores por partido */
+.motor-res{display:flex;justify-content:space-between;align-items:center;padding:9px 2px;border-bottom:1px solid var(--border);font-size:15px;}
 .motor-res:last-child{border-bottom:none;}
-.value-tag{background:rgba(32,192,90,.18);color:var(--green);font-size:12px;font-weight:800;padding:2px 7px;border-radius:6px;margin-left:6px;}
-.sync-toast{position:fixed;top:58px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 40px 10px 16px;font-size:18px;z-index:9997;opacity:0;transition:opacity .3s;max-width:90vw;line-height:1.4;}
-.sync-toast.show{opacity:1;}
-.toast-close{position:absolute;top:6px;right:10px;font-size:20px;cursor:pointer;color:var(--muted);}
-.future-card{text-align:center;padding:26px 16px;}
-.future-icon{font-size:44px;margin-bottom:8px;}
-.future-name{font-size:23px;font-weight:900;margin-bottom:4px;}
-.future-date{font-size:18px;color:var(--accent);font-weight:700;}
-.future-note{font-size:15px;color:var(--muted);margin-top:8px;line-height:1.5;}
+.motor-line{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+.mchip{font-size:13px;font-weight:700;padding:5px 10px;border-radius:99px;white-space:nowrap;}
+.mchip-ok{background:var(--green-soft);color:var(--green);}
+.mchip-no{background:var(--red-soft);color:var(--red);}
+.mchip-abs{background:var(--bg2);color:var(--muted);}
+
+/* tabla compacta motores (legacy, aún usada en comparativa) */
+.motor-table{width:100%;border-collapse:collapse;margin-top:6px;}
+.motor-table th{padding:5px 6px;font-size:13px;color:var(--muted);font-weight:600;}
+.motor-table td{padding:6px;font-size:15px;text-align:center;}
+.motor-table td:first-child{text-align:left;font-size:14px;color:var(--muted);white-space:nowrap;}
+.mtab{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:10px;}
+.mtab th,.mtab td{padding:7px 2px;text-align:center;font-size:14px;font-variant-numeric:tabular-nums;}
+.mtab th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em;}
+.mtab th:first-child,.mtab td:first-child{text-align:left;width:34%;font-size:13px;color:var(--muted);}
+.mtab td:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mtab tbody tr{border-top:1px solid var(--border);}
+.mtab .pk{font-weight:800;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap;}
+
+/* mejor propuesta */
+.bestbet{margin-top:12px;background:var(--gold-soft);border:1px solid rgba(227,178,77,.3);border-radius:var(--r-sm);padding:12px 14px;}
+.bestbet .bb-h{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.bestbet .bb-m{font-size:19px;font-weight:800;color:var(--gold);margin-top:3px;letter-spacing:-.01em;}
+
+/* calibrando */
+.calib{background:var(--gold-soft);border:1px solid rgba(227,178,77,.25);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;color:var(--gold);margin-top:10px;line-height:1.5;}
+
+.fin-badge{display:inline-block;background:var(--border2);color:var(--muted);font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;}
+.value-tag{background:var(--green-soft);color:var(--green);font-size:12px;font-weight:800;padding:3px 8px;border-radius:99px;margin-left:6px;}
+
+/* ===== TOAST ===== */
+.sync-toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-8px);background:var(--card2);
+  border:1px solid var(--border2);border-radius:var(--r-sm);padding:12px 42px 12px 16px;font-size:15px;z-index:9997;
+  opacity:0;transition:.3s;max-width:90vw;line-height:1.4;box-shadow:var(--shadow);pointer-events:none;}
+.sync-toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
+.toast-close{position:absolute;top:8px;right:12px;font-size:19px;cursor:pointer;color:var(--muted);}
+
+/* ===== FUTURO ===== */
+.future-card{text-align:center;padding:34px 20px;}
+.future-icon{font-size:46px;margin-bottom:12px;opacity:.9;}
+.future-name{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;}
+.future-date{font-size:16px;color:var(--accent);font-weight:700;}
+.future-note{font-size:14px;color:var(--muted);margin-top:12px;line-height:1.6;}
+
+/* ===== STANDINGS ===== */
 .standings-table{width:100%;border-collapse:collapse;}
-.standings-table th{padding:5px 4px;font-size:13px;color:var(--muted);text-align:center;}
-.standings-table td{padding:6px 4px;font-size:15px;text-align:center;border-bottom:1px solid rgba(255,255,255,.05);}
+.standings-table th{padding:7px 4px;font-size:12px;color:var(--muted);text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
+.standings-table td{padding:9px 4px;font-size:15px;text-align:center;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;}
+.standings-table tr:last-child td{border-bottom:none;}
 .standings-table td.tn{text-align:left;font-weight:600;font-size:15px;}
 </style>
 </head>
@@ -112,13 +186,13 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:20px
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v2.3 · 3-ago-2026 9:11am</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v2.4 · 3-ago-2026 12:23pm</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span style="font-size:13px;opacity:.6;font-weight:600;color:var(--gold)">v2.3 · 3-ago-2026 9:11am</span></div>
+  <div class="logo">Foot<em>IQ</em> <span style="font-size:13px;opacity:.6;font-weight:600;color:var(--gold)">v2.4 · 3-ago-2026 12:23pm</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
