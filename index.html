@@ -75,6 +75,19 @@ body{background:var(--bg);color:var(--text);font-family:system-ui;font-size:20px
 .bestbet{margin-top:10px;background:rgba(240,188,53,.1);border:1px solid rgba(240,188,53,.4);border-radius:10px;padding:10px 12px;}
 .bestbet .bb-h{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
 .bestbet .bb-m{font-size:19px;font-weight:900;color:var(--gold);margin-top:2px;}
+.verdict{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:9px 12px;border-radius:10px;font-size:16px;}
+.verdict b{font-weight:900;}
+.verdict.v-pre{background:rgba(240,188,53,.1);border:1px solid rgba(240,188,53,.4);color:var(--gold);}
+.verdict.v-ok{background:rgba(32,192,90,.12);border:1px solid rgba(32,192,90,.4);}
+.verdict.v-no{background:rgba(232,64,74,.1);border:1px solid rgba(232,64,74,.35);}
+.verdict .v-sign{font-size:20px;}
+.verdict .v-code{font-size:14px;font-weight:800;background:rgba(255,255,255,.1);padding:2px 8px;border-radius:6px;}
+.motor-line{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.mchip{font-size:13px;font-weight:700;padding:3px 8px;border-radius:7px;white-space:nowrap;}
+.mchip-ok{background:rgba(32,192,90,.15);color:var(--green);}
+.mchip-no{background:rgba(232,64,74,.14);color:var(--red);}
+.mchip-abs{background:var(--bg2);color:var(--muted);}
+.prob.prob-top{background:rgba(47,168,245,.14);border:1px solid rgba(47,168,245,.4);}
 .fin-badge{display:inline-block;background:var(--muted);color:#000;font-size:12px;font-weight:800;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.04em;}
 .motor-res{display:flex;justify-content:space-between;align-items:center;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.05);font-size:15px;}
 .motor-res:last-child{border-bottom:none;}
@@ -191,23 +204,26 @@ function saveState(t){ try{ localStorage.setItem('fiq2_'+t, JSON.stringify(S[t])
 // anteriores a ese partido. Nada de autoevaluación con datos del futuro.
 
 // --- Motor 1: ELO ---
-function eloProb(rH,rA,baseDraw){
-  const diff=rH-rA;
+function eloProb(rH,rA,baseDraw,hfa){
+  const diff=(rH+(hfa||0))-rA;              // hfa = ventaja de local en puntos ELO
   const pW=1/(1+Math.pow(10,-diff/400));
-  const draw=Math.max(0.12,Math.min(0.32,(baseDraw??0.26)-Math.abs(diff)*0.00015));
+  const draw=Math.max(0.12,Math.min(0.34,(baseDraw??0.26)-Math.abs(diff)*0.00012));
   const pH=pW*(1-draw), pA=(1-pW)*(1-draw);
   return {pH,pD:1-pH-pA,pA};
 }
-function eloUpdate(elo,h,a,sh,sa){
-  const K=30;
+function eloUpdate(elo,h,a,sh,sa,hfa,gp){
   const eh=elo[h]??1500, ea=elo[a]??1500;
-  const expH=1/(1+Math.pow(10,(ea-eh)/400));
+  const expH=1/(1+Math.pow(10,(ea-(eh+(hfa||0)))/400));  // expectativa cuenta la localía
   const actH=sh>sa?1:sh===sa?0.5:0;
   const gd=Math.abs(sh-sa);
   const kAdj=gd<=1?1:gd===2?1.5:gd===3?1.75:1.75+0.5*Math.log(gd-2);
-  const Ke=Math.round(K*kAdj);
+  // K provisional: alto con pocos partidos (converge rápido), baja al estabilizarse
+  const games=gp?Math.min(gp[h]||0,gp[a]||0):99;
+  const Kbase=games<5?54:games<10?38:24;
+  const Ke=Math.round(Kbase*kAdj);
   elo[h]=Math.round(eh+Ke*(actH-expH));
   elo[a]=Math.round(ea+Ke*((1-actH)-(1-expH)));
+  if(gp){ gp[h]=(gp[h]||0)+1; gp[a]=(gp[a]||0)+1; }
 }
 
 // --- Motor 2: Momentum (últimos 5, solo partidos previos) ---
@@ -263,8 +279,8 @@ function _anomWC(h,a){
 }
 // Modo B (transferencia a ligas nuevas): solo la parte meta aprendida del WC
 // (escala + banda de empate) aplicada al ELO walk-forward de la liga. norm=40 fijo.
-function _anomMeta(rH,rA){
-  const z=(rH-rA)/40*ANOM_MODEL.meta.scale, cut=ANOM_MODEL.meta.cut;
+function _anomMeta(rH,rA,hfa){
+  const z=((rH+(hfa||0))-rA)/40*ANOM_MODEL.meta.scale, cut=ANOM_MODEL.meta.cut;
   let pH=_casaSig(z-cut), pA=_casaSig(-z-cut), pD=Math.max(0.02,1-pH-pA);
   const s=pH+pD+pA; return {pH:pH/s,pD:pD/s,pA:pA/s};
 }
@@ -272,10 +288,10 @@ function _anomMeta(rH,rA){
 // Motor unificado: (a) equipos del Mundial → modelo completo con memoria (100% entrenamiento);
 // (b) ligas nuevas CON cuotas → la cuota real de la casa manda (70%) + reglas WC (30%);
 // (c) ligas nuevas SIN cuotas → solo las reglas aprendidas del WC sobre el ELO de la liga.
-function anomaliaProb(m,rH,rA){
+function anomaliaProb(m,rH,rA,hfa){
   const full=_anomWC(m.h,m.a);
   if(full) return full;
-  const meta=_anomMeta(rH,rA);
+  const meta=_anomMeta(rH,rA,hfa);
   const mk=mercadoProb(m);
   if(mk){
     let pH=mk.pH*0.7+meta.pH*0.3, pD=mk.pD*0.7+meta.pD*0.3, pA=mk.pA*0.7+meta.pA*0.3;
@@ -321,30 +337,42 @@ function argMax3(p){ return (p.pH>=p.pA&&p.pH>=p.pD)?'H':(p.pA>=p.pH&&p.pA>=p.pD
 function walkForward(t){
   const st=loadState(t);
   const cfg=TORNEOS[t];
-  const elo={}; const form={}; // form[team]=[resultados recientes: 3/1/0]
+  const elo={}; const form={}; const gp={};      // gp = partidos jugados por equipo
   const anom={favW:0,favN:0,draws:0,n:0};
+  // Aprendizaje de parámetros de la liga (localía y empates), estimados sobre la marcha
+  let hw=0,aw=0,dr=0,ntot=0;
+  const learnHFA=()=>{ if(ntot<12) return 55; const r=(hw+0.5*dr)/Math.max(1,(aw+0.5*dr)); return Math.max(0,Math.min(150,Math.round(400*Math.log10(Math.max(0.2,r))))); };
+  const learnDraw=()=>{ if(ntot<12) return cfg.baseDraw; return Math.max(0.14,Math.min(0.36,dr/ntot)); };
+  const accResult=(sh,sa)=>{ if(sh>sa)hw++; else if(sa>sh)aw++; else dr++; ntot++; };
   const hits={},tot={},log=[]; const brier={},mkt={hits:0,tot:0,brier:0};
   MOTORES.forEach(m=>{hits[m]=0;tot[m]=0;brier[m]=0;});
   const played=st.matches.filter(m=>m.played).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  let scored=0;
+  let scored=0; let hfa=55, drawRate=cfg.baseDraw;
   for(const m of played){
+    hfa=learnHFA(); drawRate=learnDraw();
     if(m.seed){
-      // Historia previa (Apertura / temporada pasada): solo calibra ELO y forma
-      eloUpdate(elo,m.h,m.a,m.sh,m.sa);
+      eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa,gp);
       (form[m.h]=form[m.h]||[]).push(m.sh>m.sa?3:m.sh===m.sa?1:0);
       (form[m.a]=form[m.a]||[]).push(m.sa>m.sh?3:m.sh===m.sa?1:0);
+      accResult(m.sh,m.sa);
       continue;
     }
     scored++;
     const rH=elo[m.h]??1500, rA=elo[m.a]??1500;
     const f5=team=>{const arr=(form[team]||[]).slice(-5);return {pts:arr.reduce((s,x)=>s+x,0),n:arr.length};};
     const preds={
-      elo: eloProb(rH,rA,cfg.baseDraw),
+      elo: eloProb(rH,rA,drawRate,hfa),
       mom: momProb(f5(m.h),f5(m.a)),
-      anomalia: anomaliaProb(m,rH,rA)
+      anomalia: anomaliaProb(m,rH,rA,hfa)
     };
     const actual=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
     const row={id:m.id,h:m.h,a:m.a,sh:m.sh,sa:m.sa,date:m.date,res:{},picks:{}};
+    // Dictamen del consenso con los pesos APRENDIDOS HASTA AQUÍ (honesto, sin mirar el futuro)
+    const rw=_calcWeights(hits,tot,scored-1);
+    let cH=0,cD=0,cA=0,cws=0;
+    for(const k of MOTORES){ if(!preds[k])continue; const wk=rw[k]||0; cH+=preds[k].pH*wk;cD+=preds[k].pD*wk;cA+=preds[k].pA*wk;cws+=wk; }
+    if(cws<=0){ const e=preds.elo; cH=e.pH;cD=e.pD;cA=e.pA;cws=1; }
+    row.dict=argMax3({pH:cH/cws,pD:cD/cws,pA:cA/cws}); row.dictOk=row.dict===actual;
     for(const k of MOTORES){
       if(!preds[k]) { row.res[k]=null; row.picks[k]=null; continue; }
       tot[k]++;
@@ -364,20 +392,30 @@ function walkForward(t){
     if(m.sh!==m.sa){ anom.favN++; if((m.sh>m.sa)===favIsH) anom.favW++; }
     else anom.draws++;
     anom.n++;
-    eloUpdate(elo,m.h,m.a,m.sh,m.sa);
+    eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa,gp);
     (form[m.h]=form[m.h]||[]).push(m.sh>m.sa?3:m.sh===m.sa?1:0);
     (form[m.a]=form[m.a]||[]).push(m.sa>m.sh?3:m.sh===m.sa?1:0);
+    accResult(m.sh,m.sa);
   }
-  // pesos honestos: habilidad sobre base 40% con piso; motores sin datos → 0
-  const base=0.40, floor=0.02; const raw={}; let sum=0;
-  for(const k of MOTORES){
-    const n=tot[k];
-    raw[k]=n>=8?Math.max(floor,(hits[k]/n)-base):0;
-    sum+=raw[k];
-  }
+  const w=_calcWeights(hits,tot,scored);
+  return {elo,form,gp,anom,hits,tot,brier,mkt,weights:w,hfa,drawRate,log,playedCount:scored,seedCount:played.length-scored};
+}
+// Pesos del consenso: reaccionan desde 5 partidos, con encogimiento hacia el
+// reparto igual al principio (evita saltos bruscos con pocos datos).
+function _calcWeights(hits,tot,scored){
+  const base=0.40, floor=0.02; const raw={}; let sum=0; let active=0;
+  for(const k of MOTORES){ const n=tot[k]; if(n>0)active++; raw[k]=n>=5?Math.max(floor,(hits[k]/n)-base):0; sum+=raw[k]; }
+  const conf=Math.min(1,(scored||0)/25);
+  const eq=active>0?1/active:0;
   const w={};
-  for(const k of MOTORES) w[k]=sum>0?raw[k]/sum:(k==='elo'?1:0); // arranque: solo ELO
-  return {elo,form,anom,hits,tot,brier,mkt,weights:w,log,playedCount:scored,seedCount:played.length-scored};
+  for(const k of MOTORES){
+    const learned = sum>0?raw[k]/sum:(k==='elo'?1:0);
+    const equal = tot[k]>0?eq:0;
+    w[k]= conf*learned + (1-conf)*equal;
+  }
+  const wsum=Object.values(w).reduce((a,b)=>a+b,0)||1;
+  for(const k in w) w[k]/=wsum;
+  return w;
 }
 
 let WF={}; // cache por torneo
@@ -389,11 +427,12 @@ function predictMatch(t,m){
   const wf=getWF(t);
   const cfg=TORNEOS[t];
   const rH=wf.elo[m.h]??1500, rA=wf.elo[m.a]??1500;
+  const hfa=wf.hfa??55, drawRate=wf.drawRate??cfg.baseDraw;
   const f5=team=>{const arr=(wf.form[team]||[]).slice(-5);return {pts:arr.reduce((s,x)=>s+x,0),n:arr.length};};
   const preds={
-    elo: eloProb(rH,rA,cfg.baseDraw),
+    elo: eloProb(rH,rA,drawRate,hfa),
     mom: momProb(f5(m.h),f5(m.a)),
-    anomalia: anomaliaProb(m,rH,rA)
+    anomalia: anomaliaProb(m,rH,rA,hfa)
   };
   // consenso: pesos walk-forward, renormalizados entre motores CON datos
   let pH=0,pD=0,pA=0,ws=0;
@@ -723,6 +762,7 @@ function renderHoy(){
   const fmtDay=iso=>{ const d=new Date(iso); return d.toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'}); };
   const fmtHr=iso=>{ const d=new Date(iso); return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); };
   const nm=(t,who)=>{const s=t.split(' ')[0]; return who==='H'?s:who==='A'?s:'Empate';};
+  const pickLabel=(pk,hh,aa)=> pk==='H'?'Gana '+hh : pk==='A'?'Gana '+aa : 'Empate';
   for(const m of win){
     const day=(m.date||'').slice(0,10);
     if(day!==lastDay){ lastDay=day; h+=`<div class="stitle">📅 ${fmtDay(m.date)}</div>`; }
@@ -735,48 +775,51 @@ function renderHoy(){
       h+=`<div class="result-real"><div class="rscore">${m.sh} — ${m.sa}</div><div class="rlabel">${actual==='D'?'Empate':'Ganó '+winner}</div></div>`;
       const row=logById[m.id];
       if(row&&row.picks){
-        h+='<div style="margin-top:8px"><div style="font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">¿Acertaron los motores?</div>';
+        // Dictamen comprometido ANTES del partido vs resultado
+        if(row.dict!=null){
+          const okD=row.dictOk;
+          h+=`<div class="verdict ${okD?'v-ok':'v-no'}"><span>🔮 Dictamen: <b>${pickLabel(row.dict,hShort,aShort)}</b></span><span class="v-sign">${okD?'✅':'❌'}</span></div>`;
+        }
+        // Motores en una línea compacta con signos
+        h+='<div class="motor-line">';
         for(const k of MOTORES){
           const pk=row.picks[k];
-          if(pk==null){ h+=`<div class="motor-res"><span>${MOTOR_LBL[k]}</span><span style="color:var(--muted);font-size:13px">se abstuvo</span></div>`; continue; }
-          const ok=row.res[k];
-          h+=`<div class="motor-res"><span>${MOTOR_LBL[k]} <span style="color:var(--muted);font-size:13px">dijo ${nm(pk==='H'?m.h:pk==='A'?m.a:'',pk)}</span></span><span style="font-weight:800;color:${ok?'var(--green)':'var(--red)'}">${ok?'✅ Acertó':'❌ Falló'}</span></div>`;
+          if(pk==null){ h+=`<span class="mchip mchip-abs">${MOTOR_SHORT[k]} –</span>`; continue; }
+          const short=pk==='H'?hShort:pk==='A'?aShort:'X';
+          h+=`<span class="mchip ${row.res[k]?'mchip-ok':'mchip-no'}">${MOTOR_SHORT[k]} ${short} ${row.res[k]?'✅':'❌'}</span>`;
         }
-        if(row.mkt!=null) h+=`<div class="motor-res"><span>🏛️ Mercado (casa)</span><span style="font-weight:800;color:${row.mkt?'var(--green)':'var(--red)'}">${row.mkt?'✅ Acertó':'❌ Falló'}</span></div>`;
+        if(row.mkt!=null) h+=`<span class="mchip ${row.mkt?'mchip-ok':'mchip-no'}">🏛️ ${row.mkt?'✅':'❌'}</span>`;
         h+='</div>';
       }
     } else {
       const p=predictMatch(ACTIVE,m);
+      const dictP=argMax3(p);
+      const conf=Math.round(Math.max(p.pH,p.pD,p.pA)*100);
       h+=`<div class="probs">
-        <div class="prob"><div class="pv">${Math.round(p.pH*100)}%</div><div class="pl">${hShort}</div></div>
-        <div class="prob"><div class="pv">${Math.round(p.pD*100)}%</div><div class="pl">Emp</div></div>
-        <div class="prob"><div class="pv">${Math.round(p.pA*100)}%</div><div class="pl">${aShort}</div></div>
+        <div class="prob ${dictP==='H'?'prob-top':''}"><div class="pv">${Math.round(p.pH*100)}%</div><div class="pl">${hShort}</div></div>
+        <div class="prob ${dictP==='D'?'prob-top':''}"><div class="pv">${Math.round(p.pD*100)}%</div><div class="pl">Emp</div></div>
+        <div class="prob ${dictP==='A'?'prob-top':''}"><div class="pv">${Math.round(p.pA*100)}%</div><div class="pl">${aShort}</div></div>
       </div>`;
-      // Tabla compacta: motor · % ganador más probable · apuesta sugerida
-      h+='<table class="mtab"><thead><tr><th>Motor</th><th>'+hShort+'</th><th>X</th><th>'+aShort+'</th><th>Apuesta</th></tr></thead><tbody>';
+      const bb=betSuggest(p);
+      h+=`<div class="verdict v-pre"><span>🔮 Dictamen: <b>${pickLabel(dictP,hShort,aShort)}</b></span><span class="v-code">${bb.code} · ${conf}%</span></div>`;
+      // Cada motor se juega su pick explícito
+      h+='<div style="margin-top:6px">';
       for(const k of MOTORES){
         const mp=p.preds[k];
-        if(!mp){ h+=`<tr><td>${MOTOR_LBL[k]}</td><td colspan="4" style="color:var(--muted);font-size:12px">se abstiene</td></tr>`; continue; }
-        const bs=betSuggest(mp);
-        const hi=(v,is)=>`<span style="${is?'color:var(--accent);font-weight:800':''}">${Math.round(v*100)}</span>`;
-        const top=Math.max(mp.pH,mp.pD,mp.pA);
-        h+=`<tr><td>${MOTOR_LBL[k]}</td><td>${hi(mp.pH,top===mp.pH)}</td><td>${hi(mp.pD,top===mp.pD)}</td><td>${hi(mp.pA,top===mp.pA)}</td><td><span class="pk">${bs.code}</span></td></tr>`;
-      }
-      h+='</tbody></table>';
-      // Mejor propuesta = consenso
-      const bb=betSuggest(p);
-      const conf=Math.round(Math.max(p.pH,p.pD,p.pA)*100);
-      h+=`<div class="bestbet"><div class="bb-h">📊 Mejor propuesta (consenso)</div><div class="bb-m">${bb.code} · ${bb.txt} <span style="font-size:14px;color:var(--muted);font-weight:600">(${conf}% conf.)</span></div>`;
-      // Caza de valor: motor que difiere fuerte del mercado
-      const mk=mercadoProb(m);
-      if(mk){
-        const cand=[['1',p.pH-mk.pH,p.pH],['X',p.pD-mk.pD,p.pD],['2',p.pA-mk.pA,p.pA]].sort((a,b)=>b[1]-a[1])[0];
-        if(cand[1]>=0.08&&cand[2]>=0.30) h+=`<div style="font-size:13px;color:var(--green);margin-top:6px">💎 Posible valor: consenso da <b>${Math.round(cand[2]*100)}%</b> a "${cand[0]}" vs mercado ${Math.round((cand[0]==='1'?mk.pH:cand[0]==='X'?mk.pD:mk.pA)*100)}% (+${Math.round(cand[1]*100)} pts). No es garantía.</div>`;
-      } else {
-        h+=`<div style="font-size:12px;color:var(--muted);margin-top:6px">Sin cuotas de la casa aún — la comparación de valor aparece cuando ESPN publique las cuotas.</div>`;
+        if(!mp){ h+=`<div class="motor-res"><span>${MOTOR_LBL[k]}</span><span style="color:var(--muted);font-size:13px">se abstiene</span></div>`; continue; }
+        const pk=argMax3(mp), pc=Math.round(Math.max(mp.pH,mp.pD,mp.pA)*100);
+        h+=`<div class="motor-res"><span>${MOTOR_LBL[k]}</span><span style="font-weight:700">${pickLabel(pk,hShort,aShort)} <span style="color:var(--muted);font-weight:500;font-size:13px">${pc}%</span></span></div>`;
       }
       h+='</div>';
-      if(p.calibrando) h+='<div class="calib">⚠️ Calibrando: pocos partidos jugados en este torneo. Confianza baja al inicio.</div>';
+      // Caza de valor vs mercado
+      const mk=mercadoProb(m);
+      if(mk){
+        const cand=[['1',p.pH-mk.pH,p.pH,mk.pH],['X',p.pD-mk.pD,p.pD,mk.pD],['2',p.pA-mk.pA,p.pA,mk.pA]].sort((a,b)=>b[1]-a[1])[0];
+        if(cand[1]>=0.08&&cand[2]>=0.30) h+=`<div style="font-size:13px;color:var(--green);margin-top:8px;padding:8px 10px;background:rgba(32,192,90,.08);border-radius:8px">💎 Posible valor en "${cand[0]}": consenso <b>${Math.round(cand[2]*100)}%</b> vs casa ${Math.round(cand[3]*100)}% (+${Math.round(cand[1]*100)} pts). No es garantía.</div>`;
+      } else {
+        h+=`<div style="font-size:12px;color:var(--muted);margin-top:8px">Sin cuotas de la casa aún — el análisis de valor aparece cuando ESPN publique las cuotas.</div>`;
+      }
+      if(p.calibrando) h+='<div class="calib">⚠️ Calibrando: pocos partidos en este torneo. La confianza sube a medida que aprende.</div>';
       if(m.odds&&m.odds.first&&m.odds.pH!=null){
         const mov=(m.odds.pH-m.odds.first.pH)*100;
         if(Math.abs(mov)>=2) h+=`<div style="font-size:13px;color:var(--yellow);margin-top:6px">📈 El mercado movió: el local ${mov>0?'sube':'baja'} ${Math.abs(mov).toFixed(0)}% desde la primera cuota</div>`;
