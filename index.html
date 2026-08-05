@@ -155,6 +155,13 @@ body{
 /* calibrando */
 .calib{background:var(--gold-soft);border:1px solid rgba(227,178,77,.25);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;color:var(--gold);margin-top:10px;line-height:1.5;}
 
+.mkt-panel{margin-top:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;}
+.mkt-h{font-size:14px;font-weight:700;margin-bottom:8px;}
+.mkt-row{display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:4px 0;color:var(--muted);}
+.mkt-row .mkt-v{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums;}
+.mkt-value{margin-top:8px;padding:9px 11px;background:var(--green-soft);border:1px solid rgba(62,207,142,.3);border-radius:8px;font-size:14px;color:var(--green);}
+.mkt-value b{font-weight:800;}
+.mkt-note{font-size:12px;color:var(--muted);margin-top:3px;font-weight:400;}
 .fin-badge{display:inline-block;background:var(--border2);color:var(--muted);font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;}
 .value-tag{background:var(--green-soft);color:var(--green);font-size:12px;font-weight:800;padding:3px 8px;border-radius:99px;margin-left:6px;}
 
@@ -186,13 +193,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v2.4 · 3-ago-2026 12:23pm</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v2.5 · 5-ago-2026 3:28am</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span style="font-size:13px;opacity:.6;font-weight:600;color:var(--gold)">v2.4 · 3-ago-2026 12:23pm</span></div>
+  <div class="logo">Foot<em>IQ</em> <span style="font-size:13px;opacity:.6;font-weight:600;color:var(--gold)">v2.5 · 5-ago-2026 3:28am</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -313,19 +320,36 @@ function momProb(fH,fA){
   return {pH,pD:1-pH-pA,pA};
 }
 
-// --- Motor 3: Mercado (cuotas reales de casas, vía ESPN) ---
-// Capa 2 del diseño: probabilidad implícita de las cuotas + movimiento.
-// Si no hay cuotas para el partido, el motor SE ABSTIENE (no inventa).
-function mercadoProb(m){
-  const o=m.odds;
-  if(!o||o.pH==null) return null;
-  let {pH,pD,pA}=o;
-  // Señal de movimiento: si la cuota del favorito BAJÓ desde primera captura,
-  // el dinero lo respalda → pequeño refuerzo (máx ±4%).
+// --- INTELIGENCIA DE MERCADO (línea de consenso vía DraftKings/ESPN) ---
+// Calcula los indicadores que usan los apostadores profesionales:
+//  • prob implícita SIN margen (de-vig) = la "línea de consenso / sharp"
+//  • margen/overround = cuánto se queda la casa (menor = casa más afinada)
+//  • movimiento de línea (opening→closing): si una cuota CAE, entra dinero a ese lado
+// Nota honesta: OddsPortal/Betstamp no se pueden leer (JS + términos de uso).
+// DraftKings (vía ESPN) es una casa sharp y sirve de referencia de consenso.
+const MOVE_LABEL={H:'Local',D:'Empate',A:'Visitante'};
+function marketSignals(m){
+  const o=m.odds; if(!o||o.pH==null) return null;
+  const fair={pH:o.pH,pD:o.pD,pA:o.pA};   // ya viene de-vig (normalizada)
+  let move=null, drop=null;
   if(o.first&&o.first.pH!=null){
-    const dH=pH-o.first.pH, dA=pA-o.first.pA;
-    pH=Math.max(0.02,Math.min(0.92,pH+dH*0.5));
-    pA=Math.max(0.02,Math.min(0.92,pA+dA*0.5));
+    move={H:o.pH-o.first.pH, D:o.pD-o.first.pD, A:o.pA-o.first.pA};
+    // "dropping odds": el lado cuya prob implícita SUBIÓ = su cuota cayó = dinero/sharp entrando
+    const arr=[['H',move.H],['D',move.D],['A',move.A]].sort((x,y)=>y[1]-x[1]);
+    if(arr[0][1]>=0.025) drop=arr[0][0];
+  }
+  return {fair, move, drop, margin:o.margin??null};
+}
+// Motor Mercado: parte de la línea de consenso (de-vig) y sigue el movimiento (sharp money).
+function mercadoProb(m){
+  const sig=marketSignals(m);
+  if(!sig) return null;
+  let {pH,pD,pA}=sig.fair;
+  if(sig.move){
+    // El cierre es más afinado que la apertura → inclinar hacia donde se movió la línea.
+    const k=0.6;
+    pH=Math.max(0.02,pH+sig.move.H*k);
+    pA=Math.max(0.02,pA+sig.move.A*k);
     pD=Math.max(0.05,1-pH-pA);
   }
   const s=pH+pD+pA;
@@ -557,8 +581,8 @@ function oddsToProbs(oddsObj){
     let d=am(o.moneylineDraw ?? o.drawOdds?.moneyLine);
     let a=am(o.moneylineAway ?? o.awayTeamOdds?.moneyLine);
     if(h==null||d==null||a==null) return null;
-    const s=h+d+a; // quita el margen de la casa
-    return {pH:h/s,pD:d/s,pA:a/s};
+    const s=h+d+a;                 // s>1 por el margen (overround) de la casa
+    return {pH:h/s,pD:d/s,pA:a/s, margin:+(s-1).toFixed(4)};  // margin = cuánto se queda la casa
   }catch(e){ return null; }
 }
 
@@ -886,19 +910,40 @@ function renderHoy(){
         h+=`<div class="motor-res"><span>${MOTOR_LBL[k]}</span><span style="font-weight:700">${pickLabel(pk,hShort,aShort)} <span style="color:var(--muted);font-weight:500;font-size:13px">${pc}%</span></span></div>`;
       }
       h+='</div>';
-      // Caza de valor vs mercado
+      // ===== Panel de INTELIGENCIA DE MERCADO =====
+      const sig=marketSignals(m);
       const mk=mercadoProb(m);
-      if(mk){
-        const cand=[['1',p.pH-mk.pH,p.pH,mk.pH],['X',p.pD-mk.pD,p.pD,mk.pD],['2',p.pA-mk.pA,p.pA,mk.pA]].sort((a,b)=>b[1]-a[1])[0];
-        if(cand[1]>=0.08&&cand[2]>=0.30) h+=`<div style="font-size:13px;color:var(--green);margin-top:8px;padding:8px 10px;background:rgba(32,192,90,.08);border-radius:8px">💎 Posible valor en "${cand[0]}": consenso <b>${Math.round(cand[2]*100)}%</b> vs casa ${Math.round(cand[3]*100)}% (+${Math.round(cand[1]*100)} pts). No es garantía.</div>`;
+      if(sig){
+        h+='<div class="mkt-panel">';
+        h+='<div class="mkt-h">🏦 Señales del mercado <span style="color:var(--dim);font-weight:500">· consenso DraftKings</span></div>';
+        // prob implícita (de-vig)
+        h+=`<div class="mkt-row"><span>Prob. implícita (sin margen)</span><span class="mkt-v">${Math.round(sig.fair.pH*100)}·${Math.round(sig.fair.pD*100)}·${Math.round(sig.fair.pA*100)}</span></div>`;
+        // margen / overround
+        if(sig.margin!=null){
+          const mg=Math.round(sig.margin*100);
+          const q=mg<=6?'afinada':mg<=10?'normal':'cara';
+          h+=`<div class="mkt-row"><span>Margen de la casa</span><span class="mkt-v">${mg}% <span style="color:var(--dim);font-weight:500">(${q})</span></span></div>`;
+        }
+        // movimiento de línea (dropping odds)
+        if(sig.drop){
+          h+=`<div class="mkt-row"><span>📉 Cae la cuota: <b>${MOVE_LABEL[sig.drop]}</b></span><span class="mkt-v" style="color:var(--gold)">entra dinero</span></div>`;
+        } else if(sig.move){
+          h+=`<div class="mkt-row"><span>Movimiento de línea</span><span class="mkt-v" style="color:var(--dim)">estable</span></div>`;
+        }
+        // valor vs consenso
+        if(mk){
+          const cand=[['1','Local',p.pH-mk.pH,p.pH,mk.pH],['X','Empate',p.pD-mk.pD,p.pD,mk.pD],['2','Visitante',p.pA-mk.pA,p.pA,mk.pA]].sort((a,b)=>b[2]-a[2])[0];
+          if(cand[2]>=0.08&&cand[3]>=0.30){
+            h+=`<div class="mkt-value">💎 Valor en <b>${cand[1]}</b>: modelo ${Math.round(cand[3]*100)}% vs consenso ${Math.round(cand[4]*100)}% <b>(+${Math.round(cand[2]*100)} pts)</b><div class="mkt-note">Solo si tu casa paga por encima de la cuota justa ${(1/cand[3]).toFixed(2)}. No es garantía.</div></div>`;
+          } else {
+            h+=`<div class="mkt-row"><span>Valor vs consenso</span><span class="mkt-v" style="color:var(--dim)">sin ventaja clara</span></div>`;
+          }
+        }
+        h+='</div>';
       } else {
-        h+=`<div style="font-size:12px;color:var(--muted);margin-top:8px">Sin cuotas de la casa aún — el análisis de valor aparece cuando ESPN publique las cuotas.</div>`;
+        h+=`<div style="font-size:12px;color:var(--muted);margin-top:8px">Sin cuotas de la casa aún — las señales de mercado aparecen cuando ESPN publique las cuotas (normalmente 1-2 días antes).</div>`;
       }
       if(p.calibrando) h+='<div class="calib">⚠️ Calibrando: pocos partidos en este torneo. La confianza sube a medida que aprende.</div>';
-      if(m.odds&&m.odds.first&&m.odds.pH!=null){
-        const mov=(m.odds.pH-m.odds.first.pH)*100;
-        if(Math.abs(mov)>=2) h+=`<div style="font-size:13px;color:var(--yellow);margin-top:6px">📈 El mercado movió: el local ${mov>0?'sube':'baja'} ${Math.abs(mov).toFixed(0)}% desde la primera cuota</div>`;
-      }
     }
     h+='</div>';
   }
