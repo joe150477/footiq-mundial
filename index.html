@@ -211,13 +211,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v2.7 · 5-ago-2026 3:52am</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v2.8 · 5-ago-2026 4:15am</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v2.7 · 5-ago-2026 3:52am</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v2.8 · 5-ago-2026 4:15am</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -254,12 +254,14 @@ body{
   <div class="tab active" onclick="showTab(this,'champ')"><span class="ti">🏆</span>Campeón</div>
   <div class="tab" onclick="showTab(this,'hoy')"><span class="ti">📅</span>Partidos</div>
   <div class="tab" onclick="showTab(this,'comp')"><span class="ti">📊</span>Motores</div>
+  <div class="tab" onclick="showTab(this,'valor')"><span class="ti">💰</span>Valor</div>
 </div>
 
 <div class="pages">
   <div class="page active" id="page-champ"></div>
   <div class="page" id="page-hoy"></div>
   <div class="page" id="page-comp"></div>
+  <div class="page" id="page-valor"></div>
 </div>
 
 <script>
@@ -702,6 +704,7 @@ async function syncActive(){
   try{
     const res=await syncTorneo(ACTIVE);
     if(getApiKey()){ try{ await enrichAPIFootball(ACTIVE); invalidateWF(ACTIVE); }catch(e){} }
+    try{ updateCLV(); }catch(e){}
     const now=new Date();
     document.getElementById('syncStatus').textContent='✓ '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
     const st=loadState(ACTIVE);
@@ -788,17 +791,19 @@ async function enrichAPIFootball(t){
         const names=(row&&row.teams)?{h:row.teams.home&&row.teams.home.name,a:row.teams.away&&row.teams.away.name}:fxMap[fid];
         if(!names||!names.h||!names.a) continue;
         const m=idx[_norm(names.h)+'|'+_norm(names.a)]; if(!m) continue;
-        let sH=0,sD=0,sA=0,sM=0,cnt=0;
+        let sH=0,sD=0,sA=0,sM=0,cnt=0,bH=0,bD=0,bA=0;
         for(const b of (row.bookmakers||[])){
           const bet=(b.bets||[]).find(x=>/match winner|1x2|winner/i.test(x.name||''));
           if(!bet) continue;
-          const gv=re=>{const o=(bet.values||[]).find(x=>new RegExp(re,'i').test(String(x.value)));return o?o.odd:null;};
-          const dv=_devig(gv('home|^1$'),gv('draw|^x$'),gv('away|^2$'));
-          if(dv){ sH+=dv.pH;sD+=dv.pD;sA+=dv.pA;sM+=dv.margin;cnt++; }
+          const gv=re=>{const o=(bet.values||[]).find(x=>new RegExp(re,'i').test(String(x.value)));return o?parseFloat(o.odd):null;};
+          const oH=gv('home|^1$'),oD=gv('draw|^x$'),oA=gv('away|^2$');
+          const dv=_devig(oH,oD,oA);
+          if(dv){ sH+=dv.pH;sD+=dv.pD;sA+=dv.pA;sM+=dv.margin;cnt++; if(oH>bH)bH=oH; if(oD>bD)bD=oD; if(oA>bA)bA=oA; }
         }
         if(cnt>0){
           const first=(m.odds&&m.odds.first)?m.odds.first:{pH:sH/cnt,pD:sD/cnt,pA:sA/cnt};
           m.odds={pH:sH/cnt,pD:sD/cnt,pA:sA/cnt,margin:+(sM/cnt).toFixed(4),first,src:'apifb',books:cnt};
+          m.oddsBest={H:+bH.toFixed(2),D:+bD.toFixed(2),A:+bA.toFixed(2),books:cnt};
         }
       }
     }catch(e){}
@@ -836,6 +841,7 @@ function showTab(el,name){
   if(name==='champ') renderChamp();
   else if(name==='hoy') renderHoy();
   else if(name==='comp') renderComparativa();
+  else if(name==='valor') renderValor();
 }
 function refreshAll(){
   try{
@@ -844,6 +850,7 @@ function refreshAll(){
     if(id==='champ') renderChamp();
     else if(id==='hoy') renderHoy();
     else if(id==='comp') renderComparativa();
+    else if(id==='valor') renderValor();
   }catch(e){ console.warn('refreshAll:',e); }
 }
 
@@ -1166,6 +1173,157 @@ function renderComparativa(){
   pg.innerHTML=h;
 }
 
+// ==================== 💰 VALOR (EV + Kelly + CLV + ROI) ====================
+function loadBank(){ try{const b=JSON.parse(localStorage.getItem('fiq2_bank')||'null'); if(b&&typeof b.bankroll==='number'&&Array.isArray(b.bets)) return b;}catch(e){} return {bankroll:0, kf:0.5, bets:[]}; }
+function saveBank(b){ try{localStorage.setItem('fiq2_bank',JSON.stringify(b));}catch(e){} }
+const _money=n=>'$'+Math.round(n).toLocaleString('es-CO');
+function evOf(prob,cuota){ return prob*cuota-1; }
+function kellyFrac(prob,cuota){ const b=cuota-1; if(b<=0) return 0; return Math.max(0,(b*prob-(1-prob))/b); }
+// CLV: comparás la cuota que tomaste vs la cuota "justa" de cierre (consenso de-vig)
+function clvOf(cuotaTaken, closingProb){ if(!closingProb) return null; const closingFair=1/closingProb; return +((cuotaTaken/closingFair-1)*100).toFixed(1); }
+function marketProbFor(m,mk){ return {'1':mk.pH,'X':mk.pD,'2':mk.pA}; }
+
+function setBankroll(){ const v=parseFloat((document.getElementById('bankIn').value||'').replace(/[.,]/g,m=>m===','?'.':''))||parseFloat(document.getElementById('bankIn').value); const b=loadBank(); const n=parseFloat(String(document.getElementById('bankIn').value).replace(/\./g,'').replace(',','.')); b.bankroll=isNaN(n)?0:n; saveBank(b); renderValor(); showToast('✅ Bankroll: '+_money(b.bankroll)); }
+function setKelly(kf){ const b=loadBank(); b.kf=kf; saveBank(b); renderValor(); }
+function registrarApuesta(torneo,matchId,h,a,market,cuota,prob){
+  const b=loadBank();
+  const ev=evOf(prob,cuota);
+  const stake=Math.round(b.bankroll*Math.min(kellyFrac(prob,cuota)*b.kf,0.15));
+  b.bets.push({id:'b'+Date.now()+Math.floor(Math.random()*999),torneo,matchId,h,a,market,cuota,prob:+prob.toFixed(4),ev:+ev.toFixed(4),stake,dateTaken:todayStr,closing:null,clv:null,status:'pending'});
+  saveBank(b); renderValor();
+  showToast('✅ Registrada: '+h.split(' ')[0]+' '+market+' @ '+cuota+(stake>0?(' · '+_money(stake)):''));
+}
+function settleBet(id,res){ const b=loadBank(); const x=b.bets.find(y=>y.id===id); if(x){ x.status=res; } saveBank(b); renderValor(); }
+function delBet(id){ const b=loadBank(); b.bets=b.bets.filter(y=>y.id!==id); saveBank(b); renderValor(); }
+// Al sincronizar, si el partido ya tiene odds de cierre y la apuesta no tiene CLV, calcularlo
+function updateCLV(){
+  const b=loadBank(); let ch=false;
+  for(const bet of b.bets){
+    if(bet.clv!=null) continue;
+    const st=loadState(bet.torneo); const m=st&&st.matches.find(x=>x.id===bet.matchId);
+    if(m&&m.odds&&m.odds.pH!=null){ const cp=marketProbFor(m,m.odds)[bet.market]; const clv=clvOf(bet.cuota,cp); if(clv!=null){ bet.clv=clv; ch=true; } }
+  }
+  if(ch) saveBank(b);
+}
+
+function renderValor(){
+  const pg=document.getElementById('page-valor'); if(!pg) return;
+  const cfg=TORNEOS[ACTIVE];
+  const b=loadBank();
+  updateCLV();
+  // ---- cabecera: bankroll + fracción Kelly ----
+  let h='<div class="stitle">💰 Valor · EV, Kelly y CLV</div>';
+  h+='<div class="card"><div style="font-size:13px;color:var(--muted);margin-bottom:6px">Tu bankroll (presupuesto total)</div>'+
+     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+     '<input id="bankIn" inputmode="numeric" placeholder="100000" value="'+(b.bankroll||'')+'" style="flex:1;min-width:120px;padding:10px 12px;font-size:16px;border-radius:10px;border:1px solid var(--border2);background:var(--bg2);color:var(--text)">'+
+     '<button class="mbtn mbtn-primary" style="flex:0;padding:10px 16px" onclick="setBankroll()">Guardar</button></div>'+
+     '<div style="font-size:13px;color:var(--muted);margin:12px 0 6px">Nivel de riesgo (fracción de Kelly)</div>'+
+     '<div style="display:flex;gap:6px">'+
+     [['0.25','¼ Kelly'],['0.5','½ Kelly'],['1','Kelly full']].map(o=>'<button onclick="setKelly('+o[0]+')" style="flex:1;padding:9px;border-radius:8px;border:1px solid '+(b.kf==+o[0]?'var(--accent)':'var(--border2)')+';background:'+(b.kf==+o[0]?'var(--accent-soft)':'var(--bg2)')+';color:'+(b.kf==+o[0]?'var(--accent)':'var(--muted)')+';font-weight:700;font-size:14px;cursor:pointer">'+o[1]+'</button>').join('')+
+     '</div>'+
+     '<div style="font-size:12px;color:var(--dim);margin-top:8px">EV = (prob × cuota) − 1. Solo se recomienda apostar con EV positivo. Kelly dimensiona; ½ o ¼ reduce la volatilidad. Nada garantiza ganar.</div></div>';
+
+  // ---- VALOR AUTOMÁTICO (usa cuotas de API-Football; sin teclear nada) ----
+  if(cfg.estado==='activo'){
+    const st=loadState(ACTIVE);
+    const now=new Date(), to=new Date(now); to.setDate(to.getDate()+7);
+    const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&new Date(m.date)>=new Date(now.getFullYear(),now.getMonth(),now.getDate())&&new Date(m.date)<=to).sort((x,y)=>(x.date||'').localeCompare(y.date||''));
+    // reunir todas las oportunidades de valor de todos los próximos partidos
+    const picks=[];
+    up.forEach(m=>{
+      const p=predictMatch(ACTIVE,m);
+      const probs={'1':p.pH,'X':p.pD,'2':p.pA};
+      const labels={'1':'Gana '+m.h.split(' ')[0],'X':'Empate','2':'Gana '+m.a.split(' ')[0]};
+      const best=m.oddsBest, cons=m.odds;
+      ['1','X','2'].forEach(k=>{
+        const key=k==='1'?'H':k==='X'?'D':'A';
+        let cuota=best?best[key]:(cons?(1/({'1':cons.pH,'X':cons.pD,'2':cons.pA}[k])):null);
+        if(!cuota) return;
+        const ev=evOf(probs[k],cuota);
+        if(ev>0.02) picks.push({m,k,label:labels[k],prob:probs[k],cuota,ev,real:!!best,mktP:cons?({'1':cons.pH,'X':cons.pD,'2':cons.pA}[k]):null});
+      });
+    });
+    picks.sort((a,b)=>b.ev-a.ev);
+    const hasOdds=up.some(m=>m.oddsBest||m.odds);
+    if(!hasOdds){
+      h+='<div class="card"><div class="future-card"><div class="future-icon">🔌</div><div class="future-note">Aún no hay cuotas para calcular valor <b>automáticamente</b>.<br><br>Conecta <b>API-Football</b> (botón ⚙️) y toca 🔄: la app baja las cuotas de varias casas y te muestra el valor sin que teclees nada.</div></div></div>';
+    } else if(!picks.length){
+      h+='<div class="card future-card"><div class="future-note">Sin apuestas de valor ahora mismo (ningún resultado supera al mercado por >2% de EV). Esto es lo normal la mayoría del tiempo — el valor es escaso.</div></div>';
+    } else {
+      h+='<div class="stitle">💎 Apuestas de valor · automático</div>';
+      h+='<div style="font-size:12px;color:var(--dim);padding:0 4px;margin-bottom:8px">EV = tu modelo cree que la cuota está por encima de lo justo. Ordenadas por EV. La cuota es la mejor disponible entre las casas.</div>';
+      picks.slice(0,12).forEach(pk=>{
+        const stake=Math.round(b.bankroll*Math.min(kellyFrac(pk.prob,pk.cuota)*b.kf,0.15));
+        const already=b.bets.some(x=>x.matchId===pk.m.id&&x.market===pk.k&&x.status==='pending');
+        h+='<div class="card" style="padding:14px">'+
+          '<div style="font-weight:700;font-size:15px">'+pk.m.h+' <span style="color:var(--muted)">vs</span> '+pk.m.a+'</div>'+
+          '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">'+
+            '<div style="flex:1"><div style="font-size:16px;font-weight:800;color:var(--gold)">'+pk.label+'</div>'+
+              '<div style="font-size:13px;color:var(--muted);margin-top:2px">modelo '+Math.round(pk.prob*100)+'%'+(pk.mktP!=null?(' · mercado '+Math.round(pk.mktP*100)+'%'):'')+'</div></div>'+
+            '<div style="text-align:right"><div style="font-size:20px;font-weight:900;color:var(--green)">EV +'+(pk.ev*100).toFixed(1)+'%</div>'+
+              '<div style="font-size:13px;color:var(--muted)">@ '+pk.cuota.toFixed(2)+' '+(pk.real?('· mejor de '+pk.m.oddsBest.books):'· estimada')+'</div></div>'+
+          '</div>'+
+          '<div style="display:flex;align-items:center;gap:8px;margin-top:10px">'+
+            '<div style="flex:1;font-size:13px;color:var(--muted)">'+(b.bankroll?('Apostar ~'+_money(stake)+' ('+(b.kf===0.25?'¼':b.kf===1?'full':'½')+' Kelly)'):'Define tu bankroll para ver cuánto apostar')+'</div>'+
+            (already
+              ?'<span style="font-size:13px;color:var(--green);font-weight:700">✓ Registrada</span>'
+              :'<button data-t="'+ACTIVE+'" data-mid="'+pk.m.id+'" data-h="'+encodeURIComponent(pk.m.h)+'" data-a="'+encodeURIComponent(pk.m.a)+'" data-mk="'+pk.k+'" data-cuota="'+pk.cuota+'" data-prob="'+pk.prob.toFixed(4)+'" onclick="regAutoBtn(this)" style="background:var(--gold);color:#1a1200;border:none;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:800;cursor:pointer">➕ Registrar</button>')+
+          '</div>'+
+        '</div>';
+      });
+    }
+  }
+
+  // ---- pendientes ----
+  const pend=b.bets.filter(x=>x.status==='pending');
+  if(pend.length){
+    h+='<div class="stitle">⏳ Apuestas pendientes</div><div class="card">';
+    pend.slice().reverse().forEach(x=>{
+      h+='<div style="padding:9px 0;border-top:1px solid var(--border)"><div style="font-size:14px;font-weight:700">'+x.h.split(' ')[0]+' vs '+x.a.split(' ')[0]+' · '+x.market+' @ '+x.cuota+'</div>'+
+        '<div style="font-size:12px;color:var(--muted);margin:2px 0">EV '+(x.ev>=0?'+':'')+(x.ev*100).toFixed(1)+'%'+(x.stake>0?(' · '+_money(x.stake)):'')+(x.clv!=null?(' · CLV '+(x.clv>=0?'+':'')+x.clv+'%'):'')+'</div>'+
+        '<div style="display:flex;gap:6px;margin-top:4px">'+
+        '<button onclick="settleBet(\''+x.id+'\',\'won\')" style="flex:1;background:var(--green-soft);color:var(--green);border:1px solid rgba(62,207,142,.4);border-radius:8px;padding:6px;font-weight:700;cursor:pointer">✅ Ganó</button>'+
+        '<button onclick="settleBet(\''+x.id+'\',\'lost\')" style="flex:1;background:var(--red-soft);color:var(--red);border:1px solid rgba(240,101,111,.35);border-radius:8px;padding:6px;font-weight:700;cursor:pointer">❌ Perdió</button>'+
+        '<button onclick="delBet(\''+x.id+'\')" style="background:var(--bg2);color:var(--muted);border:1px solid var(--border2);border-radius:8px;padding:6px 10px;cursor:pointer">🗑️</button></div></div>';
+    });
+    h+='</div>';
+  }
+
+  // ---- historial + métricas ----
+  const done=b.bets.filter(x=>x.status==='won'||x.status==='lost');
+  if(done.length){
+    const staked=done.reduce((s,x)=>s+x.stake,0);
+    const pl=done.reduce((s,x)=>s+(x.status==='won'?x.stake*(x.cuota-1):-x.stake),0);
+    const roi=staked>0?pl/staked*100:0;
+    const wins=done.filter(x=>x.status==='won').length;
+    const clvArr=done.filter(x=>x.clv!=null);
+    const clvAvg=clvArr.length?clvArr.reduce((s,x)=>s+x.clv,0)/clvArr.length:null;
+    h+='<div class="stitle">📈 Rendimiento · '+done.length+' apuestas</div>';
+    h+='<div class="card" style="display:flex;flex-wrap:wrap;gap:12px;justify-content:space-around;text-align:center">'+
+       '<div><div style="font-size:12px;color:var(--muted)">Ganancia</div><div style="font-size:20px;font-weight:800;color:'+(pl>=0?'var(--green)':'var(--red)')+'">'+(pl>=0?'+':'')+_money(pl)+'</div></div>'+
+       '<div><div style="font-size:12px;color:var(--muted)">ROI</div><div style="font-size:20px;font-weight:800;color:'+(roi>=0?'var(--green)':'var(--red)')+'">'+(roi>=0?'+':'')+roi.toFixed(1)+'%</div></div>'+
+       '<div><div style="font-size:12px;color:var(--muted)">Aciertos</div><div style="font-size:20px;font-weight:800">'+wins+'/'+done.length+'</div></div>'+
+       '<div><div style="font-size:12px;color:var(--muted)">CLV medio</div><div style="font-size:20px;font-weight:800;color:'+(clvAvg==null?'var(--muted)':clvAvg>=0?'var(--green)':'var(--red)')+'">'+(clvAvg==null?'—':(clvAvg>=0?'+':'')+clvAvg.toFixed(1)+'%')+'</div></div>'+
+       '</div>';
+    h+='<div style="font-size:12px;color:var(--dim);padding:0 4px;margin-bottom:8px">El <b>CLV</b> (¿le ganaste al cierre?) es mejor señal de largo plazo que un acierto suelto. CLV medio positivo = estás encontrando valor real.</div>';
+    h+='<div class="card" style="padding:8px 12px">';
+    done.slice().reverse().slice(0,30).forEach(x=>{
+      const won=x.status==='won'; const d=won?x.stake*(x.cuota-1):-x.stake;
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border);font-size:13px"><div style="flex:1">'+(won?'✅':'❌')+' '+x.h.split(' ')[0]+' '+x.market+' @'+x.cuota+(x.clv!=null?(' <span style="color:'+(x.clv>=0?'var(--green)':'var(--red)')+'">CLV '+(x.clv>=0?'+':'')+x.clv+'%</span>'):'')+'</div><div style="color:'+(d>=0?'var(--green)':'var(--red)')+';font-weight:700;white-space:nowrap">'+(d>=0?'+':'')+_money(d)+'</div></div>';
+    });
+    h+='</div>';
+  }
+  if(!b.bankroll && !b.bets.length){
+    h+='<div class="card future-card"><div class="future-icon">💡</div><div class="future-note">Define tu bankroll arriba. Luego, en cada partido, escribe la cuota que ves en BetPlay: te calculo el EV, cuánto apostar (Kelly) y llevo el registro con CLV y ROI.</div></div>';
+  }
+  pg.innerHTML=h;
+}
+// registrar una apuesta de valor con un toque (cuota automática, sin teclear)
+function regAutoBtn(btn){
+  const d=btn.dataset;
+  registrarApuesta(d.t,d.mid,decodeURIComponent(d.h),decodeURIComponent(d.a),d.mk,parseFloat(d.cuota),parseFloat(d.prob));
+}
+
 // ==================== RELOJ Y BOOT ====================
 function updateColTime(){
   const now=new Date();
@@ -1202,7 +1360,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v2.7 · 5-ago-2026 3:52am";
+const APP_VERSION="v2.8 · 5-ago-2026 4:15am";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
