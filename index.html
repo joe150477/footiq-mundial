@@ -223,13 +223,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.3 · 9-ago-2026 1:05pm</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.4 · 9-ago-2026 1:30pm</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.3 · 9-ago-2026 1:05pm</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.4 · 9-ago-2026 1:30pm</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1431,7 +1431,9 @@ function renderValor(){
     const st=loadState(ACTIVE);
     const now=new Date(), to=new Date(now); to.setDate(to.getDate()+7);
     const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&new Date(m.date)>=new Date(now.getFullYear(),now.getMonth(),now.getDate())&&new Date(m.date)<=to).sort((x,y)=>(x.date||'').localeCompare(y.date||''));
-    // reunir todas las oportunidades de valor de todos los próximos partidos
+    // reunir oportunidades
+    const wf=getWF(ACTIVE);
+    const calibrando=(wf.playedCount||0)<12;
     const picks=[];
     up.forEach(m=>{
       const p=predictMatch(ACTIVE,m);
@@ -1443,37 +1445,57 @@ function renderValor(){
         let cuota=best?best[key]:(cons?(1/({'1':cons.pH,'X':cons.pD,'2':cons.pA}[k])):null);
         if(!cuota) return;
         const ev=evOf(probs[k],cuota);
-        if(ev>0.02) picks.push({m,k,label:labels[k],prob:probs[k],cuota,ev,real:!!best,mktP:cons?({'1':cons.pH,'X':cons.pD,'2':cons.pA}[k]):null});
+        if(ev>0.02){
+          const mktP=cons?({'1':cons.pH,'X':cons.pD,'2':cons.pA}[k]):null;
+          // SENSATEZ: EV enorme, tapado o prob muy por encima del mercado = probable ruido/mala calibración
+          const suspect = ev>0.25 || probs[k]<0.12 || (mktP!=null && probs[k]>mktP*2.2);
+          picks.push({m,k,label:labels[k],prob:probs[k],cuota,ev,real:!!best,mktP,suspect});
+        }
       });
     });
-    picks.sort((a,b)=>b.ev-a.ev);
+    const solid=picks.filter(p=>!p.suspect).sort((a,b)=>b.ev-a.ev);
+    const suspect=picks.filter(p=>p.suspect).sort((a,b)=>b.ev-a.ev);
     const hasOdds=up.some(m=>m.oddsBest||m.odds);
     if(!hasOdds){
-      h+='<div class="card"><div class="future-card"><div class="future-icon">🔌</div><div class="future-note">Aún no hay cuotas para calcular valor <b>automáticamente</b>.<br><br>Conecta <b>API-Football</b> (botón ⚙️) y toca 🔄: la app baja las cuotas de varias casas y te muestra el valor sin que teclees nada.</div></div></div>';
-    } else if(!picks.length){
-      h+='<div class="card future-card"><div class="future-note">Sin apuestas de valor ahora mismo (ningún resultado supera al mercado por >2% de EV). Esto es lo normal la mayoría del tiempo — el valor es escaso.</div></div>';
+      h+='<div class="card"><div class="future-card"><div class="future-icon">🔌</div><div class="future-note">Aún no hay cuotas para calcular valor <b>automáticamente</b>.<br><br>Conecta <b>API-Football</b> (botón ⚙️) y toca 🔄.</div></div></div>';
     } else {
-      h+='<div class="stitle">💎 Apuestas de valor · automático</div>';
-      h+='<div style="font-size:12px;color:var(--dim);padding:0 4px;margin-bottom:8px">EV = tu modelo cree que la cuota está por encima de lo justo. Ordenadas por EV. La cuota es la mejor disponible entre las casas.</div>';
-      picks.slice(0,12).forEach(pk=>{
-        const stake=Math.round(b.bankroll*Math.min(kellyFrac(pk.prob,pk.cuota)*b.kf,0.15));
-        const already=b.bets.some(x=>x.matchId===pk.m.id&&x.market===pk.k&&x.status==='pending');
-        h+='<div class="card" style="padding:14px">'+
-          '<div style="font-weight:700;font-size:15px">'+pk.m.h+' <span style="color:var(--muted)">vs</span> '+pk.m.a+'</div>'+
-          '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">'+
-            '<div style="flex:1"><div style="font-size:16px;font-weight:800;color:var(--gold)">'+pk.label+'</div>'+
-              '<div style="font-size:13px;color:var(--muted);margin-top:2px">modelo '+Math.round(pk.prob*100)+'%'+(pk.mktP!=null?(' · mercado '+Math.round(pk.mktP*100)+'%'):'')+'</div></div>'+
-            '<div style="text-align:right"><div style="font-size:20px;font-weight:900;color:var(--green)">EV +'+(pk.ev*100).toFixed(1)+'%</div>'+
-              '<div style="font-size:13px;color:var(--muted)">@ '+pk.cuota.toFixed(2)+' '+(pk.real?('· mejor de '+pk.m.oddsBest.books):'· estimada')+'</div></div>'+
-          '</div>'+
-          '<div style="display:flex;align-items:center;gap:8px;margin-top:10px">'+
-            '<div style="flex:1;font-size:13px;color:var(--muted)">'+(b.bankroll?('Apostar ~'+_money(stake)+' ('+(b.kf===0.25?'¼':b.kf===1?'full':'½')+' Kelly)'):'Define tu bankroll para ver cuánto apostar')+'</div>'+
-            (already
-              ?'<span style="font-size:13px;color:var(--green);font-weight:700">✓ Registrada</span>'
-              :'<button data-t="'+ACTIVE+'" data-mid="'+pk.m.id+'" data-h="'+encodeURIComponent(pk.m.h)+'" data-a="'+encodeURIComponent(pk.m.a)+'" data-mk="'+pk.k+'" data-cuota="'+pk.cuota+'" data-prob="'+pk.prob.toFixed(4)+'" onclick="regAutoBtn(this)" style="background:var(--gold);color:#1a1200;border:none;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:800;cursor:pointer">➕ Registrar</button>')+
-          '</div>'+
-        '</div>';
-      });
+      // Explicación de EV (para que se entienda)
+      h+='<div class="card" style="font-size:13px;line-height:1.6;color:var(--muted)"><b style="color:var(--text)">¿Qué es el EV?</b> Es la ventaja del modelo sobre la cuota. En el mundo real, un valor bueno es <b>+2% a +10%</b>. Si ves un EV enorme (ej. +90%), <b>no es una mina de oro: es una alerta</b> de que el modelo probablemente sobreestima a un tapado. Por eso los descarto abajo.</div>';
+      if(calibrando){
+        h+='<div class="card" style="border-color:rgba(240,101,111,.4);background:var(--red-soft);font-size:13px;line-height:1.6;color:var(--text)">⚠️ <b>El modelo aún se está calibrando</b> ('+(wf.playedCount||0)+' partidos). Sus porcentajes todavía son ruidosos, así que <b>cualquier "valor" aquí es poco fiable</b>. Espera unas fechas más (idealmente después de "Aprender del pasado" en ⚙️).</div>';
+      }
+      if(solid.length){
+        h+='<div class="stitle">💎 Valor razonable</div>';
+        h+='<div style="font-size:12px;color:var(--dim);padding:0 4px;margin-bottom:8px">EV creíble (≤25%). Ordenadas por EV. Cuota = mejor disponible.</div>';
+        solid.slice(0,10).forEach(pk=>{
+          const stake=Math.round(b.bankroll*Math.min(kellyFrac(pk.prob,pk.cuota)*b.kf,0.15));
+          const already=b.bets.some(x=>x.matchId===pk.m.id&&x.market===pk.k&&x.status==='pending');
+          h+='<div class="card" style="padding:14px'+(calibrando?';opacity:.7':'')+'">'+
+            '<div style="font-weight:700;font-size:15px">'+pk.m.h+' <span style="color:var(--muted)">vs</span> '+pk.m.a+'</div>'+
+            '<div style="display:flex;align-items:center;gap:10px;margin-top:8px">'+
+              '<div style="flex:1"><div style="font-size:16px;font-weight:800;color:var(--gold)">'+pk.label+'</div>'+
+                '<div style="font-size:13px;color:var(--muted);margin-top:2px">modelo '+Math.round(pk.prob*100)+'%'+(pk.mktP!=null?(' · mercado '+Math.round(pk.mktP*100)+'%'):'')+'</div></div>'+
+              '<div style="text-align:right"><div style="font-size:20px;font-weight:900;color:var(--green)">EV +'+(pk.ev*100).toFixed(1)+'%</div>'+
+                '<div style="font-size:13px;color:var(--muted)">@ '+pk.cuota.toFixed(2)+' '+(pk.real?('· mejor de '+pk.m.oddsBest.books):'· estimada')+'</div></div>'+
+            '</div>'+
+            '<div style="display:flex;align-items:center;gap:8px;margin-top:10px">'+
+              '<div style="flex:1;font-size:13px;color:var(--muted)">'+(b.bankroll?('Apostar ~'+_money(stake)+' ('+(b.kf===0.25?'¼':b.kf===1?'full':'½')+' Kelly)'):'Define tu bankroll para ver cuánto apostar')+'</div>'+
+              (already?'<span style="font-size:13px;color:var(--green);font-weight:700">✓ Registrada</span>'
+                :'<button data-t="'+ACTIVE+'" data-mid="'+pk.m.id+'" data-h="'+encodeURIComponent(pk.m.h)+'" data-a="'+encodeURIComponent(pk.m.a)+'" data-mk="'+pk.k+'" data-cuota="'+pk.cuota+'" data-prob="'+pk.prob.toFixed(4)+'" onclick="regAutoBtn(this)" style="background:var(--gold);color:#1a1200;border:none;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:800;cursor:pointer">➕ Registrar</button>')+
+            '</div></div>';
+        });
+      } else {
+        h+='<div class="card future-card"><div class="future-note">Sin valor razonable ahora mismo. Es lo normal la mayoría del tiempo — el valor real es escaso.</div></div>';
+      }
+      if(suspect.length){
+        h+='<div class="stitle" style="color:var(--red)">🚩 Descartadas por irreales ('+suspect.length+')</div>';
+        h+='<div class="card" style="padding:10px 12px;font-size:13px">';
+        h+='<div style="color:var(--muted);margin-bottom:6px">EV demasiado alto o tapados que el modelo sobreestima. <b>No fiables</b> — se muestran solo para que veas por qué las descarto.</div>';
+        suspect.slice(0,6).forEach(pk=>{
+          h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border)"><span style="color:var(--muted)">'+pk.m.h.split(" ")[0]+' vs '+pk.m.a.split(" ")[0]+' · '+pk.label+' <span style="font-size:11px">(modelo '+Math.round(pk.prob*100)+'% vs mercado '+(pk.mktP!=null?Math.round(pk.mktP*100):'?')+'%)</span></span><span style="color:var(--red);font-weight:700">EV +'+(pk.ev*100).toFixed(0)+'% 🚩</span></div>';
+        });
+        h+='</div>';
+      }
     }
   }
 
@@ -1564,7 +1586,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v3.3 · 9-ago-2026 1:05pm";
+const APP_VERSION="v3.4 · 9-ago-2026 1:30pm";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
