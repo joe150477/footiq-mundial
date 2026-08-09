@@ -223,13 +223,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.2 · 9-ago-2026 12:40pm</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.3 · 9-ago-2026 1:05pm</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.2 · 9-ago-2026 12:40pm</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.3 · 9-ago-2026 1:05pm</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -252,6 +252,7 @@ body{
       <button class="mbtn mbtn-primary" onclick="saveApiKey()">Guardar</button>
       <button class="mbtn" onclick="testAPIFootball()">Probar conexión</button>
     </div>
+    <button class="mbtn" style="width:100%;margin-top:8px" onclick="runBackfill()">📥 Aprender del pasado (cuotas históricas)</button>
     <div id="apiMsg" class="modal-msg"></div>
     <div class="modal-btns" style="margin-top:14px">
       <button class="mbtn" onclick="closeSettings()">Cerrar</button>
@@ -819,45 +820,46 @@ function _devig(h,d,a){
   const ih=1/h,id=1/d,ia=1/a,su=ih+id+ia;
   return {pH:ih/su,pD:id/su,pA:ia/su,margin:+(su-1).toFixed(4)};
 }
+// Trae fixtures+odds de UN día y las aplica a los partidos que coincidan (jugados o no)
+async function _applyDayOdds(cfg, day, idx){
+  let filled=0, fxMap={};
+  try{
+    const fx=await apiFB('/fixtures?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
+    for(const r of ((fx&&fx.response)||[])){ const id=r&&r.fixture&&r.fixture.id, tm=r&&r.teams; if(id&&tm&&tm.home&&tm.away) fxMap[id]={h:tm.home.name,a:tm.away.name}; }
+  }catch(e){}
+  try{
+    const od=await apiFB('/odds?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
+    for(const row of ((od&&od.response)||[])){
+      const fid=row&&row.fixture&&row.fixture.id;
+      const names=(row&&row.teams)?{h:row.teams.home&&row.teams.home.name,a:row.teams.away&&row.teams.away.name}:fxMap[fid];
+      if(!names||!names.h||!names.a) continue;
+      const m=idx[_norm(names.h)+'|'+_norm(names.a)]; if(!m) continue;
+      let sH=0,sD=0,sA=0,sM=0,cnt=0,bH=0,bD=0,bA=0;
+      for(const bk of (row.bookmakers||[])){
+        const bet=(bk.bets||[]).find(x=>/match winner|1x2|winner/i.test(x.name||''));
+        if(!bet) continue;
+        const gv=re=>{const o=(bet.values||[]).find(x=>new RegExp(re,'i').test(String(x.value)));return o?parseFloat(o.odd):null;};
+        const oH=gv('home|^1$'),oD=gv('draw|^x$'),oA=gv('away|^2$');
+        const dv=_devig(oH,oD,oA);
+        if(dv){ sH+=dv.pH;sD+=dv.pD;sA+=dv.pA;sM+=dv.margin;cnt++; if(oH>bH)bH=oH; if(oD>bD)bD=oD; if(oA>bA)bA=oA; }
+      }
+      if(cnt>0){
+        const first=(m.odds&&m.odds.first)?m.odds.first:{pH:sH/cnt,pD:sD/cnt,pA:sA/cnt};
+        m.odds={pH:sH/cnt,pD:sD/cnt,pA:sA/cnt,margin:+(sM/cnt).toFixed(4),first,src:m.played?'apifb-hist':'apifb',books:cnt};
+        m.oddsBest={H:+bH.toFixed(2),D:+bD.toFixed(2),A:+bA.toFixed(2),books:cnt};
+        filled++;
+      }
+    }
+  }catch(e){}
+  return filled;
+}
 async function enrichAPIFootball(t){
   const cfg=TORNEOS[t]; if(!cfg||!cfg.apiLeague||!getApiKey()) return;
   const st=loadState(t);
-  const days=[...new Set(st.matches.filter(m=>!m.played&&!m.seed&&m.date).map(m=>m.date.slice(0,10)))].sort().slice(0,4);
   const idx={}; st.matches.forEach(m=>{ idx[_norm(m.h)+'|'+_norm(m.a)]=m; });
+  const days=[...new Set(st.matches.filter(m=>!m.played&&!m.seed&&m.date).map(m=>m.date.slice(0,10)))].sort().slice(0,4);
   for(const day of days){
-    // 1) fixtures del día → mapa id→{home,away} (las cuotas solo traen el id)
-    let fxMap={};
-    try{
-      const fx=await apiFB('/fixtures?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
-      for(const r of ((fx&&fx.response)||[])){
-        const id=r&&r.fixture&&r.fixture.id, tm=r&&r.teams;
-        if(id&&tm&&tm.home&&tm.away) fxMap[id]={h:tm.home.name,a:tm.away.name};
-      }
-    }catch(e){}
-    // 2) cuotas por id
-    try{
-      const od=await apiFB('/odds?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
-      for(const row of ((od&&od.response)||[])){
-        const fid=row&&row.fixture&&row.fixture.id;
-        const names=(row&&row.teams)?{h:row.teams.home&&row.teams.home.name,a:row.teams.away&&row.teams.away.name}:fxMap[fid];
-        if(!names||!names.h||!names.a) continue;
-        const m=idx[_norm(names.h)+'|'+_norm(names.a)]; if(!m) continue;
-        let sH=0,sD=0,sA=0,sM=0,cnt=0,bH=0,bD=0,bA=0;
-        for(const b of (row.bookmakers||[])){
-          const bet=(b.bets||[]).find(x=>/match winner|1x2|winner/i.test(x.name||''));
-          if(!bet) continue;
-          const gv=re=>{const o=(bet.values||[]).find(x=>new RegExp(re,'i').test(String(x.value)));return o?parseFloat(o.odd):null;};
-          const oH=gv('home|^1$'),oD=gv('draw|^x$'),oA=gv('away|^2$');
-          const dv=_devig(oH,oD,oA);
-          if(dv){ sH+=dv.pH;sD+=dv.pD;sA+=dv.pA;sM+=dv.margin;cnt++; if(oH>bH)bH=oH; if(oD>bD)bD=oD; if(oA>bA)bA=oA; }
-        }
-        if(cnt>0){
-          const first=(m.odds&&m.odds.first)?m.odds.first:{pH:sH/cnt,pD:sD/cnt,pA:sA/cnt};
-          m.odds={pH:sH/cnt,pD:sD/cnt,pA:sA/cnt,margin:+(sM/cnt).toFixed(4),first,src:'apifb',books:cnt};
-          m.oddsBest={H:+bH.toFixed(2),D:+bD.toFixed(2),A:+bA.toFixed(2),books:cnt};
-        }
-      }
-    }catch(e){}
+    await _applyDayOdds(cfg, day, idx);
     try{
       const inj=await apiFB('/injuries?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
       const byTeam={};
@@ -866,6 +868,32 @@ async function enrichAPIFootball(t){
     }catch(e){}
   }
   saveState(t);
+}
+// APRENDER DEL PASADO: rellena cuotas de partidos ya jugados que aún no las tienen
+async function backfillOdds(t, cap){
+  const cfg=TORNEOS[t]; if(!cfg||!cfg.apiLeague||!getApiKey()) return {days:0,filled:0,noKey:true};
+  const st=loadState(t);
+  const idx={}; st.matches.forEach(m=>{ idx[_norm(m.h)+'|'+_norm(m.a)]=m; });
+  const need=[...new Set(st.matches.filter(m=>m.played&&!m.seed&&m.date&&!(m.odds&&(m.odds.src==='apifb'||m.odds.src==='apifb-hist'))).map(m=>m.date.slice(0,10)))].sort();
+  const days=need.slice(0,cap||30);
+  let filled=0;
+  for(const day of days){ filled+=await _applyDayOdds(cfg, day, idx); }
+  saveState(t);
+  return {days:days.length, filled, remaining:Math.max(0,need.length-days.length)};
+}
+async function runBackfill(){
+  if(!getApiKey()){ apiMsg('Primero pega tu clave y toca “Probar conexión”.','warn'); return; }
+  apiMsg('📥 Buscando cuotas históricas… puede tardar unos segundos.','muted');
+  try{
+    const r=await backfillOdds(ACTIVE, 30);
+    invalidateWF(ACTIVE);
+    if(r.filled>0){
+      apiMsg('✅ Rellené <b>'+r.filled+'</b> partidos pasados con cuotas ('+r.days+' fechas).'+(r.remaining?(' Quedan '+r.remaining+' fechas — vuelve a tocar mañana (límite diario de la API).'):'')+'<br><b>Anomalía ya está aprendiendo del pasado.</b>','ok');
+      refreshAll();
+    } else {
+      apiMsg('ℹ️ No encontré cuotas históricas para esas fechas en tu plan (revisé '+r.days+' fechas). Es lo normal en el plan gratis: suele guardar solo lo reciente. Anomalía seguirá aprendiendo de aquí en adelante.','warn');
+    }
+  }catch(e){ apiMsg('❌ Error: '+e.message,'err'); }
 }
 
 // ==================== NAVEGACIÓN ====================
@@ -1536,7 +1564,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v3.2 · 9-ago-2026 12:40pm";
+const APP_VERSION="v3.3 · 9-ago-2026 1:05pm";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
