@@ -180,6 +180,18 @@ body{
 .modal-msg{font-size:14px;margin-top:12px;min-height:20px;line-height:1.5;}
 .modal-note{font-size:12px;color:var(--dim);margin-top:14px;line-height:1.5;border-top:1px solid var(--border);padding-top:12px;}
 .inj-tag{display:inline-block;background:var(--red-soft);color:var(--red);font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;margin-left:6px;}
+.ba{display:flex;align-items:stretch;gap:8px;margin-top:10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;flex-wrap:wrap;}
+.ba-col{flex:1;min-width:88px;}
+.ba-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.ba-val{font-size:16px;font-weight:800;margin-top:3px;}
+.ba-arrow{align-self:center;font-size:20px;color:var(--dim);}
+.ba-verdict{align-self:center;font-size:14px;font-weight:800;padding:6px 12px;border-radius:99px;white-space:nowrap;}
+.ba-ok{background:var(--green-soft);color:var(--green);}
+.ba-no{background:var(--red-soft);color:var(--red);}
+.gold-card{background:linear-gradient(135deg,rgba(227,178,77,.16),rgba(240,205,106,.08));border:1.5px solid rgba(227,178,77,.55);border-radius:var(--r);padding:16px;margin-bottom:16px;box-shadow:0 6px 24px rgba(227,178,77,.18);}
+.gold-h{font-size:19px;font-weight:900;color:var(--gold);}
+.gold-sub{font-size:13px;color:var(--muted);margin:4px 0 12px;line-height:1.5;}
+.gold-op{background:rgba(227,178,77,.1);border:1px solid rgba(227,178,77,.3);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;color:var(--text);}
 .fin-badge{display:inline-block;background:var(--border2);color:var(--muted);font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;}
 .value-tag{background:var(--green-soft);color:var(--green);font-size:12px;font-weight:800;padding:3px 8px;border-radius:99px;margin-left:6px;}
 
@@ -211,13 +223,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v2.8 · 5-ago-2026 4:15am</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.0 · 5-ago-2026 5:20am</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v2.8 · 5-ago-2026 4:15am</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.0 · 5-ago-2026 5:20am</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -705,6 +717,7 @@ async function syncActive(){
     const res=await syncTorneo(ACTIVE);
     if(getApiKey()){ try{ await enrichAPIFootball(ACTIVE); invalidateWF(ACTIVE); }catch(e){} }
     try{ updateCLV(); }catch(e){}
+    try{ checkGolden(); }catch(e){}
     const now=new Date();
     document.getElementById('syncStatus').textContent='✓ '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
     const st=loadState(ACTIVE);
@@ -1012,29 +1025,37 @@ function renderHoy(){
   for(const m of win){
     const day=(m.date||'').slice(0,10);
     if(day!==lastDay){ lastDay=day; h+=`<div class="stitle">📅 ${fmtDay(m.date)}</div>`; }
-    const hShort=m.h.split(' ')[0], aShort=m.a.split(' ')[0];
+    const _sp=shortPair(m.h,m.a); const hShort=_sp.hs, aShort=_sp.as;
     h+='<div class="mcard">';
     h+=`<div class="match-header"><div class="tname">${m.h}</div><div style="font-size:15px;font-weight:900;padding:0 4px">vs</div><div class="tname" style="text-align:right">${m.a}</div><div class="match-meta">${m.played?'<span class=\'fin-badge\'>Finalizada</span>':fmtHr(m.date)}</div></div>`;
     if(m.played){
       const actual=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
-      const winner=actual==='H'?m.h:actual==='A'?m.a:'Empate';
-      h+=`<div class="result-real"><div class="rscore">${m.sh} — ${m.sa}</div><div class="rlabel">${actual==='D'?'Empate':'Ganó '+winner}</div></div>`;
+      const winnerFull=actual==='H'?m.h:actual==='A'?m.a:'Empate';
+      const winnerShort=actual==='H'?hShort:actual==='A'?aShort:'Empate';
+      h+=`<div class="result-real"><div class="rscore">${m.sh} — ${m.sa}</div><div class="rlabel">${actual==='D'?'Empate':'Ganó '+winnerFull}</div></div>`;
       const row=logById[m.id];
+      // ANTES → DESPUÉS (pronóstico comprometido vs resultado real)
+      if(row&&row.dict!=null){
+        const okD=row.dictOk;
+        const predShort=row.dict==='H'?hShort:row.dict==='A'?aShort:'Empate';
+        h+=`<div class="ba">
+          <div class="ba-col"><div class="ba-lbl">🔮 Pronóstico</div><div class="ba-val">${row.dict==='D'?'Empate':'Gana '+predShort}</div></div>
+          <div class="ba-arrow">→</div>
+          <div class="ba-col"><div class="ba-lbl">🏁 Resultado</div><div class="ba-val">${actual==='D'?'Empate':'Ganó '+winnerShort}</div></div>
+          <div class="ba-verdict ${okD?'ba-ok':'ba-no'}">${okD?'✅ Acertó':'❌ Falló'}</div>
+        </div>`;
+      }
+      // Cada motor: qué equipo eligió, con nombre distinguible
       if(row&&row.picks){
-        // Dictamen comprometido ANTES del partido vs resultado
-        if(row.dict!=null){
-          const okD=row.dictOk;
-          h+=`<div class="verdict ${okD?'v-ok':'v-no'}"><span>🔮 Dictamen: <b>${pickLabel(row.dict,hShort,aShort)}</b></span><span class="v-sign">${okD?'✅':'❌'}</span></div>`;
-        }
-        // Motores en una línea compacta con signos
+        h+='<div style="font-size:12px;color:var(--dim);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.04em">Motor · a quién le apostó</div>';
         h+='<div class="motor-line">';
         for(const k of MOTORES){
           const pk=row.picks[k];
-          if(pk==null){ h+=`<span class="mchip mchip-abs">${MOTOR_SHORT[k]} –</span>`; continue; }
-          const short=pk==='H'?hShort:pk==='A'?aShort:'X';
+          if(pk==null){ h+=`<span class="mchip mchip-abs">${MOTOR_SHORT[k]} —</span>`; continue; }
+          const short=pk==='H'?hShort:pk==='A'?aShort:'Empate';
           h+=`<span class="mchip ${row.res[k]?'mchip-ok':'mchip-no'}">${MOTOR_SHORT[k]} ${short} ${row.res[k]?'✅':'❌'}</span>`;
         }
-        if(row.mkt!=null) h+=`<span class="mchip ${row.mkt?'mchip-ok':'mchip-no'}">🏛️ ${row.mkt?'✅':'❌'}</span>`;
+        if(row.mkt!=null) h+=`<span class="mchip ${row.mkt?'mchip-ok':'mchip-no'}">🏛️ Mercado ${row.mkt?'✅':'❌'}</span>`;
         h+='</div>';
       }
     } else {
@@ -1206,6 +1227,77 @@ function updateCLV(){
   if(ch) saveBank(b);
 }
 
+// nombres distinguibles (global) — evita "Deportivo" vs "Deportivo"
+const _STOP_G=new Set(['de','fc','cf','ac','cd','ca','club','the','el','la']);
+function shortPair(hh,aa){
+  const tok=n=>String(n).split(/\s+/).filter(w=>!_STOP_G.has(w.toLowerCase()));
+  const th=tok(hh), ta=tok(aa);
+  const inA=new Set(ta.map(w=>w.toLowerCase())), inH=new Set(th.map(w=>w.toLowerCase()));
+  const uh=th.filter(w=>!inA.has(w.toLowerCase())), ua=ta.filter(w=>!inH.has(w.toLowerCase()));
+  return { hs:(uh[0]||th[0]||hh), as:(ua[0]||ta[0]||aa) };
+}
+// ==================== 🚨 OPORTUNIDAD DE ORO ====================
+// Alerta SOLO si: (a) Anomalía consolidada (≥20 evaluados y le gana a la casa en Brier),
+// (b) contradice a ELO+Momentum, (c) segura (≥45%), (d) valor fuerte (EV ≥ +8%).
+function goldenOps(t){
+  const cfg=TORNEOS[t]; if(!cfg||cfg.estado!=='activo') return {consolidated:false,reason:'torneo no activo',ops:[]};
+  const wf=getWF(t);
+  const nA=wf.tot.anomalia||0;
+  const bA=nA?wf.brier.anomalia/nA:9;
+  const bM=(wf.mkt&&wf.mkt.tot)?wf.mkt.brier/wf.mkt.tot:null;
+  const beatsHouse = bM!=null ? bA<bM : (nA?(wf.hits.anomalia/nA)>=0.55:false);
+  const consolidated = nA>=20 && beatsHouse;
+  if(!consolidated){
+    const reason = nA<20 ? ('le faltan '+(20-nA)+' partidos para consolidarse') : 'aún no le gana a la casa (Brier)';
+    return {consolidated:false, reason, played:nA, ops:[]};
+  }
+  const st=loadState(t); const now=new Date(), to=new Date(now); to.setDate(to.getDate()+7);
+  const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&new Date(m.date)>=new Date(now.getFullYear(),now.getMonth(),now.getDate())&&new Date(m.date)<=to);
+  const ops=[];
+  for(const m of up){
+    const rH=wf.elo[m.h]??1500, rA=wf.elo[m.a]??1500, hfa=wf.hfa??55, dr=wf.drawRate??cfg.baseDraw;
+    const f5=team=>{const arr=(wf.form[team]||[]).slice(-5);return {pts:arr.reduce((s,x)=>s+x,0),n:arr.length};};
+    const an=anomaliaProb(m,rH,rA,hfa);
+    const el=eloProb(rH,rA,dr,hfa); const mo=momProb(f5(m.h),f5(m.a));
+    const anPick=argMax3(an);
+    let oH=el.pH,oD=el.pD,oA=el.pA,c=1; if(mo){oH+=mo.pH;oD+=mo.pD;oA+=mo.pA;c++;}
+    const othPick=argMax3({pH:oH/c,pD:oD/c,pA:oA/c});
+    if(anPick===othPick) continue;                     // no contradice → no es "de oro"
+    const key=anPick==='H'?'H':anPick==='A'?'A':'D';
+    const cuota=m.oddsBest?m.oddsBest[key]:(m.odds?1/({H:m.odds.pH,D:m.odds.pD,A:m.odds.pA}[key]):null);
+    if(!cuota) continue;
+    const anP=anPick==='H'?an.pH:anPick==='A'?an.pA:an.pD;
+    const ev=anP*cuota-1;
+    if(anP>=0.45 && ev>=0.08){
+      const sp=shortPair(m.h,m.a);
+      const label=anPick==='H'?'Gana '+sp.hs:anPick==='A'?'Gana '+sp.as:'Empate';
+      ops.push({m,pick:anPick,label,prob:anP,cuota,ev,real:!!m.oddsBest});
+    }
+  }
+  ops.sort((a,b)=>b.ev-a.ev);
+  return {consolidated:true, ops};
+}
+let _goldenShown={};
+function checkGolden(){
+  try{
+    const g=goldenOps(ACTIVE);
+    if(!g.consolidated||!g.ops.length) return;
+    const top=g.ops[0]; const kk=ACTIVE+':'+top.m.id+':'+top.pick;
+    if(_goldenShown[kk]) return; _goldenShown[kk]=1;
+    showGoldenAlert(top);
+  }catch(e){}
+}
+function showGoldenAlert(op){
+  const old=document.getElementById('goldBanner'); if(old&&old.remove) old.remove();
+  const b=document.createElement('div'); b.id='goldBanner';
+  b.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#e3b24d,#f0cd6a);color:#1a1200;font-weight:800;padding:13px 18px;border-radius:16px;box-shadow:0 8px 30px rgba(227,178,77,.5);font-size:14px;cursor:pointer;max-width:92vw;text-align:center;line-height:1.4;';
+  const sp=shortPair(op.m.h,op.m.a);
+  b.innerHTML='🚨 Oportunidad de oro · '+sp.hs+' vs '+sp.as+'<br><span style="font-weight:600">'+op.label+' · EV +'+(op.ev*100).toFixed(0)+'% — tocar para ver</span>';
+  b.onclick=()=>{ b.remove(); const tabs=document.querySelectorAll('.tab'); showTab(tabs[3],'valor'); };
+  document.body.appendChild(b);
+  setTimeout(()=>{ if(b&&b.remove) b.remove(); }, 15000);
+}
+
 function renderValor(){
   const pg=document.getElementById('page-valor'); if(!pg) return;
   const cfg=TORNEOS[ACTIVE];
@@ -1223,6 +1315,26 @@ function renderValor(){
      '</div>'+
      '<div style="font-size:12px;color:var(--dim);margin-top:8px">EV = (prob × cuota) − 1. Solo se recomienda apostar con EV positivo. Kelly dimensiona; ½ o ¼ reduce la volatilidad. Nada garantiza ganar.</div></div>';
 
+  // ---- 🚨 OPORTUNIDAD DE ORO ----
+  if(cfg.estado==='activo'){
+    const g=goldenOps(ACTIVE);
+    if(g.consolidated && g.ops.length){
+      h+='<div class="gold-card"><div class="gold-h">🚨 Oportunidad de oro</div>'+
+        '<div class="gold-sub">Anomalía (que ya le gana a la casa) contradice a los otros motores y ve valor fuerte. Alta convicción — no garantía.</div>';
+      g.ops.slice(0,3).forEach(op=>{
+        const stake=Math.round(b.bankroll*Math.min(kellyFrac(op.prob,op.cuota)*b.kf,0.15));
+        h+='<div class="gold-op"><div style="font-weight:800;font-size:15px">'+op.m.h+' vs '+op.m.a+'</div>'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">'+
+          '<div><div style="font-size:16px;font-weight:900">'+op.label+'</div><div style="font-size:12px;color:#5a4a1a">Anomalía '+Math.round(op.prob*100)+'% · @ '+op.cuota.toFixed(2)+'</div></div>'+
+          '<div style="font-size:22px;font-weight:900">EV +'+(op.ev*100).toFixed(0)+'%</div></div>'+
+          (b.bankroll?('<div style="font-size:12px;color:#5a4a1a;margin-top:4px">Sugerido: '+_money(stake)+'</div>'):'')+
+        '</div>';
+      });
+      h+='</div>';
+    } else if(!g.consolidated){
+      h+='<div class="card" style="font-size:13px;color:var(--muted);line-height:1.5">🔒 <b>Alerta "Oportunidad de oro":</b> se activará cuando Anomalía se consolide ('+(g.reason||'reuniendo historial')+'). Así la alerta solo suena cuando de verdad se la ha ganado.</div>';
+    }
+  }
   // ---- VALOR AUTOMÁTICO (usa cuotas de API-Football; sin teclear nada) ----
   if(cfg.estado==='activo'){
     const st=loadState(ACTIVE);
@@ -1352,6 +1464,7 @@ async function boot(){
     refreshAll();
     setTimeout(()=>syncActive(),800);
     setTimeout(()=>checkForUpdate(false),4000);   // busca versión nueva al abrir
+    setTimeout(()=>{ try{checkGolden();}catch(e){} },5000);  // alerta de oportunidad de oro
   }catch(e){
     document.getElementById('stepMsg').innerText='❌ Error: '+e.message;
     document.getElementById('overlay').classList.add('gone');
@@ -1360,7 +1473,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v2.8 · 5-ago-2026 4:15am";
+const APP_VERSION="v3.0 · 5-ago-2026 5:20am";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
