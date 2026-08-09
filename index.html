@@ -223,13 +223,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.0 · 5-ago-2026 5:20am</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.2 · 9-ago-2026 12:40pm</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.0 · 5-ago-2026 5:20am</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.2 · 9-ago-2026 12:40pm</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -448,16 +448,50 @@ function _injAdjust(m,p){
   let pH=Math.max(0.02,p.pH+shift), pA=Math.max(0.02,p.pA-shift), pD=p.pD;
   const s=pH+pD+pA; return {pH:pH/s,pD:pD/s,pA:pA/s};
 }
-function anomaliaProb(m,rH,rA,hfa){
+// Mezcla mercado/estructura con peso aprendido; y temperatura para (des)confiar
+function _blend(mk,meta,wMkt){
+  if(!mk) return meta;
+  const w=wMkt, u=1-w;
+  let pH=mk.pH*w+meta.pH*u, pD=mk.pD*w+meta.pD*u, pA=mk.pA*w+meta.pA*u;
+  const s=(pH+pD+pA)||1; return {pH:pH/s,pD:pD/s,pA:pA/s};
+}
+function _temp(p,T){
+  if(!T||T===1) return p;
+  const f=x=>Math.pow(Math.max(1e-6,x),1/T);
+  let pH=f(p.pH),pD=f(p.pD),pA=f(p.pA); const s=(pH+pD+pA)||1; return {pH:pH/s,pD:pD/s,pA:pA/s};
+}
+function anomaliaProb(m,rH,rA,hfa,tune){
   const full=_anomWC(m.h,m.a);
   if(full) return _injAdjust(m,full);
   const meta=_anomMeta(rH,rA,hfa);
   const mk=mercadoProb(m);
-  if(mk){
-    let pH=mk.pH*0.7+meta.pH*0.3, pD=mk.pD*0.7+meta.pD*0.3, pA=mk.pA*0.7+meta.pA*0.3;
-    const t=pH+pD+pA; return _injAdjust(m,{pH:pH/t,pD:pD/t,pA:pA/t});
+  const w=(tune&&tune.wMkt!=null)?tune.wMkt:0.7;   // 0.7 por defecto; aprendido si hay tune
+  let p=_blend(mk,meta,w);
+  if(tune&&tune.T&&tune.T!==1) p=_temp(p,tune.T);  // auto-calibración
+  return _injAdjust(m,p);
+}
+// AUTO-MEJORA: busca la mezcla y temperatura que MINIMIZAN el error (Brier) sobre su propio historial
+function tuneAnom(comp){
+  const S=comp.filter(c=>c.mk && !c.wc);
+  if(S.length<10) return null;
+  const brier=(w,T)=>S.reduce((s,c)=>s+brierOf(_temp(_blend(c.mk,c.meta,w),T),c.actual),0)/S.length;
+  let best={wMkt:0.7,T:1,brier:brier(0.7,1)};
+  for(const w of [0.3,0.45,0.6,0.7,0.85,1.0]) for(const T of [0.7,0.85,1.0,1.15,1.3,1.5]){
+    const b=brier(w,T); if(b<best.brier) best={wMkt:w,T,brier:b};
   }
-  return _injAdjust(m,meta);
+  const brierBase=brier(0.7,1);
+  // Autodiagnóstico de calibración (¿sobre/subconfiada?)
+  let sumConf=0,hit=0; const bins=Array.from({length:5},()=>({c:0,a:0,n:0}));
+  S.forEach(c=>{
+    const p=_temp(_blend(c.mk,c.meta,best.wMkt),best.T);
+    const top=Math.max(p.pH,p.pD,p.pA);
+    const pick=p.pH===top?'H':p.pA===top?'A':'D';
+    const ok=pick===c.actual?1:0; sumConf+=top; hit+=ok;
+    const bi=Math.max(0,Math.min(4,Math.floor((top-0.3)/0.14))); const b=bins[bi]; b.c+=top;b.a+=ok;b.n++;
+  });
+  const avgConf=sumConf/S.length, acc=hit/S.length;
+  const ece=bins.filter(b=>b.n).reduce((s,b)=>s+(b.n/S.length)*Math.abs(b.c/b.n-b.a/b.n),0);
+  return {wMkt:best.wMkt,T:+best.T.toFixed(2),brierTuned:+best.brier.toFixed(4),brierBase:+brierBase.toFixed(4),avgConf:+avgConf.toFixed(3),acc:+acc.toFixed(3),ece:+ece.toFixed(3),over:avgConf>acc+0.02,under:avgConf<acc-0.02,n:S.length};
 }
 
 // Anomalías DOCUMENTADAS del Mundial 2026 (motivación del experimento — verificadas en prensa/FIFA)
@@ -504,7 +538,7 @@ function walkForward(t){
   const learnHFA=()=>{ if(ntot<12) return 55; const r=(hw+0.5*dr)/Math.max(1,(aw+0.5*dr)); return Math.max(0,Math.min(150,Math.round(400*Math.log10(Math.max(0.2,r))))); };
   const learnDraw=()=>{ if(ntot<12) return cfg.baseDraw; return Math.max(0.14,Math.min(0.36,dr/ntot)); };
   const accResult=(sh,sa)=>{ if(sh>sa)hw++; else if(sa>sh)aw++; else dr++; ntot++; };
-  const hits={},tot={},log=[]; const brier={},mkt={hits:0,tot:0,brier:0};
+  const hits={},tot={},log=[]; const brier={},mkt={hits:0,tot:0,brier:0}; const anomComp=[];
   MOTORES.forEach(m=>{hits[m]=0;tot[m]=0;brier[m]=0;});
   const played=st.matches.filter(m=>m.played).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   let scored=0; let hfa=55, drawRate=cfg.baseDraw;
@@ -526,6 +560,7 @@ function walkForward(t){
       anomalia: anomaliaProb(m,rH,rA,hfa)
     };
     const actual=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
+    anomComp.push({mk:mercadoProb(m), meta:_anomMeta(rH,rA,hfa), wc:!!_anomWC(m.h,m.a), actual});
     const row={id:m.id,h:m.h,a:m.a,sh:m.sh,sa:m.sa,date:m.date,res:{},picks:{}};
     // Dictamen del consenso con los pesos APRENDIDOS HASTA AQUÍ (honesto, sin mirar el futuro)
     const rw=_calcWeights(hits,tot,scored-1);
@@ -558,7 +593,8 @@ function walkForward(t){
     accResult(m.sh,m.sa);
   }
   const w=_calcWeights(hits,tot,scored);
-  return {elo,form,gp,anom,hits,tot,brier,mkt,weights:w,hfa,drawRate,log,playedCount:scored,seedCount:played.length-scored};
+  const anomTuned=tuneAnom(anomComp);
+  return {elo,form,gp,anom,hits,tot,brier,mkt,weights:w,hfa,drawRate,anomTuned,log,playedCount:scored,seedCount:played.length-scored};
 }
 // Pesos del consenso: reaccionan desde 5 partidos, con encogimiento hacia el
 // reparto igual al principio (evita saltos bruscos con pocos datos).
@@ -592,7 +628,7 @@ function predictMatch(t,m){
   const preds={
     elo: eloProb(rH,rA,drawRate,hfa),
     mom: momProb(f5(m.h),f5(m.a)),
-    anomalia: anomaliaProb(m,rH,rA,hfa)
+    anomalia: anomaliaProb(m,rH,rA,hfa,wf.anomTuned)
   };
   // consenso: pesos walk-forward, renormalizados entre motores CON datos
   let pH=0,pD=0,pA=0,ws=0;
@@ -632,18 +668,18 @@ async function fetchWithProxies(url){
 function _fmtD(d){ return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`; }
 
 // Cuotas americanas/decimales → prob implícita normalizada
-function oddsToProbs(oddsObj){
+function _amToProb(v){ v=parseFloat(v); if(isNaN(v))return null; return v>0?100/(v+100):(-v)/(-v+100); }
+function oddsToProbs(oddsObj, useOpen){
   try{
-    // ESPN soccer: odds[0] con moneylineHome/Draw/Away (americanas) o
-    // homeTeamOdds.moneyLine / drawOdds.moneyLine / awayTeamOdds.moneyLine
-    const o=oddsObj;
-    const am=v=>{ v=parseFloat(v); if(isNaN(v))return null; return v>0?100/(v+100):(-v)/(-v+100); };
-    let h=am(o.moneylineHome ?? o.homeTeamOdds?.moneyLine);
-    let d=am(o.moneylineDraw ?? o.drawOdds?.moneyLine);
-    let a=am(o.moneylineAway ?? o.awayTeamOdds?.moneyLine);
+    const o=oddsObj||{}; const ml=o.moneyline||{};
+    const grab=side=>{ const m=ml[side]; if(m){ const seg=useOpen?(m.open||m.close):(m.close||m.open); if(seg&&seg.odds!=null) return seg.odds; } return null; };
+    let hRaw=grab('home'); if(hRaw==null) hRaw=(o.moneylineHome!=null?o.moneylineHome:(o.homeTeamOdds&&o.homeTeamOdds.moneyLine));
+    let aRaw=grab('away'); if(aRaw==null) aRaw=(o.moneylineAway!=null?o.moneylineAway:(o.awayTeamOdds&&o.awayTeamOdds.moneyLine));
+    let dRaw=grab('draw'); if(dRaw==null) dRaw=(o.moneylineDraw!=null?o.moneylineDraw:(o.drawOdds&&o.drawOdds.moneyLine));
+    const h=_amToProb(hRaw), d=_amToProb(dRaw), a=_amToProb(aRaw);
     if(h==null||d==null||a==null) return null;
-    const s=h+d+a;                 // s>1 por el margen (overround) de la casa
-    return {pH:h/s,pD:d/s,pA:a/s, margin:+(s-1).toFixed(4)};  // margin = cuánto se queda la casa
+    const su=h+d+a;
+    return {pH:h/su,pD:d/su,pA:a/su, margin:+(su-1).toFixed(4)};
   }catch(e){ return null; }
 }
 
@@ -674,10 +710,12 @@ function parseEvents(t,events,isSeed){
     // Capturar cuotas (capa Mercado): primera vista + última vista
     const rawOdds=comp.odds?.[0];
     if(rawOdds&&!done){
-      const p=oddsToProbs(rawOdds);
-      if(p){
-        if(!m.odds) m.odds={...p,first:{...p}};
-        else { if(!m.odds.first) m.odds.first={pH:m.odds.pH,pD:m.odds.pD,pA:m.odds.pA}; Object.assign(m.odds,p); }
+      const p=oddsToProbs(rawOdds,false);
+      const po=oddsToProbs(rawOdds,true)||p;
+      if(p && (!m.odds || m.odds.src!=='apifb')){
+        const first=(m.odds&&m.odds.first)?m.odds.first:{pH:po.pH,pD:po.pD,pA:po.pA};
+        m.odds={pH:p.pH,pD:p.pD,pA:p.pA,margin:p.margin,first,src:'espn'};
+        m.oddsBest={H:+(1/p.pH).toFixed(2),D:+(1/p.pD).toFixed(2),A:+(1/p.pA).toFixed(2),books:1};
       }
     }
   }
@@ -1175,6 +1213,31 @@ function renderComparativa(){
     `<b>Paso 1 (hecho):</b> Anomalía entrenada con el Mundial 2026 — <b>${ANOM_MODEL.meta.accFinal}%</b> (${ANOM_MODEL.meta.partidos}/${ANOM_MODEL.meta.partidos}) en entrenamiento, 74 parámetros. Usa cuotas reales de la casa cuando existen.<br>`+
     `<b>Paso 2 (este torneo):</b> ${anAcc!==null?`va en <b>${anAcc}%</b> (${wf.hits.anomalia}/${wf.tot.anomalia}) fuera de muestra`:'esperando partidos'}. `+
     `Si se queda cerca del ELO o por debajo, el 100% del entrenamiento era memoria, no conocimiento.</div>`;
+  // 🧠 AUTODIAGNÓSTICO DE ANOMALÍA (se recalibra sola en cada sincronización)
+  const at=wf.anomTuned;
+  if(at){
+    // tendencia: comparar Brier con la sincronización anterior
+    let trend='';
+    try{
+      const prev=parseFloat(localStorage.getItem('fiq2_anombrier_'+ACTIVE));
+      if(!isNaN(prev)){ const d=prev-at.brierTuned; trend=d>0.002?('<span style="color:var(--green)">▲ mejoró</span>'):d<-0.002?('<span style="color:var(--red)">▼ empeoró</span>'):'<span style="color:var(--muted)">= estable</span>'; }
+      localStorage.setItem('fiq2_anombrier_'+ACTIVE, String(at.brierTuned));
+    }catch(e){}
+    const mejora=((at.brierBase-at.brierTuned)/at.brierBase*100);
+    const calib = at.over?'tiende a <b>sobre-confiarse</b> (se auto-suaviza)':at.under?'tiende a <b>ser tímida</b> (se auto-agudiza)':'está <b>bien calibrada</b>';
+    h+='<div class="stitle">🧠 Autodiagnóstico de Anomalía</div>';
+    h+='<div class="card" style="border-color:rgba(90,169,240,.35);font-size:14px;line-height:1.7">'+
+      '<div style="font-size:13px;color:var(--muted);margin-bottom:8px">Anomalía se re-ajusta sola cada vez que sincronizas: busca la mezcla y la confianza que menos errores cometen sobre su propio historial ('+at.n+' partidos).</div>'+
+      '<div class="mkt-row"><span>Mezcla aprendida</span><span class="mkt-v">Mercado '+Math.round(at.wMkt*100)+'% · Estructura '+Math.round((1-at.wMkt)*100)+'%</span></div>'+
+      '<div class="mkt-row"><span>Confianza (temperatura)</span><span class="mkt-v">'+at.T.toFixed(2)+(at.T>1?' (más prudente)':at.T<1?' (más agresiva)':'')+'</span></div>'+
+      '<div class="mkt-row"><span>Calibración</span><span class="mkt-v" style="font-weight:400">'+calib+'</span></div>'+
+      '<div class="mkt-row"><span>Error propio (Brier)</span><span class="mkt-v">'+at.brierBase.toFixed(3)+' → '+at.brierTuned.toFixed(3)+' '+(mejora>0.5?('<span style="color:var(--green)">(−'+mejora.toFixed(0)+'%)</span>'):'')+'</span></div>'+
+      (trend?('<div class="mkt-row"><span>Desde la última vez</span><span class="mkt-v" style="font-weight:400">'+trend+'</span></div>'):'')+
+      '<div style="font-size:12px;color:var(--dim);margin-top:8px">Honesto: se auto-mejora ajustándose a lo ya visto; eso no garantiza aciertos futuros, pero reduce sus errores sistemáticos y se corrige sola con cada fecha nueva.</div>'+
+      '</div>';
+  } else {
+    h+='<div class="card" style="font-size:13px;color:var(--muted);line-height:1.5">🧠 <b>Autodiagnóstico de Anomalía:</b> se activa cuando tenga ≥10 partidos con cuotas. Entonces empezará a auto-calibrarse y a reportar aquí su mezcla, confianza y error, mejorando fecha a fecha.</div>';
+  }
   if(wf.anom.n>=8){
     const favRate=wf.anom.favN?Math.round(wf.anom.favW/wf.anom.favN*100):0;
     const drawRate=Math.round(wf.anom.draws/wf.anom.n*100);
@@ -1473,7 +1536,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v3.0 · 5-ago-2026 5:20am";
+const APP_VERSION="v3.2 · 9-ago-2026 12:40pm";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
