@@ -223,13 +223,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.5 · 9-ago-2026 5:40pm</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.6 · 9-ago-2026 6:10pm</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.5 · 9-ago-2026 5:40pm</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.6 · 9-ago-2026 6:10pm</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -252,7 +252,9 @@ body{
       <button class="mbtn mbtn-primary" onclick="saveApiKey()">Guardar</button>
       <button class="mbtn" onclick="testAPIFootball()">Probar conexión</button>
     </div>
-    <button class="mbtn" style="width:100%;margin-top:8px" onclick="runBackfill()">📥 Aprender del pasado (cuotas históricas)</button>
+    <div id="footiqoStatus" style="font-size:13px;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--green-soft);color:var(--green);line-height:1.5"></div>
+    <button class="mbtn" style="width:100%;margin-top:10px" onclick="runBackfill()">📥 Aprender del pasado · API-Football</button>
+    <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.4">Este botón usa API-Football (el plan gratis casi nunca trae cuotas viejas — es normal que diga que no encontró). No afecta las cuotas del CSV, que ya cargan solas.</div>
     <div id="apiMsg" class="modal-msg"></div>
     <div class="modal-btns" style="margin-top:14px">
       <button class="mbtn" onclick="closeSettings()">Cerrar</button>
@@ -779,7 +781,21 @@ function showToast(msg,ok=true){
 // ==================== API-FOOTBALL (datos avanzados, opcional) ====================
 const APIFB_BASE='https://v3.football.api-sports.io';
 function getApiKey(){ try{return localStorage.getItem('fiq2_apifb')||'';}catch(e){return '';} }
-function openSettings(){ const m=document.getElementById('settingsModal'); if(!m)return; m.style.display='flex'; document.getElementById('apiKeyInput').value=getApiKey(); apiMsg(getApiKey()?'Clave guardada. Toca “Probar conexión”.':'', 'muted'); }
+function openSettings(){
+  const m=document.getElementById('settingsModal'); if(!m)return; m.style.display='flex';
+  document.getElementById('apiKeyInput').value=getApiKey();
+  apiMsg(getApiKey()?'Clave guardada. Toca “Probar conexión”.':'', 'muted');
+  // Estado de las cuotas del CSV (footiqo) — para que veas que SÍ cargaron
+  try{
+    const el=document.getElementById('footiqoStatus'); if(el){
+      const st=loadState('betplay');
+      const nFoot=st.matches.filter(x=>x.odds&&x.odds.src==='footiqo').length;
+      const nAny=st.matches.filter(x=>x.played&&!x.seed&&x.odds).length;
+      if(nFoot>0){ el.style.background='var(--green-soft)'; el.style.color='var(--green)'; el.innerHTML='📄 <b>Cuotas del CSV (footiqo) cargadas: '+nFoot+' partidos</b> ✔<br>Total de partidos jugados con cuotas: '+nAny+'. Ya sirven para entrenar Anomalía y para la comparación vs la Casa.'; }
+      else { el.style.background='var(--gold-soft)'; el.style.color='var(--gold)'; el.innerHTML='📄 Aún no veo cuotas del CSV cargadas. Asegúrate de estar en <b>v3.6</b> (sello arriba). Si es así, cierra y toca 🔄.'; }
+    }
+  }catch(e){}
+}
 function closeSettings(){ const m=document.getElementById('settingsModal'); if(m)m.style.display='none'; }
 function apiMsg(t,cls){ const el=document.getElementById('apiMsg'); if(!el)return; el.innerHTML=t; el.style.color=cls==='ok'?'var(--green)':cls==='err'?'var(--red)':cls==='warn'?'var(--orange)':'var(--muted)'; }
 function saveApiKey(){ const k=(document.getElementById('apiKeyInput').value||'').trim(); try{localStorage.setItem('fiq2_apifb',k);}catch(e){} apiMsg(k?'✅ Clave guardada solo en este dispositivo.':'Clave borrada.', k?'ok':'warn'); }
@@ -1618,7 +1634,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v3.5 · 9-ago-2026 5:40pm";
+const APP_VERSION="v3.6 · 9-ago-2026 6:10pm";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
