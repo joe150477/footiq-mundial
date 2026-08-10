@@ -223,13 +223,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.4 · 9-ago-2026 1:30pm</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.5 · 9-ago-2026 5:40pm</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.4 · 9-ago-2026 1:30pm</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.5 · 9-ago-2026 5:40pm</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -754,6 +754,7 @@ async function syncActive(){
   document.getElementById('syncStatus').textContent='Buscando...';
   try{
     const res=await syncTorneo(ACTIVE);
+    try{ applyHistoricOdds(ACTIVE); }catch(e){}
     if(getApiKey()){ try{ await enrichAPIFootball(ACTIVE); invalidateWF(ACTIVE); }catch(e){} }
     try{ updateCLV(); }catch(e){}
     try{ checkGolden(); }catch(e){}
@@ -820,6 +821,36 @@ function _devig(h,d,a){
   const ih=1/h,id=1/d,ia=1/a,su=ih+id+ia;
   return {pH:ih/su,pD:id/su,pA:ia/su,margin:+(su-1).toFixed(4)};
 }
+// ==================== CUOTAS HISTÓRICAS (footiqo.com · 1xBet) ====================
+const HIST_ODDS={betplay:[{"h": "fortaleza", "a": "cucuta", "d": "2026-08-08", "H": 1.87, "D": 3.42, "A": 4.93}, {"h": "santafe", "a": "chico", "d": "2026-08-08", "H": 1.37, "D": 4.93, "A": 10.4}, {"h": "caldas", "a": "america", "d": "2026-08-06", "H": 2.34, "D": 3.22, "A": 3.43}, {"h": "bogota", "a": "jaguares", "d": "2026-08-06", "H": 1.6, "D": 3.88, "A": 6.72}, {"h": "millonarios", "a": "pasto", "d": "2026-08-05", "H": 1.43, "D": 4.55, "A": 9.0}, {"h": "tolima", "a": "medellin", "d": "2026-08-05", "H": 2.06, "D": 3.3, "A": 4.12}, {"h": "llaneros", "a": "fortaleza", "d": "2026-08-04", "H": 2.18, "D": 3.13, "A": 3.96}, {"h": "bucaramanga", "a": "cucuta", "d": "2026-08-04", "H": 1.61, "D": 3.89, "A": 6.55}, {"h": "santafe", "a": "caldas", "d": "2026-08-03", "H": 2.34, "D": 3.16, "A": 3.47}, {"h": "america", "a": "chico", "d": "2026-08-03", "H": 1.37, "D": 4.71, "A": 11.5}, {"h": "jaguares", "a": "nacional", "d": "2026-08-02", "H": 6.21, "D": 3.93, "A": 1.63}, {"h": "junior", "a": "millonarios", "d": "2026-08-02", "H": 2.29, "D": 3.36, "A": 3.37}, {"h": "medellin", "a": "cali", "d": "2026-08-02", "H": 2.53, "D": 3.0, "A": 3.31}, {"h": "alianza", "a": "tolima", "d": "2026-08-01", "H": 3.13, "D": 3.1, "A": 2.57}, {"h": "pasto", "a": "aguilas", "d": "2026-08-01", "H": 2.2, "D": 3.2, "A": 3.8}, {"h": "fortaleza", "a": "pereira", "d": "2026-08-01", "H": 1.69, "D": 3.61, "A": 6.15}, {"h": "bucaramanga", "a": "llaneros", "d": "2026-07-31", "H": 1.74, "D": 3.69, "A": 5.38}, {"h": "caldas", "a": "cucuta", "d": "2026-07-27", "H": 1.41, "D": 4.65, "A": 9.35}, {"h": "alianza", "a": "fortaleza", "d": "2026-07-27", "H": 1.93, "D": 3.34, "A": 4.69}, {"h": "aguilas", "a": "santafe", "d": "2026-07-26", "H": 2.65, "D": 3.06, "A": 3.06}, {"h": "bogota", "a": "america", "d": "2026-07-26", "H": 3.45, "D": 3.07, "A": 2.42}, {"h": "tolima", "a": "junior", "d": "2026-07-26", "H": 2.09, "D": 3.47, "A": 3.78}, {"h": "millonarios", "a": "bucaramanga", "d": "2026-07-26", "H": 1.7, "D": 3.73, "A": 5.72}, {"h": "medellin", "a": "pasto", "d": "2026-07-25", "H": 1.75, "D": 3.51, "A": 5.7}, {"h": "cali", "a": "jaguares", "d": "2026-07-25", "H": 1.65, "D": 3.71, "A": 6.44}]};
+function _teamKey(name){
+  let n=(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const rules=[['america','america'],['internacional','bogota'],['bogota','bogota'],['nacional','nacional'],['junior','junior'],['bucaramanga','bucaramanga'],['medellin','medellin'],['tolima','tolima'],['millonarios','millonarios'],['pasto','pasto'],['jaguares','jaguares'],['pereira','pereira'],['aguilas','aguilas'],['alianza','alianza'],['llaneros','llaneros'],['fortaleza','fortaleza'],['cucuta','cucuta'],['santa fe','santafe'],['santafe','santafe'],['chico','chico'],['caldas','caldas'],['cali','cali']];
+  for(const [needle,key] of rules){ if(n.includes(needle)) return key; }
+  return n.replace(/[^a-z0-9]/g,'');
+}
+// Aplica las cuotas históricas a los partidos jugados que no tengan cuotas (una vez, gratis)
+function applyHistoricOdds(t){
+  const data=HIST_ODDS[t]; if(!data) return 0;
+  const st=loadState(t);
+  const idx={};
+  for(const e of data){ idx[e.h+'|'+e.a]=e; }
+  let n=0;
+  for(const m of st.matches){
+    if(m.seed||!m.h||!m.a) continue;
+    if(m.odds&&(m.odds.src==='footiqo'||m.odds.src==='apifb'||m.odds.src==='apifb-hist')) continue;
+    const e=idx[_teamKey(m.h)+'|'+_teamKey(m.a)];
+    if(!e) continue;
+    const dv=_devig(e.H,e.D,e.A);
+    if(!dv) continue;
+    m.odds={pH:dv.pH,pD:dv.pD,pA:dv.pA,margin:dv.margin,first:{pH:dv.pH,pD:dv.pD,pA:dv.pA},src:'footiqo'};
+    m.oddsBest={H:e.H,D:e.D,A:e.A,books:1};
+    n++;
+  }
+  if(n){ saveState(t); invalidateWF(t); }
+  return n;
+}
+
 // Trae fixtures+odds de UN día y las aplica a los partidos que coincidan (jugados o no)
 async function _applyDayOdds(cfg, day, idx){
   let filled=0, fxMap={};
@@ -1569,6 +1600,7 @@ async function boot(){
     renderTorneoBar();
     setProgress(40,'Restaurando datos guardados…');
     loadState(ACTIVE);
+    try{ applyHistoricOdds('betplay'); }catch(e){}
     setProgress(70,'Calibrando motores (walk-forward)…');
     getWF('betplay'); getWF('laliga');
     setProgress(100,'¡Listo!');
@@ -1586,7 +1618,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v3.4 · 9-ago-2026 1:30pm";
+const APP_VERSION="v3.5 · 9-ago-2026 5:40pm";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
