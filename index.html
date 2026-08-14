@@ -268,13 +268,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.4 · 14 ago 2026</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.5 · 14 ago 2026</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.4 · 14 ago 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.5 · 14 ago 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1692,7 +1692,6 @@ async function boot(){
     document.getElementById('overlay').classList.add('gone');
     refreshAll();
     setTimeout(()=>syncActive(),800);
-    setTimeout(()=>checkForUpdate(false),4000);   // busca versión nueva al abrir
   }catch(e){
     document.getElementById('stepMsg').innerText='❌ Error: '+e.message;
     document.getElementById('overlay').classList.add('gone');
@@ -1701,27 +1700,9 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v4.4 · 14 ago 2026";
-function showUpdateBanner(latest){
-  if(document.getElementById('updBanner')) return;
-  const b=document.createElement('div'); b.id='updBanner';
-  b.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;background:var(--accent);color:#04121f;font-weight:800;padding:12px 18px;border-radius:99px;box-shadow:0 6px 24px rgba(0,0,0,.5);font-size:15px;cursor:pointer;display:flex;align-items:center;gap:8px;max-width:92vw;';
-  b.innerHTML='🔄 Nueva versión disponible — tocar para actualizar';
-  b.onclick=()=>{ location.replace(location.pathname+'?u='+Date.now()); };
-  document.body.appendChild(b);
-}
-async function checkForUpdate(manual){
-  try{
-    if(location.protocol==='file:'){ if(manual) showToast('Estás abriendo el archivo local — la auto-actualización funciona cuando la app está en GitHub Pages.'); return; }
-    const url=location.href.split('?')[0]+'?nc='+Date.now();
-    const r=await fetch(url,{cache:'no-store'});
-    const txt=await r.text();
-    const m=txt.match(/v\d+\.\d+[^<"]*/);
-    const latest=m?m[0].trim():null;
-    if(latest && latest!==APP_VERSION){ showUpdateBanner(latest); }
-    else if(manual){ showToast('✅ Ya tienes la última versión ('+APP_VERSION+')'); }
-  }catch(e){ if(manual) showToast('No se pudo verificar (sin conexión)',false); }
-}
+const APP_VERSION="v4.5 · 14 ago 2026";
+// Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
+function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
 boot();
 </script>
