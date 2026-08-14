@@ -268,13 +268,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.3 · 14-ago-2026 2:55pm</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.4 · 14 ago 2026</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.3 · 14-ago-2026 2:55pm</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.4 · 14 ago 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1190,7 +1190,7 @@ function renderHoy(){
   const from=new Date(now); from.setDate(from.getDate()-3);
   const to=new Date(now); to.setDate(to.getDate()+18);
   const win=st.matches.filter(m=>{
-    if(m.seed) return false;
+    if(m.seed||m.postponed) return false;   // ocultar semilla y aplazados
     const d=_asDate(m.date); return !isNaN(d)&&d>=from&&d<=to;
   }).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   if(!win.length){
@@ -1207,12 +1207,6 @@ function renderHoy(){
     const day=_colDay(m.date);
     if(day!==lastDay){ lastDay=day; h+=`<div class="day-sep"><span>📅 ${fmtDay(m.date)}</span></div>`; }
     const _sp=shortPair(m.h,m.a); const hShort=_sp.hs, aShort=_sp.as;
-    // ⏸️ APLAZADO: tarjeta compacta, sin pronóstico (ESPN reporta "Postponed")
-    if(m.postponed){
-      h+='<div class="mcard mcard-post"><div class="match-header" style="border-bottom:none;padding-bottom:0"><div class="tname" style="opacity:.75">'+m.h+'</div><div style="font-size:14px;font-weight:900;padding:0 4px;opacity:.5">vs</div><div class="tname" style="text-align:right;opacity:.75">'+m.a+'</div></div>';
-      h+='<div class="post-note">⏸️ <b>Aplazado</b> · estaba para '+fmtDay(m.date)+'. Sin pronóstico hasta que se reprograme.</div></div>';
-      continue;
-    }
     h+='<div class="mcard">';
     h+=`<div class="match-header"><div class="tname">${m.h}</div><div style="font-size:15px;font-weight:900;padding:0 4px">vs</div><div class="tname" style="text-align:right">${m.a}</div><div class="match-meta">${m.played?'<span class=\'fin-badge\'>Finalizada</span>':('<span style=\'color:var(--dim)\'>'+fmtDay(m.date)+'</span><br>'+fmtHr(m.date))}</div></div>`;
     if(m.played){
@@ -1707,7 +1701,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v4.3 · 14-ago-2026 2:55pm";
+const APP_VERSION="v4.4 · 14 ago 2026";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
@@ -1722,7 +1716,7 @@ async function checkForUpdate(manual){
     const url=location.href.split('?')[0]+'?nc='+Date.now();
     const r=await fetch(url,{cache:'no-store'});
     const txt=await r.text();
-    const m=txt.match(/v2\.\d+ · [^<"]+/);
+    const m=txt.match(/v\d+\.\d+[^<"]*/);
     const latest=m?m[0].trim():null;
     if(latest && latest!==APP_VERSION){ showUpdateBanner(latest); }
     else if(manual){ showToast('✅ Ya tienes la última versión ('+APP_VERSION+')'); }
