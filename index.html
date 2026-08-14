@@ -223,13 +223,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.6 · 9-ago-2026 6:10pm</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.9 · 9-ago-2026 8:15pm</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.6 · 9-ago-2026 6:10pm</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.9 · 9-ago-2026 8:15pm</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -269,14 +269,12 @@ body{
   <div class="tab active" onclick="showTab(this,'champ')"><span class="ti">🏆</span>Campeón</div>
   <div class="tab" onclick="showTab(this,'hoy')"><span class="ti">📅</span>Partidos</div>
   <div class="tab" onclick="showTab(this,'comp')"><span class="ti">📊</span>Motores</div>
-  <div class="tab" onclick="showTab(this,'valor')"><span class="ti">💰</span>Valor</div>
 </div>
 
 <div class="pages">
   <div class="page active" id="page-champ"></div>
   <div class="page" id="page-hoy"></div>
   <div class="page" id="page-comp"></div>
-  <div class="page" id="page-valor"></div>
 </div>
 
 <script>
@@ -349,12 +347,18 @@ function eloProb(rH,rA,baseDraw,hfa){
   const pH=pW*(1-draw), pA=(1-pW)*(1-draw);
   return {pH,pD:1-pH-pA,pA};
 }
-function eloUpdate(elo,h,a,sh,sa,hfa,gp){
+function eloUpdate(elo,h,a,sh,sa,hfa,gp,xg){
   const eh=elo[h]??1500, ea=elo[a]??1500;
   const expH=1/(1+Math.pow(10,(ea-(eh+(hfa||0)))/400));  // expectativa cuenta la localía
-  const actH=sh>sa?1:sh===sa?0.5:0;
-  const gd=Math.abs(sh-sa);
-  const kAdj=gd<=1?1:gd===2?1.5:gd===3?1.75:1.75+0.5*Math.log(gd-2);
+  let actH=sh>sa?1:sh===sa?0.5:0;
+  let gd=Math.abs(sh-sa);
+  if(xg && xg.h!=null && xg.a!=null){
+    // ELO AJUSTADO POR xG: amortigua flukes (ganar/perder sin merecerlo)
+    const xgActH=Math.max(0,Math.min(1, 0.5+(xg.h-xg.a)*0.30));  // resultado "merecido"
+    actH = 0.6*actH + 0.4*xgActH;               // 60% lo real (puntos), 40% lo merecido
+    gd   = 0.5*gd + 0.5*Math.abs(xg.h-xg.a);    // diferencia efectiva suavizada
+  }
+  const kAdj=gd<=1?1:gd<=2?1.5:gd<=3?1.75:1.75+0.5*Math.log(Math.max(1.01,gd-2));
   // K provisional: alto con pocos partidos (converge rápido), baja al estabilizarse
   const games=gp?Math.min(gp[h]||0,gp[a]||0):99;
   const Kbase=games<5?54:games<10?38:24;
@@ -548,7 +552,7 @@ function walkForward(t){
   for(const m of played){
     hfa=learnHFA(); drawRate=learnDraw();
     if(m.seed){
-      eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa,gp);
+      eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa,gp,m.xg);
       (form[m.h]=form[m.h]||[]).push(m.sh>m.sa?3:m.sh===m.sa?1:0);
       (form[m.a]=form[m.a]||[]).push(m.sa>m.sh?3:m.sh===m.sa?1:0);
       accResult(m.sh,m.sa);
@@ -590,7 +594,7 @@ function walkForward(t){
     if(m.sh!==m.sa){ anom.favN++; if((m.sh>m.sa)===favIsH) anom.favW++; }
     else anom.draws++;
     anom.n++;
-    eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa,gp);
+    eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa,gp,m.xg);
     (form[m.h]=form[m.h]||[]).push(m.sh>m.sa?3:m.sh===m.sa?1:0);
     (form[m.a]=form[m.a]||[]).push(m.sa>m.sh?3:m.sh===m.sa?1:0);
     accResult(m.sh,m.sa);
@@ -705,7 +709,7 @@ function parseEvents(t,events,isSeed){
     const done=comp.status?.type?.completed===true||['STATUS_FINAL','STATUS_FULL_TIME','STATUS_FINAL_PEN','STATUS_FINAL_AET'].includes(status);
     let m=byId[id];
     if(!m){ m={id,h:hName,a:aName,sh:null,sa:null,played:false,odds:null}; if(isSeed)m.seed=true; st.matches.push(m); byId[id]=m; nuevos++; }
-    m.date=(ev.date||'').slice(0,16); // ISO con hora
+    m.date=(ev.date||''); // ISO COMPLETO con Z (UTC) — se convierte a Colombia al mostrar
     if(done){
       const sh=parseInt(home.score??'-1'), sa=parseInt(away.score??'-1');
       if(!isNaN(sh)&&sh>=0&&!isNaN(sa)){ if(!m.played)actualizados++; m.sh=sh; m.sa=sa; m.played=true; }
@@ -756,10 +760,9 @@ async function syncActive(){
   document.getElementById('syncStatus').textContent='Buscando...';
   try{
     const res=await syncTorneo(ACTIVE);
-    try{ applyHistoricOdds(ACTIVE); }catch(e){}
+    try{ applyHistoricOdds(ACTIVE); applyHistoricXG(ACTIVE); }catch(e){}
     if(getApiKey()){ try{ await enrichAPIFootball(ACTIVE); invalidateWF(ACTIVE); }catch(e){} }
-    try{ updateCLV(); }catch(e){}
-    try{ checkGolden(); }catch(e){}
+
     const now=new Date();
     document.getElementById('syncStatus').textContent='✓ '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
     const st=loadState(ACTIVE);
@@ -846,6 +849,21 @@ function _teamKey(name){
   return n.replace(/[^a-z0-9]/g,'');
 }
 // Aplica las cuotas históricas a los partidos jugados que no tengan cuotas (una vez, gratis)
+const HIST_XG={betplay:[{"h": "alianza", "a": "bucaramanga", "d": "2026-08-09", "xh": 0.71, "xa": 1.83}, {"h": "pasto", "a": "cali", "d": "2026-08-09", "xh": 0.55, "xa": 0.9}, {"h": "tolima", "a": "bogota", "d": "2026-08-09", "xh": 1.03, "xa": 0.67}, {"h": "fortaleza", "a": "cucuta", "d": "2026-08-08", "xh": 0.78, "xa": 1.38}, {"h": "santafe", "a": "chico", "d": "2026-08-08", "xh": 0.93, "xa": 0.79}, {"h": "caldas", "a": "america", "d": "2026-08-06", "xh": 0.58, "xa": 1.3}, {"h": "bogota", "a": "jaguares", "d": "2026-08-06", "xh": 2.35, "xa": 0.36}, {"h": "millonarios", "a": "pasto", "d": "2026-08-05", "xh": 1.75, "xa": 0.18}, {"h": "tolima", "a": "medellin", "d": "2026-08-05", "xh": 2.67, "xa": 1.55}, {"h": "llaneros", "a": "fortaleza", "d": "2026-08-04", "xh": 0.92, "xa": 0.7}, {"h": "bucaramanga", "a": "cucuta", "d": "2026-08-04", "xh": 1.98, "xa": 1.38}, {"h": "santafe", "a": "caldas", "d": "2026-08-03", "xh": 0.5, "xa": 1.48}, {"h": "america", "a": "chico", "d": "2026-08-03", "xh": 1.67, "xa": 0.51}, {"h": "jaguares", "a": "nacional", "d": "2026-08-02", "xh": 0.94, "xa": 0.85}, {"h": "junior", "a": "millonarios", "d": "2026-08-02", "xh": 0.4, "xa": 0.64}, {"h": "medellin", "a": "cali", "d": "2026-08-02", "xh": 0.91, "xa": 1.41}, {"h": "alianza", "a": "tolima", "d": "2026-08-01", "xh": 1.57, "xa": 1.38}, {"h": "pasto", "a": "aguilas", "d": "2026-08-01", "xh": 0.5, "xa": 1.57}, {"h": "fortaleza", "a": "pereira", "d": "2026-08-01", "xh": 1.27, "xa": 0.15}, {"h": "bucaramanga", "a": "llaneros", "d": "2026-07-31", "xh": 0.23, "xa": 0.77}, {"h": "caldas", "a": "cucuta", "d": "2026-07-27", "xh": 1.05, "xa": 1.62}, {"h": "alianza", "a": "fortaleza", "d": "2026-07-27", "xh": 0.55, "xa": 0.37}, {"h": "aguilas", "a": "santafe", "d": "2026-07-26", "xh": 1.33, "xa": 1.06}, {"h": "bogota", "a": "america", "d": "2026-07-26", "xh": 1.28, "xa": 1.34}, {"h": "tolima", "a": "junior", "d": "2026-07-26", "xh": 1.41, "xa": 0.89}]};
+function applyHistoricXG(t){
+  const data=HIST_XG[t]; if(!data) return 0;
+  const st=loadState(t);
+  const idx={}; for(const e of data){ idx[e.h+'|'+e.a]=e; }
+  let n=0;
+  for(const m of st.matches){
+    if(m.seed||!m.h||!m.a||m.xg) continue;
+    const e=idx[_teamKey(m.h)+'|'+_teamKey(m.a)];
+    if(!e) continue;
+    m.xg={h:e.xh,a:e.xa}; n++;
+  }
+  if(n){ saveState(t); invalidateWF(t); }
+  return n;
+}
 function applyHistoricOdds(t){
   const data=HIST_ODDS[t]; if(!data) return 0;
   const st=loadState(t);
@@ -967,7 +985,6 @@ function showTab(el,name){
   if(name==='champ') renderChamp();
   else if(name==='hoy') renderHoy();
   else if(name==='comp') renderComparativa();
-  else if(name==='valor') renderValor();
 }
 function refreshAll(){
   try{
@@ -976,7 +993,6 @@ function refreshAll(){
     if(id==='champ') renderChamp();
     else if(id==='hoy') renderHoy();
     else if(id==='comp') renderComparativa();
-    else if(id==='valor') renderValor();
   }catch(e){ console.warn('refreshAll:',e); }
 }
 
@@ -1105,6 +1121,11 @@ function renderChamp(){
 }
 
 // ==================== RENDER PARTIDOS ====================
+// ==================== FECHAS EN HORA DE COLOMBIA ====================
+function _asDate(iso){ if(!iso) return new Date(NaN); let x=String(iso); if(!/[zZ]|[+-]\d\d:?\d\d$/.test(x)) x=x+'Z'; return new Date(x); }
+function _colDay(iso){ const d=_asDate(iso); return isNaN(d)?'' : d.toLocaleDateString('en-CA',{timeZone:'America/Bogota'}); }
+function _fmtDayCol(iso){ const d=_asDate(iso); return isNaN(d)?'' : d.toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short',timeZone:'America/Bogota'}); }
+function _fmtHrCol(iso){ const d=_asDate(iso); return isNaN(d)?'' : d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}); }
 function renderHoy(){
   const pg=document.getElementById('page-hoy');
   const cfg=TORNEOS[ACTIVE];
@@ -1123,7 +1144,7 @@ function renderHoy(){
   const to=new Date(now); to.setDate(to.getDate()+7);
   const win=st.matches.filter(m=>{
     if(m.seed) return false;
-    const d=new Date(m.date); return !isNaN(d)&&d>=from&&d<=to;
+    const d=_asDate(m.date); return !isNaN(d)&&d>=from&&d<=to;
   }).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   if(!win.length){
     pg.innerHTML='<div class="card future-card"><div class="future-icon">📭</div><div class="future-note">Sin partidos entre ayer y los próximos 7 días.</div></div>';
@@ -1131,12 +1152,12 @@ function renderHoy(){
   }
   const wf=getWF(ACTIVE); const logById={}; wf.log.forEach(r=>logById[r.id]=r);
   let h='',lastDay='';
-  const fmtDay=iso=>{ const d=new Date(iso); return d.toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'}); };
-  const fmtHr=iso=>{ const d=new Date(iso); return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}); };
+  const fmtDay=_fmtDayCol;
+  const fmtHr=_fmtHrCol;
   const nm=(t,who)=>{const s=t.split(' ')[0]; return who==='H'?s:who==='A'?s:'Empate';};
   const pickLabel=(pk,hh,aa)=> pk==='H'?'Gana '+hh : pk==='A'?'Gana '+aa : 'Empate';
   for(const m of win){
-    const day=(m.date||'').slice(0,10);
+    const day=_colDay(m.date);
     if(day!==lastDay){ lastDay=day; h+=`<div class="stitle">📅 ${fmtDay(m.date)}</div>`; }
     const _sp=shortPair(m.h,m.a); const hShort=_sp.hs, aShort=_sp.as;
     h+='<div class="mcard">';
@@ -1145,7 +1166,7 @@ function renderHoy(){
       const actual=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
       const winnerFull=actual==='H'?m.h:actual==='A'?m.a:'Empate';
       const winnerShort=actual==='H'?hShort:actual==='A'?aShort:'Empate';
-      h+=`<div class="result-real"><div class="rscore">${m.sh} — ${m.sa}</div><div class="rlabel">${actual==='D'?'Empate':'Ganó '+winnerFull}</div></div>`;
+      h+=`<div class="result-real"><div class="rscore">${m.sh} — ${m.sa}</div><div class="rlabel">${actual==='D'?'Empate':'Ganó '+winnerFull}${m.xg?` · <span style="color:var(--accent)">xG ${m.xg.h.toFixed(1)}–${m.xg.a.toFixed(1)}</span>`:''}</div></div>`;
       const row=logById[m.id];
       // ANTES → DESPUÉS (pronóstico comprometido vs resultado real)
       if(row&&row.dict!=null){
@@ -1390,7 +1411,7 @@ function goldenOps(t){
     return {consolidated:false, reason, played:nA, ops:[]};
   }
   const st=loadState(t); const now=new Date(), to=new Date(now); to.setDate(to.getDate()+7);
-  const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&new Date(m.date)>=new Date(now.getFullYear(),now.getMonth(),now.getDate())&&new Date(m.date)<=to);
+  const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&_asDate(m.date)>=new Date(now.getFullYear(),now.getMonth(),now.getDate())&&_asDate(m.date)<=to);
   const ops=[];
   for(const m of up){
     const rH=wf.elo[m.h]??1500, rA=wf.elo[m.a]??1500, hfa=wf.hfa??55, dr=wf.drawRate??cfg.baseDraw;
@@ -1477,7 +1498,7 @@ function renderValor(){
   if(cfg.estado==='activo'){
     const st=loadState(ACTIVE);
     const now=new Date(), to=new Date(now); to.setDate(to.getDate()+7);
-    const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&new Date(m.date)>=new Date(now.getFullYear(),now.getMonth(),now.getDate())&&new Date(m.date)<=to).sort((x,y)=>(x.date||'').localeCompare(y.date||''));
+    const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&_asDate(m.date)>=new Date(now.getFullYear(),now.getMonth(),now.getDate())&&_asDate(m.date)<=to).sort((x,y)=>(x.date||'').localeCompare(y.date||''));
     // reunir oportunidades
     const wf=getWF(ACTIVE);
     const calibrando=(wf.playedCount||0)<12;
@@ -1616,7 +1637,7 @@ async function boot(){
     renderTorneoBar();
     setProgress(40,'Restaurando datos guardados…');
     loadState(ACTIVE);
-    try{ applyHistoricOdds('betplay'); }catch(e){}
+    try{ applyHistoricOdds('betplay'); applyHistoricXG('betplay'); }catch(e){}
     setProgress(70,'Calibrando motores (walk-forward)…');
     getWF('betplay'); getWF('laliga');
     setProgress(100,'¡Listo!');
@@ -1625,7 +1646,6 @@ async function boot(){
     refreshAll();
     setTimeout(()=>syncActive(),800);
     setTimeout(()=>checkForUpdate(false),4000);   // busca versión nueva al abrir
-    setTimeout(()=>{ try{checkGolden();}catch(e){} },5000);  // alerta de oportunidad de oro
   }catch(e){
     document.getElementById('stepMsg').innerText='❌ Error: '+e.message;
     document.getElementById('overlay').classList.add('gone');
@@ -1634,7 +1654,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v3.6 · 9-ago-2026 6:10pm";
+const APP_VERSION="v3.9 · 9-ago-2026 8:15pm";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
