@@ -106,7 +106,11 @@ body{
 .mcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--shadow);}
 .match-header{display:flex;align-items:center;gap:8px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border);}
 .match-header .tname{font-size:16px;}
-.match-meta{font-size:13px;color:var(--muted);margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.match-meta{font-size:13px;color:var(--muted);margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right;line-height:1.35;}
+.day-sep{display:flex;align-items:center;gap:10px;margin:22px 2px 12px;}
+.day-sep::before,.day-sep::after{content:"";height:1px;background:var(--border2);flex:1;}
+.day-sep span{font-size:14px;font-weight:800;color:var(--accent);white-space:nowrap;text-transform:capitalize;}
+.mcard{border-left:3px solid var(--accent);}
 
 /* probabilidades */
 .probs{display:flex;gap:8px;margin:4px 0 2px;}
@@ -215,6 +219,29 @@ body{
 .standings-table td{padding:9px 4px;font-size:15px;text-align:center;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;}
 .standings-table tr:last-child td{border-bottom:none;}
 .standings-table td.tn{text-align:left;font-weight:600;font-size:15px;}
+
+/* ===== REDISEÑO PARTIDOS (v4.2) ===== */
+.day-sep{margin:26px 0 14px;padding:9px 14px;background:linear-gradient(90deg,rgba(90,169,240,.16),rgba(90,169,240,.02));border-left:4px solid var(--accent);border-radius:10px;display:flex;align-items:center;gap:8px;}
+.day-sep::before,.day-sep::after{content:none;}
+.day-sep span{font-size:15px;font-weight:800;color:var(--accent);text-transform:capitalize;letter-spacing:-.01em;}
+.mcard{background:linear-gradient(180deg,var(--card) 0%,#121826 100%);border:1px solid var(--border2);border-left:3px solid var(--accent);border-radius:16px;padding:16px;margin-bottom:18px;box-shadow:0 8px 22px rgba(0,0,0,.34);}
+.match-header{border-bottom:1px solid var(--border2);}
+.match-header .tname{font-size:16px;font-weight:700;}
+.probs{gap:8px;margin:10px 0 2px;}
+.prob{flex:1;text-align:center;border-radius:12px;padding:13px 4px;border:1.5px solid transparent;transition:.2s;}
+.prob .pv{font-size:25px;font-weight:800;}
+.prob .pl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:3px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.prob-h{background:rgba(90,169,240,.09);}   .prob-h .pv{color:#8ec7ff;}
+.prob-d{background:rgba(227,178,77,.09);}   .prob-d .pv{color:var(--gold);}
+.prob-a{background:rgba(240,147,78,.10);}   .prob-a .pv{color:var(--orange);}
+.prob.prob-top.prob-h{background:rgba(90,169,240,.22);border-color:var(--accent);box-shadow:0 3px 12px rgba(90,169,240,.22);}
+.prob.prob-top.prob-d{background:rgba(227,178,77,.22);border-color:var(--gold);box-shadow:0 3px 12px rgba(227,178,77,.22);}
+.prob.prob-top.prob-a{background:rgba(240,147,78,.22);border-color:var(--orange);box-shadow:0 3px 12px rgba(240,147,78,.22);}
+.prob.prob-top .pl{color:var(--text);}
+.verdict.v-pre{background:linear-gradient(90deg,rgba(227,178,77,.16),rgba(227,178,77,.04));border:1px solid rgba(227,178,77,.4);}
+.motor-res{padding:9px 4px;}
+.motor-res:not(:last-child){border-bottom:1px solid var(--border);}
+.mkt-panel{background:linear-gradient(180deg,var(--bg2),#0e131d);}
 </style>
 </head>
 <body>
@@ -223,13 +250,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v3.9 · 9-ago-2026 8:15pm</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.2 · 14-ago-2026 2:35pm</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v3.9 · 9-ago-2026 8:15pm</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.2 · 14-ago-2026 2:35pm</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1140,8 +1167,8 @@ function renderHoy(){
     return;
   }
   const now=new Date();
-  const from=new Date(now); from.setDate(from.getDate()-2);
-  const to=new Date(now); to.setDate(to.getDate()+7);
+  const from=new Date(now); from.setDate(from.getDate()-3);
+  const to=new Date(now); to.setDate(to.getDate()+18);
   const win=st.matches.filter(m=>{
     if(m.seed) return false;
     const d=_asDate(m.date); return !isNaN(d)&&d>=from&&d<=to;
@@ -1158,10 +1185,10 @@ function renderHoy(){
   const pickLabel=(pk,hh,aa)=> pk==='H'?'Gana '+hh : pk==='A'?'Gana '+aa : 'Empate';
   for(const m of win){
     const day=_colDay(m.date);
-    if(day!==lastDay){ lastDay=day; h+=`<div class="stitle">📅 ${fmtDay(m.date)}</div>`; }
+    if(day!==lastDay){ lastDay=day; h+=`<div class="day-sep"><span>📅 ${fmtDay(m.date)}</span></div>`; }
     const _sp=shortPair(m.h,m.a); const hShort=_sp.hs, aShort=_sp.as;
     h+='<div class="mcard">';
-    h+=`<div class="match-header"><div class="tname">${m.h}</div><div style="font-size:15px;font-weight:900;padding:0 4px">vs</div><div class="tname" style="text-align:right">${m.a}</div><div class="match-meta">${m.played?'<span class=\'fin-badge\'>Finalizada</span>':fmtHr(m.date)}</div></div>`;
+    h+=`<div class="match-header"><div class="tname">${m.h}</div><div style="font-size:15px;font-weight:900;padding:0 4px">vs</div><div class="tname" style="text-align:right">${m.a}</div><div class="match-meta">${m.played?'<span class=\'fin-badge\'>Finalizada</span>':('<span style=\'color:var(--dim)\'>'+fmtDay(m.date)+'</span><br>'+fmtHr(m.date))}</div></div>`;
     if(m.played){
       const actual=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
       const winnerFull=actual==='H'?m.h:actual==='A'?m.a:'Empate';
@@ -1197,9 +1224,9 @@ function renderHoy(){
       const dictP=argMax3(p);
       const conf=Math.round(Math.max(p.pH,p.pD,p.pA)*100);
       h+=`<div class="probs">
-        <div class="prob ${dictP==='H'?'prob-top':''}"><div class="pv">${Math.round(p.pH*100)}%</div><div class="pl">${hShort}</div></div>
-        <div class="prob ${dictP==='D'?'prob-top':''}"><div class="pv">${Math.round(p.pD*100)}%</div><div class="pl">Emp</div></div>
-        <div class="prob ${dictP==='A'?'prob-top':''}"><div class="pv">${Math.round(p.pA*100)}%</div><div class="pl">${aShort}</div></div>
+        <div class="prob prob-h ${dictP==='H'?'prob-top':''}"><div class="pv">${Math.round(p.pH*100)}%</div><div class="pl">${hShort}</div></div>
+        <div class="prob prob-d ${dictP==='D'?'prob-top':''}"><div class="pv">${Math.round(p.pD*100)}%</div><div class="pl">Emp</div></div>
+        <div class="prob prob-a ${dictP==='A'?'prob-top':''}"><div class="pv">${Math.round(p.pA*100)}%</div><div class="pl">${aShort}</div></div>
       </div>`;
       const bb=betSuggest(p);
       h+=`<div class="verdict v-pre"><span>🔮 Dictamen: <b>${pickLabel(dictP,hShort,aShort)}</b></span><span class="v-code">${bb.code} · ${conf}%</span></div>`;
@@ -1654,7 +1681,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v3.9 · 9-ago-2026 8:15pm";
+const APP_VERSION="v4.2 · 14-ago-2026 2:35pm";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
