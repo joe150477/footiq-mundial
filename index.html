@@ -242,6 +242,24 @@ body{
 .motor-res{padding:9px 4px;}
 .motor-res:not(:last-child){border-bottom:1px solid var(--border);}
 .mkt-panel{background:linear-gradient(180deg,var(--bg2),#0e131d);}
+
+/* ===== APLAZADO + RESULTADO vs MOTORES (v4.3) ===== */
+.mcard-post{border-left:3px solid var(--dim);opacity:.9;background:linear-gradient(180deg,#141a24,#0f141d);}
+.post-note{font-size:13px;color:var(--muted);margin-top:8px;padding:9px 11px;background:rgba(107,122,144,.1);border-radius:10px;line-height:1.5;}
+.post-note b{color:var(--orange);}
+.result-real{background:linear-gradient(180deg,rgba(62,207,142,.14),rgba(62,207,142,.04));border:1px solid rgba(62,207,142,.4);border-radius:12px;padding:14px;margin:8px 0 2px;}
+.result-real .rscore{font-size:34px;font-weight:900;letter-spacing:2px;}
+.result-real .rlabel{font-size:14px;margin-top:3px;font-weight:600;}
+.ba{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 12px;margin-top:12px;gap:6px;}
+.ba-col{text-align:center;}
+.ba-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+.ba-val{font-size:15px;font-weight:800;margin-top:4px;}
+.ba-arrow{font-size:22px;color:var(--accent);align-self:center;}
+.ba-verdict{align-self:center;font-size:14px;font-weight:800;padding:8px 14px;border-radius:99px;white-space:nowrap;}
+.ba-ok{background:var(--green);color:#04140b;}
+.ba-no{background:var(--red);color:#1a0406;}
+.motor-line{gap:7px;margin-top:8px;}
+.mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 </style>
 </head>
 <body>
@@ -250,13 +268,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.2 · 14-ago-2026 2:35pm</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.3 · 14-ago-2026 2:55pm</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.2 · 14-ago-2026 2:35pm</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.3 · 14-ago-2026 2:55pm</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -736,7 +754,9 @@ function parseEvents(t,events,isSeed){
     const done=comp.status?.type?.completed===true||['STATUS_FINAL','STATUS_FULL_TIME','STATUS_FINAL_PEN','STATUS_FINAL_AET'].includes(status);
     let m=byId[id];
     if(!m){ m={id,h:hName,a:aName,sh:null,sa:null,played:false,odds:null}; if(isSeed)m.seed=true; st.matches.push(m); byId[id]=m; nuevos++; }
-    m.date=(ev.date||''); // ISO COMPLETO con Z (UTC) — se convierte a Colombia al mostrar
+    m.date=(ev.date||''); // ISO COMPLETO con Z (UTC)
+    m.postponed = (status==='STATUS_POSTPONED'||status==='STATUS_CANCELED'||status==='STATUS_SUSPENDED'||comp.status?.type?.id==='6') && !done;
+    if(done){ m.postponed=false; }
     if(done){
       const sh=parseInt(home.score??'-1'), sa=parseInt(away.score??'-1');
       if(!isNaN(sh)&&sh>=0&&!isNaN(sa)){ if(!m.played)actualizados++; m.sh=sh; m.sa=sa; m.played=true; }
@@ -1187,6 +1207,12 @@ function renderHoy(){
     const day=_colDay(m.date);
     if(day!==lastDay){ lastDay=day; h+=`<div class="day-sep"><span>📅 ${fmtDay(m.date)}</span></div>`; }
     const _sp=shortPair(m.h,m.a); const hShort=_sp.hs, aShort=_sp.as;
+    // ⏸️ APLAZADO: tarjeta compacta, sin pronóstico (ESPN reporta "Postponed")
+    if(m.postponed){
+      h+='<div class="mcard mcard-post"><div class="match-header" style="border-bottom:none;padding-bottom:0"><div class="tname" style="opacity:.75">'+m.h+'</div><div style="font-size:14px;font-weight:900;padding:0 4px;opacity:.5">vs</div><div class="tname" style="text-align:right;opacity:.75">'+m.a+'</div></div>';
+      h+='<div class="post-note">⏸️ <b>Aplazado</b> · estaba para '+fmtDay(m.date)+'. Sin pronóstico hasta que se reprograme.</div></div>';
+      continue;
+    }
     h+='<div class="mcard">';
     h+=`<div class="match-header"><div class="tname">${m.h}</div><div style="font-size:15px;font-weight:900;padding:0 4px">vs</div><div class="tname" style="text-align:right">${m.a}</div><div class="match-meta">${m.played?'<span class=\'fin-badge\'>Finalizada</span>':('<span style=\'color:var(--dim)\'>'+fmtDay(m.date)+'</span><br>'+fmtHr(m.date))}</div></div>`;
     if(m.played){
@@ -1681,7 +1707,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v4.2 · 14-ago-2026 2:35pm";
+const APP_VERSION="v4.3 · 14-ago-2026 2:55pm";
 function showUpdateBanner(latest){
   if(document.getElementById('updBanner')) return;
   const b=document.createElement('div'); b.id='updBanner';
