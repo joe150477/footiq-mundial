@@ -244,6 +244,8 @@ body{
 .mkt-panel{background:linear-gradient(180deg,var(--bg2),#0e131d);}
 
 /* ===== APLAZADO + RESULTADO vs MOTORES (v4.3) ===== */
+.injnote{margin:8px 0 2px;padding:7px 10px;border-radius:9px;background:rgba(240,90,60,.10);border:1px solid rgba(240,90,60,.30);color:#ffd0c4;font-size:13px;font-weight:600;line-height:1.35;}
+.injnote b{color:#ffb3a3;}
 .mcard-post{border-left:3px solid var(--dim);opacity:.9;background:linear-gradient(180deg,#141a24,#0f141d);}
 .post-note{font-size:13px;color:var(--muted);margin-top:8px;padding:9px 11px;background:rgba(107,122,144,.1);border-radius:10px;line-height:1.5;}
 .post-note b{color:var(--orange);}
@@ -268,13 +270,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.6 · 14 ago 2026</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.8 · 23 ago 2026</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.6 · 14 ago 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.8 · 23 ago 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -492,11 +494,20 @@ function _anomMeta(rH,rA,hfa){
 // Motor unificado: (a) equipos del Mundial → modelo completo con memoria (100% entrenamiento);
 // (b) ligas nuevas CON cuotas → la cuota real de la casa manda (70%) + reglas WC (30%);
 // (c) ligas nuevas SIN cuotas → solo las reglas aprendidas del WC sobre el ELO de la liga.
+function _injImpact(m){
+  // impacto PONDERADO por importancia: figura fuera pesa mucho más que suplente
+  if(!m||!m.inj) return 0;
+  const wh=(m.inj.wHome!=null)?m.inj.wHome:(m.inj.home||0)*0.4;
+  const wa=(m.inj.wAway!=null)?m.inj.wAway:(m.inj.away||0)*0.4;
+  return wa-wh;   // >0 favorece al local (visitante más mermado)
+}
 function _injAdjust(m,p){
   if(!m||!m.inj) return p;
-  const d=(m.inj.away||0)-(m.inj.home||0);
-  if(!d) return p;
-  const shift=Math.max(-0.06,Math.min(0.06,d*0.015));   // cada baja neta ≈1.5%, tope 6%
+  const net=_injImpact(m); if(!net) return p;
+  // ~2.8% por punto de impacto; una figura fuera (~4) ≈ ~11%. Tope 15%.
+  let shift=Math.max(-0.15,Math.min(0.15,net*0.028));
+  if(m.inj.confirmed) shift*=1.15;   // alineación confirmada: señal más fuerte
+  shift=Math.max(-0.17,Math.min(0.17,shift));
   let pH=Math.max(0.02,p.pH+shift), pA=Math.max(0.02,p.pA-shift), pD=p.pD;
   const s=pH+pD+pA; return {pH:pH/s,pD:pD/s,pA:pA/s};
 }
@@ -514,13 +525,13 @@ function _temp(p,T){
 }
 function anomaliaProb(m,rH,rA,hfa,tune){
   const full=_anomWC(m.h,m.a);
-  if(full) return _injAdjust(m,full);
+  if(full) return full;
   const meta=_anomMeta(rH,rA,hfa);
   const mk=mercadoProb(m);
   const w=(tune&&tune.wMkt!=null)?tune.wMkt:0.7;   // 0.7 por defecto; aprendido si hay tune
   let p=_blend(mk,meta,w);
   if(tune&&tune.T&&tune.T!==1) p=_temp(p,tune.T);  // auto-calibración
-  return _injAdjust(m,p);
+  return p;
 }
 // AUTO-MEJORA: busca la mezcla y temperatura que MINIMIZAN el error (Brier) sobre su propio historial
 function tuneAnom(comp){
@@ -694,7 +705,9 @@ function predictMatch(t,m){
   if(ws<=0){ const e=preds.elo; pH=e.pH;pD=e.pD;pA=e.pA; ws=1; }
   pH/=ws;pD/=ws;pA/=ws;
   const s=pH+pD+pA;
-  return {pH:pH/s,pD:pD/s,pA:pA/s,preds,calibrando:wf.playedCount<10};
+  let cons={pH:pH/s,pD:pD/s,pA:pA/s};
+  cons=_injAdjust(m,cons);   // lesiones/alineaciones pesan sobre el pronóstico final
+  return {pH:cons.pH,pD:cons.pD,pA:cons.pA,preds,calibrando:wf.playedCount<10,inj:m.inj||null};
 }
 // ==================== SYNC ESPN ====================
 async function fetchJSON(url,timeoutMs=9000){
@@ -949,7 +962,7 @@ async function _applyDayOdds(cfg, day, idx){
   let filled=0, fxMap={};
   try{
     const fx=await apiFB('/fixtures?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
-    for(const r of ((fx&&fx.response)||[])){ const id=r&&r.fixture&&r.fixture.id, tm=r&&r.teams; if(id&&tm&&tm.home&&tm.away) fxMap[id]={h:tm.home.name,a:tm.away.name}; }
+    for(const r of ((fx&&fx.response)||[])){ const id=r&&r.fixture&&r.fixture.id, tm=r&&r.teams; if(id&&tm&&tm.home&&tm.away){ fxMap[id]={h:tm.home.name,a:tm.away.name}; const mm=idx[_norm(tm.home.name)+'|'+_norm(tm.away.name)]; if(mm) mm.fxid=id; } }
   }catch(e){}
   try{
     const od=await apiFB('/odds?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
@@ -977,18 +990,95 @@ async function _applyDayOdds(cfg, day, idx){
   }catch(e){}
   return filled;
 }
+// ===== JUGADORES CLAVE (goleadores) para pesar lesiones por importancia =====
+async function loadKeyPlayers(cfg,t){
+  const ck='fiq2_keyp_'+t;
+  try{ const raw=localStorage.getItem(ck); if(raw){ const o=JSON.parse(raw); if(o&&o.ts&&(Date.now()-o.ts)<7*864e5&&o.byName) return o; } }catch(e){}
+  const byName={}, byLast={};
+  try{
+    const d=await apiFB('/players/topscorers?league='+cfg.apiLeague+'&season='+cfg.apiSeason);
+    for(const r of ((d&&d.response)||[])){
+      const nm=_norm(r&&r.player&&r.player.name);
+      const st0=(r&&r.statistics&&r.statistics[0])||{};
+      const tm=_norm(st0.team&&st0.team.name);
+      const g=(st0.goals&&st0.goals.total)||0;
+      if(!nm||!tm) continue;
+      byName[nm]={team:tm,goals:g,disp:(r.player.name||'')};
+      const toks=nm.split(' ').filter(Boolean); const last=toks[toks.length-1];
+      if(last&&last.length>2&&!byLast[last]) byLast[last]={team:tm,goals:g,disp:(r.player.name||'')};
+    }
+    const o={ts:Date.now(),byName,byLast};
+    try{ localStorage.setItem(ck,JSON.stringify(o)); }catch(e){}
+    return o;
+  }catch(e){ return {ts:0,byName,byLast}; }
+}
+function _lookupKey(keyp,pname,teamKey){
+  if(!keyp||!pname) return null;
+  let k=keyp.byName[pname];
+  if(!k){ const toks=pname.split(' ').filter(Boolean); const last=toks[toks.length-1]; if(last) k=keyp.byLast[last]; }
+  if(k && k.team===teamKey) return k;   // solo si el equipo coincide (evita falsos positivos)
+  return null;
+}
 async function enrichAPIFootball(t){
   const cfg=TORNEOS[t]; if(!cfg||!cfg.apiLeague||!getApiKey()) return;
   const st=loadState(t);
   const idx={}; st.matches.forEach(m=>{ idx[_norm(m.h)+'|'+_norm(m.a)]=m; });
+  const keyp=await loadKeyPlayers(cfg,t);   // 1 llamada (cacheada 7 días)
   const days=[...new Set(st.matches.filter(m=>!m.played&&!m.seed&&m.date).map(m=>m.date.slice(0,10)))].sort().slice(0,4);
   for(const day of days){
     await _applyDayOdds(cfg, day, idx);
     try{
       const inj=await apiFB('/injuries?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
-      const byTeam={};
-      for(const r of ((inj&&inj.response)||[])){ const tn=_norm(r&&r.team&&r.team.name); if(tn) byTeam[tn]=(byTeam[tn]||0)+1; }
-      for(const m of st.matches){ if(m.date&&m.date.slice(0,10)===day){ const ih=byTeam[_norm(m.h)]||0, ia=byTeam[_norm(m.a)]||0; if(ih||ia) m.inj={home:ih,away:ia}; } }
+      const agg={};   // teamKey -> {n, base, kw:[{n,w}]}
+      for(const r of ((inj&&inj.response)||[])){
+        const tn=_norm(r&&r.team&&r.team.name); if(!tn) continue;
+        const a=agg[tn]||(agg[tn]={n:0,base:0,kw:[]});
+        a.n++;
+        const pn=_norm(r&&r.player&&r.player.name);
+        const kp=_lookupKey(keyp,pn,tn);
+        if(kp){ a.kw.push({n:(r.player&&r.player.name)||kp.disp,w:+(1.5+Math.min(3,(kp.goals||0)*0.25)).toFixed(2)}); }
+        else { a.base+=0.4; }   // baja común pesa poco
+      }
+      const packSide=X=>{ if(!X) return null; const w=X.base+X.kw.reduce((z,k)=>z+k.w,0); return {n:X.n,w:+w.toFixed(2),base:+X.base.toFixed(2),kw:X.kw}; };
+      for(const m of st.matches){ if(m.date&&m.date.slice(0,10)===day){
+        const H=packSide(agg[_norm(m.h)]), A=packSide(agg[_norm(m.a)]);
+        if(H||A) m.inj={ home:(H?H.n:0), away:(A?A.n:0),
+                         wHome:(H?H.w:0), wAway:(A?A.w:0),
+                         baseHome:(H?H.base:0), baseAway:(A?A.base:0),
+                         kwHome:(H?H.kw:[]), kwAway:(A?A.kw:[]),
+                         keyHome:(H?H.kw.map(k=>k.n):[]), keyAway:(A?A.kw.map(k=>k.n):[]),
+                         confirmed:(m.inj&&m.inj.confirmed)||false };
+      } }
+    }catch(e){}
+  }
+  // ALINEACIONES CONFIRMADAS: validan lesiones cerca del inicio (no inventan ausencias)
+  const soon=st.matches.filter(m=>!m.played&&!m.seed&&m.fxid&&m.date&&m.inj&&((m.inj.keyHome&&m.inj.keyHome.length)||(m.inj.keyAway&&m.inj.keyAway.length)));
+  for(const m of soon){
+    const mins=(_asDate(m.date).getTime()-Date.now())/60000;
+    if(mins>180||mins<-30) continue;   // solo desde 3h antes hasta 30 min después
+    try{
+      const lu=await apiFB('/fixtures/lineups?fixture='+m.fxid);
+      const arr=(lu&&lu.response)||[]; if(arr.length<2) continue;
+      const listed={};   // teamKey -> Set(nombres en XI+banca)
+      for(const side of arr){
+        const tn=_norm(side&&side.team&&side.team.name); if(!tn) continue;
+        const names=[...((side.startXI)||[]),...((side.substitutes)||[])].map(x=>_norm(x&&x.player&&x.player.name)).filter(Boolean);
+        listed[tn]=new Set(names);
+      }
+      const inXI=(S,nm)=>{ const n=_norm(nm); const toks=n.split(' ').filter(Boolean); const last=toks[toks.length-1];
+        return S.has(n)||[...S].some(x=>x.endsWith(' '+last)||x===last); };
+      const refine=(teamKey,kw,base)=>{
+        const S=listed[teamKey]; if(!S) return {kw,base};
+        const still=kw.filter(k=>!inXI(S,k.n));   // si la figura está en el XI, no era baja real
+        return {kw:still,base};
+      };
+      const rh=refine(_norm(m.h),m.inj.kwHome||[],m.inj.baseHome||0);
+      const ra=refine(_norm(m.a),m.inj.kwAway||[],m.inj.baseAway||0);
+      m.inj.kwHome=rh.kw; m.inj.kwAway=ra.kw;
+      m.inj.keyHome=rh.kw.map(k=>k.n); m.inj.keyAway=ra.kw.map(k=>k.n);
+      m.inj.wHome=+((m.inj.baseHome||0)+rh.kw.reduce((z,k)=>z+k.w,0)).toFixed(2);
+      m.inj.wAway=+((m.inj.baseAway||0)+ra.kw.reduce((z,k)=>z+k.w,0)).toFixed(2);
+      m.inj.confirmed=true;
     }catch(e){}
   }
   saveState(t);
@@ -1262,6 +1352,7 @@ function renderHoy(){
       </div>`;
       const bb=betSuggest(p);
       h+=`<div class="verdict v-pre"><span>🔮 Dictamen: <b>${pickLabel(dictP,hShort,aShort)}</b></span><span class="v-code">${bb.code} · ${conf}%</span></div>`;
+      if(m.inj){ const kh=m.inj.keyHome||[], ka=m.inj.keyAway||[]; if(kh.length||ka.length){ const tag=m.inj.confirmed?'XI confirmado':'baja reportada'; h+='<div class="injnote">🏥 '+(kh.length?('<b>'+hShort+'</b> sin '+kh.join(', ')):'')+((kh.length&&ka.length)?' · ':'')+(ka.length?('<b>'+aShort+'</b> sin '+ka.join(', ')):'')+' <span style="opacity:.7;font-weight:500">('+tag+')</span></div>'; } }
       // Cada motor se juega su pick explícito
       h+='<div style="margin-top:6px">';
       for(const k of MOTORES){
@@ -1278,7 +1369,11 @@ function renderHoy(){
         h+='<div class="mkt-panel">';
         const src=(m.odds&&m.odds.src==='apifb')?('consenso '+(m.odds.books||'')+' casas'):'consenso DraftKings';
         h+='<div class="mkt-h">🏦 Señales del mercado <span style="color:var(--dim);font-weight:500">· '+src+'</span></div>';
-        if(m.inj&&(m.inj.home||m.inj.away)) h+='<div class="mkt-row"><span>🏥 Bajas reportadas</span><span class="mkt-v">'+hShort+' '+(m.inj.home||0)+' · '+aShort+' '+(m.inj.away||0)+'</span></div>';
+        if(m.inj&&(m.inj.home||m.inj.away||m.inj.wHome||m.inj.wAway)){
+          const impv=(m.inj.wHome!=null?m.inj.wHome:0)+' vs '+(m.inj.wAway!=null?m.inj.wAway:0);
+          h+='<div class="mkt-row"><span>🏥 Bajas'+(m.inj.confirmed?' · XI confirmado':'')+'</span><span class="mkt-v">'+hShort+' '+(m.inj.home||0)+' · '+aShort+' '+(m.inj.away||0)+'</span></div>';
+          h+='<div class="mkt-row"><span>&nbsp;&nbsp;Impacto ponderado</span><span class="mkt-v">'+impv+'</span></div>';
+        }
         // prob implícita (de-vig)
         h+=`<div class="mkt-row"><span>Prob. implícita (sin margen)</span><span class="mkt-v">${Math.round(sig.fair.pH*100)}·${Math.round(sig.fair.pD*100)}·${Math.round(sig.fair.pA*100)}</span></div>`;
         // margen / overround
@@ -1340,6 +1435,27 @@ function renderComparativa(){
       `<div style="font-size:14px;color:var(--muted);margin-top:3px">✅ ${wf.hits[r.k]}/${wf.tot[r.k]} aciertos · peso en el consenso: ${w}%</div>`+
       '</div>';
   });
+  // ---- 📊 DESGLOSE POR RESULTADO (dónde acierta cada motor, sobre todo empates) ----
+  if(wf.log && wf.log.length){
+    const cnt={H:0,D:0,A:0};
+    const per={}; MOTORES.forEach(k=>per[k]={H:[0,0],D:[0,0],A:[0,0]});
+    per.cons={H:[0,0],D:[0,0],A:[0,0]}; per.mkt={H:[0,0],D:[0,0],A:[0,0]};
+    wf.log.forEach(r=>{
+      const actual=r.sh>r.sa?'H':r.sh<r.sa?'A':'D'; cnt[actual]++;
+      for(const k of MOTORES){ if(r.picks[k]==null) continue; per[k][actual][1]++; if(r.res[k]) per[k][actual][0]++; }
+      if(r.dict!=null){ per.cons[actual][1]++; if(r.dictOk) per.cons[actual][0]++; }
+      if(r.mkt!=null){ per.mkt[actual][1]++; if(r.mkt) per.mkt[actual][0]++; }
+    });
+    const pc=a=>a[1]?(Math.round(a[0]/a[1]*100)+'%'):'—';
+    h+='<div class="stitle">📊 Desglose por resultado</div>';
+    h+='<div style="font-size:12px;color:var(--dim);padding:0 4px;margin-bottom:8px">Aciertos separados según lo que REALMENTE pasó. Ocurrieron: <b>'+cnt.H+'</b> local · <b>'+cnt.D+'</b> empate · <b>'+cnt.A+'</b> visita.</div>';
+    h+='<div class="card" style="padding:8px 6px;overflow-x:auto"><table class="mtab"><thead><tr><th>Motor</th><th>Local</th><th>Empate</th><th>Visita</th></tr></thead><tbody>';
+    const order=[...MOTORES.map(k=>[MOTOR_LBL[k],per[k]]),['📊 Consenso',per.cons],['🏛️ Mercado',per.mkt]];
+    order.forEach(o=>{ h+='<tr><td>'+o[0]+'</td><td>'+pc(o[1].H)+'</td><td>'+pc(o[1].D)+'</td><td>'+pc(o[1].A)+'</td></tr>'; });
+    h+='</tbody></table></div>';
+    const bestDraw=Math.max(0,...MOTORES.map(k=>per[k].D[0]));
+    h+='<div style="font-size:13px;color:var(--muted);padding:0 4px;margin-bottom:10px">💡 Mira la columna <b>Empate</b>: casi siempre es la más baja. Los empates son lo más difícil de predecir para cualquier modelo — y para la casa. '+(cnt.D?('De '+cnt.D+' empates reales, el mejor motor acertó '+bestDraw+'. Si últimamente hubo muchos empates, por eso “baja” el acierto — no es que el modelo desaprenda.'):'')+'</div>';
+  }
   // ---- Marcador honesto CONTRA el mercado (la casa) ----
   if(wf.mkt && wf.mkt.tot>0){
     const mAcc=(wf.mkt.hits/wf.mkt.tot*100).toFixed(1);
@@ -1712,7 +1828,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v4.6 · 14 ago 2026";
+const APP_VERSION="v4.8 · 23 ago 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
