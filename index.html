@@ -270,13 +270,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v4.8 · 23 ago 2026</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.1 · 23 ago 2026</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v4.8 · 23 ago 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.1 · 23 ago 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -566,8 +566,8 @@ const ANOMALIAS_WC=[
   'Cabo Verde llevó a Argentina a la prórroga en R32 (3-2) — casi la mayor sorpresa de la historia.'
 ];
 
-const MOTORES=['elo','mom','anomalia'];
-const MOTOR_LBL={elo:'⚡ ELO',mom:'🔥 Momentum',anomalia:'🌀 Anomalía'};
+const MOTORES=['elo','mom','anomalia','glicko'];
+const MOTOR_LBL={elo:'⚡ ELO',mom:'🔥 Momentum',anomalia:'🌀 Anomalía',glicko:'🧬 ELO v2'};
 const MOTOR_SHORT={elo:'⚡',mom:'🔥',anomalia:'🌀'};
 // Sugerencia de apuesta a partir de probabilidades 1X2
 function betSuggest(p){
@@ -591,10 +591,75 @@ function brierOf(p,actual){ // 0=perfecto, 2=peor
 // Devuelve: estado final (para predecir futuros), aciertos por motor, pesos honestos.
 function argMax3(p){ return (p.pH>=p.pA&&p.pH>=p.pD)?'H':(p.pA>=p.pH&&p.pA>=p.pD)?'A':'D'; }
 
+// ===================== LABORATORIO EXPERIMENTAL 🧪 =====================
+// Modelos avanzados que corren EN PARALELO, medidos honestamente (walk-forward),
+// SIN afectar el consenso de producción. Sirven como experimento a futuro:
+// si con más datos uno le gana consistentemente a ELO, se considera promoverlo.
+//  • Glicko-2 (fútbol, con margin-of-victory) — extiende ELO con incertidumbre (RD) y volatilidad
+//  • Kalman/EKF (state-space) — fuerza del equipo como estado latente que evoluciona
+function _labProb(diff,hfa,dr){
+  const pW=1/(1+Math.pow(10,-(diff+(hfa||0))/400));
+  const draw=Math.max(0.12,Math.min(0.34,(dr??0.26)-Math.abs(diff)*0.00012));
+  const pH=pW*(1-draw), pA=(1-pW)*(1-draw); return {pH,pD:1-pH-pA,pA};
+}
+function _loadSeedElo(t){ try{const raw=localStorage.getItem('fiq2_seedelo_'+t); if(raw){const o=JSON.parse(raw); if(o&&o.map) return o.map;}}catch(e){} return null; }
+const G2_SC=173.7178, G2_TAU=0.5;
+function _g2g(phi){return 1/Math.sqrt(1+3*phi*phi/(Math.PI*Math.PI));}
+function _g2E(mu,muj,phij){return 1/(1+Math.exp(-_g2g(phij)*(mu-muj)));}
+function _g2init(seedElo){ const R=(seedElo!=null)?seedElo:1500; return {mu:(R-1500)/G2_SC,phi:350/G2_SC,sig:0.06}; }
+function _g2update(P,oppMu,oppPhi,score,homeAdj,mov){
+  const e=_g2E(P.mu+homeAdj,oppMu,oppPhi);
+  const v=1/(_g2g(oppPhi)*_g2g(oppPhi)*e*(1-e));
+  const delta=v*_g2g(oppPhi)*(score-e)*mov;
+  const a=Math.log(P.sig*P.sig);
+  const f=x=>{const ex=Math.exp(x);return ex*(delta*delta-P.phi*P.phi-v-ex)/(2*Math.pow(P.phi*P.phi+v+ex,2))-(x-a)/(G2_TAU*G2_TAU);};
+  let A0=a,B0; if(delta*delta>P.phi*P.phi+v)B0=Math.log(Math.max(1e-9,delta*delta-P.phi*P.phi-v)); else{let k=1;while(f(a-k*G2_TAU)<0&&k<100)k++;B0=a-k*G2_TAU;}
+  let fa=f(A0),fb=f(B0);
+  for(let i=0;i<60&&Math.abs(B0-A0)>1e-6;i++){const C=A0+(A0-B0)*fa/((fb-fa)||1e-9);const fc=f(C);if(fc*fb<0){A0=B0;fa=fb;}else{fa/=2;}B0=C;fb=fc;}
+  const sig2=Math.exp(A0/2);const phiStar=Math.sqrt(P.phi*P.phi+sig2*sig2);const phiP=1/Math.sqrt(1/(phiStar*phiStar)+1/v);
+  return {mu:P.mu+phiP*phiP*_g2g(oppPhi)*(score-e)*mov, phi:phiP, sig:sig2};
+}
+function glickoProb(H,A,hfa,dr){ if(!H||!A) return null; const diff=((H.mu+(hfa||0)/G2_SC)-A.mu)*G2_SC; return _labProb(diff,0,dr); }
+function _glicko2Run(played,hfa,dr,seed){
+  const T={};
+  const get=t=>{ if(!T[t]) T[t]=_g2init(seed&&seed[_norm(t)]!=null?seed[_norm(t)]:null); return T[t]; };
+  let hits=0,tot=0,br=0;
+  for(const m of played){
+    const H=get(m.h),A=get(m.a); const hAdj=hfa/G2_SC;
+    if(!m.seed){ const p=glickoProb(H,A,hfa,dr); const act=m.sh>m.sa?'H':m.sh<m.sa?'A':'D'; tot++; if(_argMaxLab(p)===act)hits++; br+=_brierLab(p,act); }
+    const s=m.sh>m.sa?1:m.sh===m.sa?0.5:0; const mov=1+0.3*Math.log(1+Math.abs(m.sh-m.sa));
+    const nh=_g2update(H,A.mu,A.phi,s,hAdj,mov); const na=_g2update(A,H.mu+hAdj,H.phi,1-s,0,mov); T[m.h]=nh;T[m.a]=na;
+  }
+  return tot?{acc:hits/tot,brier:br/tot,tot}:null;
+}
+function _kalmanRun(played,hfa,dr,seed){
+  const m={},P={};const Q=180,Rn=0.10;
+  const gm=t=>{ if(m[t]==null){ m[t]=(seed&&seed[_norm(t)]!=null)?seed[_norm(t)]:1500; P[t]=(seed&&seed[_norm(t)]!=null)?4000:10000; } return m[t]; };
+  let hits=0,tot=0,br=0;
+  for(const x of played){
+    gm(x.h);gm(x.a);
+    if(!x.seed){ const p=_labProb((m[x.h]-m[x.a]),hfa,dr); const act=x.sh>x.sa?'H':x.sh<x.sa?'A':'D'; tot++; if(_argMaxLab(p)===act)hits++; br+=_brierLab(p,act); }
+    P[x.h]+=Q;P[x.a]+=Q; const mov=1+0.3*Math.log(1+Math.abs(x.sh-x.sa));
+    const pW=1/(1+Math.pow(10,-((m[x.h]+hfa)-m[x.a])/400)); const s=x.sh>x.sa?1:x.sh===x.sa?0.5:0; const innov=(s-pW)*mov;
+    const d=pW*(1-pW)*Math.LN10/400; const Sk=d*d*P[x.h]+d*d*P[x.a]+Rn; const Kh=P[x.h]*d/Sk, Ka=-P[x.a]*d/Sk;
+    m[x.h]+=Kh*innov; m[x.a]+=Ka*innov; P[x.h]-=Kh*d*P[x.h]; P[x.a]-=Ka*(-d)*P[x.a];
+  }
+  return tot?{acc:hits/tot,brier:br/tot,tot}:null;
+}
+function _argMaxLab(p){return (p.pH>=p.pA&&p.pH>=p.pD)?'H':(p.pA>=p.pH&&p.pA>=p.pD)?'A':'D';}
+function _brierLab(p,a){return Math.pow(p.pH-(a==='H'?1:0),2)+Math.pow(p.pD-(a==='D'?1:0),2)+Math.pow(p.pA-(a==='A'?1:0),2);}
+function _runLab(played,hfa,dr,seed){
+  if(!played||played.filter(m=>!m.seed).length<3) return null;
+  const out={ glicko:_glicko2Run(played,hfa,dr,null), kalman:_kalmanRun(played,hfa,dr,null) };
+  if(seed){ out.glickoWarm=_glicko2Run(played,hfa,dr,seed); }
+  return out;
+}
 function walkForward(t){
   const st=loadState(t);
   const cfg=TORNEOS[t];
   const elo={}; const form={}; const gp={};      // gp = partidos jugados por equipo
+  const glk={};   // estado Glicko-2 por equipo (motor ELO v2)
+  const g2upd=(h,a,sh,sa,hAdjElo)=>{ const H=glk[h]||(glk[h]=_g2init()), A=glk[a]||(glk[a]=_g2init()); const mov=1+0.3*Math.log(1+Math.abs(sh-sa)); const sc=sh>sa?1:sh===sa?0.5:0; const hAdj=hAdjElo/G2_SC; glk[h]=_g2update(H,A.mu,A.phi,sc,hAdj,mov); glk[a]=_g2update(A,H.mu+hAdj,H.phi,1-sc,0,mov); };
   const anom={favW:0,favN:0,draws:0,n:0};
   // Aprendizaje de parámetros de la liga (localía y empates), estimados sobre la marcha
   let hw=0,aw=0,dr=0,ntot=0;
@@ -609,6 +674,7 @@ function walkForward(t){
     hfa=learnHFA(); drawRate=learnDraw();
     if(m.seed){
       eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa+_altBonus(m.h,m.a),gp,m.xg);
+      g2upd(m.h,m.a,m.sh,m.sa,hfa+_altBonus(m.h,m.a));
       (form[m.h]=form[m.h]||[]).push(m.sh>m.sa?3:m.sh===m.sa?1:0);
       (form[m.a]=form[m.a]||[]).push(m.sa>m.sh?3:m.sh===m.sa?1:0);
       accResult(m.sh,m.sa);
@@ -621,7 +687,8 @@ function walkForward(t){
     const preds={
       elo: eloProb(rH,rA,drawRate,hfa+alt),
       mom: momProb(f5(m.h),f5(m.a)),
-      anomalia: anomaliaProb(m,rH,rA,hfa+alt)
+      anomalia: anomaliaProb(m,rH,rA,hfa+alt),
+      glicko: glickoProb(glk[m.h]||_g2init(), glk[m.a]||_g2init(), hfa+alt, drawRate)
     };
     const actual=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
     anomComp.push({mk:mercadoProb(m), meta:_anomMeta(rH,rA,hfa+alt), wc:!!_anomWC(m.h,m.a), actual});
@@ -652,13 +719,15 @@ function walkForward(t){
     else anom.draws++;
     anom.n++;
     eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa+alt,gp,m.xg);
+    g2upd(m.h,m.a,m.sh,m.sa,hfa+alt);
     (form[m.h]=form[m.h]||[]).push(m.sh>m.sa?3:m.sh===m.sa?1:0);
     (form[m.a]=form[m.a]||[]).push(m.sa>m.sh?3:m.sh===m.sa?1:0);
     accResult(m.sh,m.sa);
   }
   const w=_calcWeights(hits,tot,scored);
   const anomTuned=tuneAnom(anomComp);
-  return {elo,form,gp,anom,hits,tot,brier,mkt,weights:w,hfa,drawRate,anomTuned,log,playedCount:scored,seedCount:played.length-scored};
+  const lab=_runLab(played,hfa,drawRate,_loadSeedElo(t));
+  return {elo,glk,form,gp,anom,hits,tot,brier,mkt,weights:w,hfa,drawRate,anomTuned,log,lab,playedCount:scored,seedCount:played.length-scored};
 }
 // Pesos del consenso: reaccionan desde 5 partidos, con encogimiento hacia el
 // reparto igual al principio (evita saltos bruscos con pocos datos).
@@ -693,7 +762,8 @@ function predictMatch(t,m){
   const preds={
     elo: eloProb(rH,rA,drawRate,hfa+alt),
     mom: momProb(f5(m.h),f5(m.a)),
-    anomalia: anomaliaProb(m,rH,rA,hfa+alt,wf.anomTuned)
+    anomalia: anomaliaProb(m,rH,rA,hfa+alt,wf.anomTuned),
+    glicko: glickoProb((wf.glk&&wf.glk[m.h])||_g2init(), (wf.glk&&wf.glk[m.a])||_g2init(), hfa+alt, drawRate)
   };
   // consenso: pesos walk-forward, renormalizados entre motores CON datos
   let pH=0,pD=0,pA=0,ws=0;
@@ -972,13 +1042,30 @@ async function _applyDayOdds(cfg, day, idx){
       if(!names||!names.h||!names.a) continue;
       const m=idx[_norm(names.h)+'|'+_norm(names.a)]; if(!m) continue;
       let sH=0,sD=0,sA=0,sM=0,cnt=0,bH=0,bD=0,bA=0;
+      let oOv=0,oUn=0,cOU=0, bYy=0,bNn=0,cB=0;   // Over/Under 2.5 y BTTS (2-vías)
       for(const bk of (row.bookmakers||[])){
-        const bet=(bk.bets||[]).find(x=>/match winner|1x2|winner/i.test(x.name||''));
-        if(!bet) continue;
-        const gv=re=>{const o=(bet.values||[]).find(x=>new RegExp(re,'i').test(String(x.value)));return o?parseFloat(o.odd):null;};
-        const oH=gv('home|^1$'),oD=gv('draw|^x$'),oA=gv('away|^2$');
-        const dv=_devig(oH,oD,oA);
-        if(dv){ sH+=dv.pH;sD+=dv.pD;sA+=dv.pA;sM+=dv.margin;cnt++; if(oH>bH)bH=oH; if(oD>bD)bD=oD; if(oA>bA)bA=oA; }
+        const bets=(bk.bets||[]);
+        const bet=bets.find(x=>/match winner|1x2|winner/i.test(x.name||''));
+        if(bet){
+          const gv=re=>{const o=(bet.values||[]).find(x=>new RegExp(re,'i').test(String(x.value)));return o?parseFloat(o.odd):null;};
+          const oH=gv('home|^1$'),oD=gv('draw|^x$'),oA=gv('away|^2$');
+          const dv=_devig(oH,oD,oA);
+          if(dv){ sH+=dv.pH;sD+=dv.pD;sA+=dv.pA;sM+=dv.margin;cnt++; if(oH>bH)bH=oH; if(oD>bD)bD=oD; if(oA>bA)bA=oA; }
+        }
+        // Over/Under 2.5 (bet "Goals Over/Under")
+        const betOU=bets.find(x=>/over\/under|goals over/i.test(x.name||''));
+        if(betOU){
+          const fo=(betOU.values||[]).find(x=>/over/i.test(String(x.value))&&/2\.5/.test(String(x.value)));
+          const fu=(betOU.values||[]).find(x=>/under/i.test(String(x.value))&&/2\.5/.test(String(x.value)));
+          if(fo&&fu){ const io=1/parseFloat(fo.odd), iu=1/parseFloat(fu.odd); const z=io+iu; if(z>0){ oOv+=io/z; oUn+=iu/z; cOU++; } }
+        }
+        // Ambos marcan (bet "Both Teams Score")
+        const betB=bets.find(x=>/both teams.*score|btts/i.test(x.name||''));
+        if(betB){
+          const by=(betB.values||[]).find(x=>/^yes/i.test(String(x.value)));
+          const bn=(betB.values||[]).find(x=>/^no/i.test(String(x.value)));
+          if(by&&bn){ const iy=1/parseFloat(by.odd), inn=1/parseFloat(bn.odd); const z=iy+inn; if(z>0){ bYy+=iy/z; bNn+=inn/z; cB++; } }
+        }
       }
       if(cnt>0){
         const first=(m.odds&&m.odds.first)?m.odds.first:{pH:sH/cnt,pD:sD/cnt,pA:sA/cnt};
@@ -986,11 +1073,27 @@ async function _applyDayOdds(cfg, day, idx){
         m.oddsBest={H:+bH.toFixed(2),D:+bD.toFixed(2),A:+bA.toFixed(2),books:cnt};
         filled++;
       }
+      if(cOU>0) m.ou25={over:+(oOv/cOU).toFixed(3),under:+(oUn/cOU).toFixed(3),books:cOU};
+      if(cB>0)  m.btts={yes:+(bYy/cB).toFixed(3),no:+(bNn/cB).toFixed(3),books:cB};
     }
   }catch(e){}
   return filled;
 }
 // ===== JUGADORES CLAVE (goleadores) para pesar lesiones por importancia =====
+async function loadSeedElo(cfg,t){
+  const ck='fiq2_seedelo_'+t;
+  try{ const raw=localStorage.getItem(ck); if(raw){ const o=JSON.parse(raw); if(o&&o.ts&&(Date.now()-o.ts)<7*864e5&&o.map) return o.map; } }catch(e){}
+  const map={};
+  try{
+    const season=(cfg.apiSeason||2026)-1;
+    const d=await apiFB('/standings?league='+cfg.apiLeague+'&season='+season);
+    const tbl=(((d&&d.response&&d.response[0]&&d.response[0].league&&d.response[0].league.standings)||[])[0])||[];
+    const N=tbl.length||1;
+    for(const row of tbl){ const nm=_norm(row&&row.team&&row.team.name); const rank=row&&row.rank; if(nm&&rank) map[nm]=Math.round(1500+((N+1-2*rank)/Math.max(1,N-1))*220); }
+    if(Object.keys(map).length) localStorage.setItem(ck,JSON.stringify({ts:Date.now(),map}));
+  }catch(e){}
+  return map;
+}
 async function loadKeyPlayers(cfg,t){
   const ck='fiq2_keyp_'+t;
   try{ const raw=localStorage.getItem(ck); if(raw){ const o=JSON.parse(raw); if(o&&o.ts&&(Date.now()-o.ts)<7*864e5&&o.byName) return o; } }catch(e){}
@@ -1024,6 +1127,7 @@ async function enrichAPIFootball(t){
   const st=loadState(t);
   const idx={}; st.matches.forEach(m=>{ idx[_norm(m.h)+'|'+_norm(m.a)]=m; });
   const keyp=await loadKeyPlayers(cfg,t);   // 1 llamada (cacheada 7 días)
+  await loadSeedElo(cfg,t);   // tabla temporada previa -> semilla ELO (laboratorio warm-start)
   const days=[...new Set(st.matches.filter(m=>!m.played&&!m.seed&&m.date).map(m=>m.date.slice(0,10)))].sort().slice(0,4);
   for(const day of days){
     await _applyDayOdds(cfg, day, idx);
@@ -1376,6 +1480,12 @@ function renderHoy(){
         }
         // prob implícita (de-vig)
         h+=`<div class="mkt-row"><span>Prob. implícita (sin margen)</span><span class="mkt-v">${Math.round(sig.fair.pH*100)}·${Math.round(sig.fair.pD*100)}·${Math.round(sig.fair.pA*100)}</span></div>`;
+        // OTROS MERCADOS (derivados del mercado, de-vig) — Over/Under 2.5 y BTTS
+        if(m.ou25||m.btts){
+          h+='<div class="mkt-row" style="border-top:1px dashed var(--border);margin-top:6px;padding-top:8px"><span>📊 Otros mercados</span><span class="mkt-v" style="color:var(--dim);font-weight:500">según el mercado</span></div>';
+          if(m.ou25){ const ov=Math.round(m.ou25.over*100); h+='<div class="mkt-row"><span>⚽ Más de 2.5 goles</span><span class="mkt-v">'+ov+'% <span style="color:var(--dim);font-weight:500">(menos '+(100-ov)+'%)</span></span></div>'; }
+          if(m.btts){ const by=Math.round(m.btts.yes*100); h+='<div class="mkt-row"><span>🥅 Ambos marcan</span><span class="mkt-v">'+by+'% <span style="color:var(--dim);font-weight:500">(no '+(100-by)+'%)</span></span></div>'; }
+        }
         // margen / overround
         if(sig.margin!=null){
           const mg=Math.round(sig.margin*100);
@@ -1477,6 +1587,34 @@ function renderComparativa(){
       '</div>';
   } else {
     h+='<div class="card" style="font-size:14px;color:var(--muted);line-height:1.5">🏛️ <b>Comparación vs la Casa:</b> aparece cuando haya partidos con cuotas de apuestas registradas. Ahí se ve, sin humo, si algún motor le gana al mercado (Brier) o no.</div>';
+  }
+  // ---- 🧪 LABORATORIO EXPERIMENTAL (modelos avanzados en paralelo, NO afectan pronósticos) ----
+  if(wf.lab){
+    const L=wf.lab;
+    const eloAcc=wf.tot.elo?wf.hits.elo/wf.tot.elo:null, eloBr=wf.tot.elo?wf.brier.elo/wf.tot.elo:null;
+    const mktAcc=(wf.mkt&&wf.mkt.tot)?wf.mkt.hits/wf.mkt.tot:null, mktBr=(wf.mkt&&wf.mkt.tot)?wf.mkt.brier/wf.mkt.tot:null;
+    const rowsL=[];
+    const glkAcc=wf.tot.glicko?wf.hits.glicko/wf.tot.glicko:null, glkBr=wf.tot.glicko?wf.brier.glicko/wf.tot.glicko:null;
+    rowsL.push(['⚙️ ELO (producción)',eloAcc,eloBr,false]);
+    rowsL.push(['🧬 ELO v2 · Glicko-2 (producción)',glkAcc,glkBr,false]);
+    if(mktAcc!=null) rowsL.push(['🏛️ Mercado',mktAcc,mktBr,false]);
+    if(L.kalman) rowsL.push(['🧪 Kalman / state-space',L.kalman.acc,L.kalman.brier,true]);
+    if(L.glickoWarm) rowsL.push(['🧪 Glicko-2 (warm 2025)',L.glickoWarm.acc,L.glickoWarm.brier,true]);
+    // mejor experimental por Brier
+    let bestExp=null; rowsL.forEach(r=>{ if(r[3]&&r[2]!=null&&(!bestExp||r[2]<bestExp[2])) bestExp=r; });
+    const beatsElo = bestExp && eloBr!=null && bestExp[2]<eloBr;
+    h+='<div class="stitle">🧪 Laboratorio experimental</div>';
+    h+='<div style="font-size:13px;color:var(--muted);padding:0 4px;margin-bottom:8px">Glicko-2 ya fue <b>promovido a ELO v2</b> (motor de producción): compite en el consenso y su peso sube o baja solo según acierte — ese es su A/B test en vivo (míralo arriba en el ranking). Aquí siguen los que aún son <b>experimento</b> (Kalman, warm-start): NO afectan tus pronósticos hasta que ganen sobre más datos.</div>';
+    h+='<div class="card" style="padding:8px 6px;overflow-x:auto;border-color:rgba(160,120,240,.4)"><table class="mtab"><thead><tr><th>Modelo</th><th>Precisión</th><th>Brier↓</th></tr></thead><tbody>';
+    rowsL.forEach(r=>{
+      const hl = bestExp && r[0]===bestExp[0];
+      h+='<tr'+(hl?' style="background:rgba(160,120,240,.12)"':'')+'><td>'+r[0]+'</td><td>'+(r[1]==null?'—':(r[1]*100).toFixed(1)+'%')+'</td><td>'+(r[2]==null?'—':r[2].toFixed(3))+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+    h+='<div style="font-size:13px;color:var(--muted);padding:0 4px;margin-bottom:10px">'+
+       (bestExp?('El mejor experimental hoy es <b>'+bestExp[0].replace('🧪 ','')+'</b> (Brier '+bestExp[2].toFixed(3)+'). '+
+        (beatsElo?'✅ <b style="color:var(--green)">Le gana al ELO</b> en calidad de probabilidad — muestra pequeña, lo vigilamos.':'Aún no le gana al ELO de producción de forma clara.')):'Reuniendo datos.')+
+       ' Glicko-2 añade incertidumbre (RD) y volatilidad al rating; Kalman trata la fuerza como un estado latente que evoluciona (enfoque state-space, RSS 2024).</div>';
   }
   // Tarjeta del experimento de sobreajuste
   const anAcc=wf.tot.anomalia?(wf.hits.anomalia/wf.tot.anomalia*100).toFixed(1):null;
@@ -1828,7 +1966,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v4.8 · 23 ago 2026";
+const APP_VERSION="v5.1 · 23 ago 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
