@@ -270,13 +270,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.1 · 23 ago 2026</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.2 · 23 ago 2026</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.1 · 23 ago 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.2 · 23 ago 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -752,6 +752,21 @@ function getWF(t){ if(!WF[t]) WF[t]=walkForward(t); return WF[t]; }
 function invalidateWF(t){ delete WF[t]; }
 
 // ==================== PREDICCIÓN DE PARTIDOS FUTUROS ====================
+function _glkInflate(P,sevEff){ if(!P||!sevEff) return P; return {mu:P.mu, phi:P.phi*(1+sevEff*3), sig:P.sig}; }
+function _coachSevEff(side){ return (side&&side.new)? side.sev*(1-0.5*(side.prestige||0)) : 0; }
+function _coachAdjust(m,cons,cfg){
+  if(!m.coach) return cons;
+  const H=m.coach.h||{}, A=m.coach.a||{};
+  const sevH=_coachSevEff(H), sevA=_coachSevEff(A);
+  const fUnc=Math.max(sevH,sevA);
+  let pH=cons.pH,pD=cons.pD,pA=cons.pA;
+  if(fUnc>0){ const nD=cfg.baseDraw||0.28, nH=0.40, nA=1-nH-nD; pH=(1-fUnc)*pH+fUnc*nH; pD=(1-fUnc)*pD+fUnc*nD; pA=(1-fUnc)*pA+fUnc*nA; }
+  // empujón leve por palmarés del DT recién llegado (acotado)
+  const tiltH=H.new?Math.min(0.03,(H.prestige||0)*H.sev*0.4):0;
+  const tiltA=A.new?Math.min(0.03,(A.prestige||0)*A.sev*0.4):0;
+  pH=Math.max(0.02,pH+tiltH-tiltA); pA=Math.max(0.02,pA+tiltA-tiltH);
+  const sm=pH+pD+pA; return {pH:pH/sm,pD:pD/sm,pA:pA/sm};
+}
 function predictMatch(t,m){
   const wf=getWF(t);
   const cfg=TORNEOS[t];
@@ -763,7 +778,7 @@ function predictMatch(t,m){
     elo: eloProb(rH,rA,drawRate,hfa+alt),
     mom: momProb(f5(m.h),f5(m.a)),
     anomalia: anomaliaProb(m,rH,rA,hfa+alt,wf.anomTuned),
-    glicko: glickoProb((wf.glk&&wf.glk[m.h])||_g2init(), (wf.glk&&wf.glk[m.a])||_g2init(), hfa+alt, drawRate)
+    glicko: (function(){ let gH=(wf.glk&&wf.glk[m.h])||_g2init(), gA=(wf.glk&&wf.glk[m.a])||_g2init(); if(m.coach){ gH=_glkInflate(gH,_coachSevEff(m.coach.h)); gA=_glkInflate(gA,_coachSevEff(m.coach.a)); } return glickoProb(gH,gA,hfa+alt,drawRate); })()
   };
   // consenso: pesos walk-forward, renormalizados entre motores CON datos
   let pH=0,pD=0,pA=0,ws=0;
@@ -777,7 +792,8 @@ function predictMatch(t,m){
   const s=pH+pD+pA;
   let cons={pH:pH/s,pD:pD/s,pA:pA/s};
   cons=_injAdjust(m,cons);   // lesiones/alineaciones pesan sobre el pronóstico final
-  return {pH:cons.pH,pD:cons.pD,pA:cons.pA,preds,calibrando:wf.playedCount<10,inj:m.inj||null};
+  cons=_coachAdjust(m,cons,cfg);   // cambio de DT: más incertidumbre (± palmarés)
+  return {pH:cons.pH,pD:cons.pD,pA:cons.pA,preds,calibrando:wf.playedCount<10,inj:m.inj||null,coach:m.coach||null};
 }
 // ==================== SYNC ESPN ====================
 async function fetchJSON(url,timeoutMs=9000){
@@ -1032,7 +1048,7 @@ async function _applyDayOdds(cfg, day, idx){
   let filled=0, fxMap={};
   try{
     const fx=await apiFB('/fixtures?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
-    for(const r of ((fx&&fx.response)||[])){ const id=r&&r.fixture&&r.fixture.id, tm=r&&r.teams; if(id&&tm&&tm.home&&tm.away){ fxMap[id]={h:tm.home.name,a:tm.away.name}; const mm=idx[_norm(tm.home.name)+'|'+_norm(tm.away.name)]; if(mm) mm.fxid=id; } }
+    for(const r of ((fx&&fx.response)||[])){ const id=r&&r.fixture&&r.fixture.id, tm=r&&r.teams; if(id&&tm&&tm.home&&tm.away){ fxMap[id]={h:tm.home.name,a:tm.away.name}; const mm=idx[_norm(tm.home.name)+'|'+_norm(tm.away.name)]; if(mm){ mm.fxid=id; mm.hid=tm.home.id; mm.aid=tm.away.id; } } }
   }catch(e){}
   try{
     const od=await apiFB('/odds?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
@@ -1122,6 +1138,45 @@ function _lookupKey(keyp,pname,teamKey){
   if(k && k.team===teamKey) return k;   // solo si el equipo coincide (evita falsos positivos)
   return null;
 }
+async function loadCoaches(cfg,t,teamPairs){
+  // teamPairs: [{key, id}] equipos de próximos partidos
+  const ck='fiq2_coach_'+t; let cache={};
+  try{ const raw=localStorage.getItem(ck); if(raw){ const o=JSON.parse(raw); if(o&&o.ts&&(Date.now()-o.ts)<7*864e5&&o.map) cache=o.map; } }catch(e){}
+  let changed=false;
+  for(const tp of teamPairs){
+    if(!tp.id || cache[tp.key]) continue;   // ya cacheado
+    try{
+      const d=await apiFB('/coachs?team='+tp.id);
+      const list=(d&&d.response)||[]; let start=null,name=null,coachId=null;
+      for(const c of list){
+        for(const car of ((c&&c.career)||[])){
+          if(car&&car.team&&car.team.id===tp.id && (car.end==null)){ start=car.start||null; name=c.name||null; coachId=c.id||null; }
+        }
+      }
+      let titles=0, prestige=0;
+      if(coachId){
+        try{
+          const tr=await apiFB('/trophies?coach='+coachId);
+          for(const x of ((tr&&tr.response)||[])){ if(/winner/i.test(String(x&&x.place))) titles++; }
+          prestige=Math.min(1, titles/8);   // 8+ títulos = élite
+        }catch(e){}
+      }
+      cache[tp.key]={start,name,titles,prestige:+prestige.toFixed(2)}; changed=true;
+    }catch(e){ cache[tp.key]={start:null,name:null}; changed=true; }
+  }
+  if(changed){ try{ localStorage.setItem(ck,JSON.stringify({ts:Date.now(),map:cache})); }catch(e){} }
+  return cache;
+}
+// Severidad de "DT nuevo": 0 (sin cambio) hasta ~0.15 (recién llegado). Decae con partidos dirigidos.
+function _coachSeverity(startISO, playedDates){
+  if(!startISO) return {sev:0,matches:null,new:false};
+  const start=_asDate(startISO).getTime(); if(isNaN(start)) return {sev:0,matches:null,new:false};
+  const matches=(playedDates||[]).filter(dt=>_asDate(dt).getTime()>=start).length;
+  const days=(Date.now()-start)/864e5;
+  if(matches>=6 || days>90) return {sev:0,matches,new:false};
+  const sev=Math.max(0, (6-matches)/6)*0.15;
+  return {sev:+sev.toFixed(3),matches,new:sev>0};
+}
 async function enrichAPIFootball(t){
   const cfg=TORNEOS[t]; if(!cfg||!cfg.apiLeague||!getApiKey()) return;
   const st=loadState(t);
@@ -1185,6 +1240,23 @@ async function enrichAPIFootball(t){
       m.inj.confirmed=true;
     }catch(e){}
   }
+  // CAMBIO DE DT: DT actual por equipo (próximos partidos) -> señal de incertidumbre
+  try{
+    const up=st.matches.filter(m=>!m.played&&!m.seed&&m.hid&&m.aid&&m.date);
+    const pairs={}; up.forEach(m=>{ pairs[_norm(m.h)]=m.hid; pairs[_norm(m.a)]=m.aid; });
+    const teamPairs=Object.keys(pairs).map(k=>({key:k,id:pairs[k]}));
+    if(teamPairs.length){
+      const coaches=await loadCoaches(cfg,t,teamPairs);
+      const playedByTeam={};
+      st.matches.filter(m=>m.played&&m.date).forEach(m=>{ (playedByTeam[_norm(m.h)]=playedByTeam[_norm(m.h)]||[]).push(m.date); (playedByTeam[_norm(m.a)]=playedByTeam[_norm(m.a)]||[]).push(m.date); });
+      for(const m of up){
+        const ch=coaches[_norm(m.h)]||{}, ca=coaches[_norm(m.a)]||{};
+        const sh=_coachSeverity(ch.start, playedByTeam[_norm(m.h)]), sa=_coachSeverity(ca.start, playedByTeam[_norm(m.a)]);
+        if(sh.new||sa.new) m.coach={ h:{new:sh.new,sev:sh.sev,matches:sh.matches,name:ch.name||null,titles:ch.titles||0,prestige:ch.prestige||0}, a:{new:sa.new,sev:sa.sev,matches:sa.matches,name:ca.name||null,titles:ca.titles||0,prestige:ca.prestige||0} };
+        else if(m.coach) delete m.coach;
+      }
+    }
+  }catch(e){}
   saveState(t);
 }
 // APRENDER DEL PASADO: rellena cuotas de partidos ya jugados que aún no las tienen
@@ -1457,6 +1529,7 @@ function renderHoy(){
       const bb=betSuggest(p);
       h+=`<div class="verdict v-pre"><span>🔮 Dictamen: <b>${pickLabel(dictP,hShort,aShort)}</b></span><span class="v-code">${bb.code} · ${conf}%</span></div>`;
       if(m.inj){ const kh=m.inj.keyHome||[], ka=m.inj.keyAway||[]; if(kh.length||ka.length){ const tag=m.inj.confirmed?'XI confirmado':'baja reportada'; h+='<div class="injnote">🏥 '+(kh.length?('<b>'+hShort+'</b> sin '+kh.join(', ')):'')+((kh.length&&ka.length)?' · ':'')+(ka.length?('<b>'+aShort+'</b> sin '+ka.join(', ')):'')+' <span style="opacity:.7;font-weight:500">('+tag+')</span></div>'; } }
+      if(m.coach){ const parts=[]; const fmt=(side,sh)=>{ if(!side||!side.new) return null; const st=side.prestige>=0.5?' ⭐ganador':(side.titles?(' · '+side.titles+' títulos'):' · sin títulos'); return '<b>'+sh+'</b> DT nuevo'+(side.matches!=null?(' ('+side.matches+' part.)'):'')+st; }; const fh=fmt(m.coach.h,hShort), fa=fmt(m.coach.a,aShort); if(fh)parts.push(fh); if(fa)parts.push(fa); if(parts.length) h+='<div class="injnote" style="background:rgba(120,140,240,.10);border-color:rgba(120,140,240,.30);color:#cdd6ff">🔁 '+parts.join(' · ')+' <span style="opacity:.7;font-weight:500">(más incertidumbre)</span></div>'; }
       // Cada motor se juega su pick explícito
       h+='<div style="margin-top:6px">';
       for(const k of MOTORES){
@@ -1966,7 +2039,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.1 · 23 ago 2026";
+const APP_VERSION="v5.2 · 23 ago 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
