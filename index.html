@@ -270,13 +270,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.2 · 23 ago 2026</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.3 · 23 ago 2026</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.2 · 23 ago 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.3 · 23 ago 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -330,13 +330,13 @@ body{
 const TORNEOS = {
   betplay: {
     nombre:'Liga BetPlay 2026-II', corto:'🇨🇴 BetPlay', espn:'col.1',
-    inicio:'2026-07-24', fin:'2026-12-15', estado:'activo', seedDesde:'2026-01-15', seedHasta:'2026-07-23',
+    inicio:'2026-07-24', fin:'2026-12-15', estado:'activo', seedDesde:'2024-01-15', seedHasta:'2026-07-23', seedVer:2,
     nota:'20 equipos · 19 fechas todos contra todos (hasta 8 nov) + cuadrangulares. Inicia vie 24 jul. Campeón Apertura 2026-I: Atlético Junior (3-1 global a Nacional).',
     baseDraw:0.28, baseFav:0.46, apiLeague:239, apiSeason:2026
   },
   laliga: {
     nombre:'LaLiga 2026-27', corto:'🇪🇸 LaLiga', espn:'esp.1',
-    inicio:'2026-08-15', fin:'2027-05-30', estado:'activo', seedDesde:'2025-08-10', seedHasta:'2026-06-01',
+    inicio:'2026-08-15', fin:'2027-05-30', estado:'activo', seedDesde:'2023-08-10', seedHasta:'2026-06-01', seedVer:2,
     nota:'Jornada 1: sáb 15 ago (Alavés–Getafe 19:00). Partidos de equipos con mundialistas pueden aplazarse al 25-27 ago.',
     baseDraw:0.25, baseFav:0.49, apiLeague:140, apiSeason:2026
   },
@@ -648,9 +648,38 @@ function _kalmanRun(played,hfa,dr,seed){
 }
 function _argMaxLab(p){return (p.pH>=p.pA&&p.pH>=p.pD)?'H':(p.pA>=p.pH&&p.pA>=p.pD)?'A':'D';}
 function _brierLab(p,a){return Math.pow(p.pH-(a==='H'?1:0),2)+Math.pow(p.pD-(a==='D'?1:0),2)+Math.pow(p.pA-(a==='A'?1:0),2);}
+function _dcRun(played,hfa,dr){
+  // Dixon-Coles: goles Poisson bivariante con corrección tau de marcadores bajos (mejora empates)
+  const FACT=[1,1,2,6,24,120,720,5040,40320,362880];
+  const pois=(k,l)=>Math.exp(-l)*Math.pow(l,k)/FACT[k];
+  const rho=-0.05;
+  const tau=(x,y,lh,la)=>{ if(x===0&&y===0)return 1-lh*la*rho; if(x===0&&y===1)return 1+lh*rho; if(x===1&&y===0)return 1+la*rho; if(x===1&&y===1)return 1-rho; return 1; };
+  const sf={},sc={},gp={}; let sumH=0,sumA=0,ng=0;
+  let hits=0,tot=0,br=0;
+  const shrink=(rate,n,lg)=>(n*rate+4*lg)/(n+4);
+  for(const m of played){
+    const lg=ng?(sumH+sumA)/(2*ng):1.2, avgH=ng?sumH/ng:1.3, avgA=ng?sumA/ng:1.0;
+    const gh=gp[m.h]||0, ga=gp[m.a]||0;
+    const attH=shrink((sf[m.h]||0)/Math.max(1,gh),gh,lg)/Math.max(0.2,lg);
+    const defH=shrink((sc[m.h]||0)/Math.max(1,gh),gh,lg)/Math.max(0.2,lg);
+    const attA=shrink((sf[m.a]||0)/Math.max(1,ga),ga,lg)/Math.max(0.2,lg);
+    const defA=shrink((sc[m.a]||0)/Math.max(1,ga),ga,lg)/Math.max(0.2,lg);
+    const lh=Math.max(0.15,attH*defA*avgH), la=Math.max(0.15,attA*defH*avgA);
+    if(!m.seed){
+      let pH=0,pD=0,pA=0;
+      for(let x=0;x<=8;x++)for(let y=0;y<=8;y++){ const p=pois(x,lh)*pois(y,la)*tau(x,y,lh,la); if(x>y)pH+=p;else if(x<y)pA+=p;else pD+=p; }
+      const sN=(pH+pD+pA)||1; const P={pH:pH/sN,pD:pD/sN,pA:pA/sN};
+      const act=m.sh>m.sa?'H':m.sh<m.sa?'A':'D'; tot++; if(_argMaxLab(P)===act)hits++; br+=_brierLab(P,act);
+    }
+    sf[m.h]=(sf[m.h]||0)+m.sh; sc[m.h]=(sc[m.h]||0)+m.sa; gp[m.h]=gh+1;
+    sf[m.a]=(sf[m.a]||0)+m.sa; sc[m.a]=(sc[m.a]||0)+m.sh; gp[m.a]=ga+1;
+    sumH+=m.sh; sumA+=m.sa; ng++;
+  }
+  return tot?{acc:hits/tot,brier:br/tot,tot}:null;
+}
 function _runLab(played,hfa,dr,seed){
   if(!played||played.filter(m=>!m.seed).length<3) return null;
-  const out={ glicko:_glicko2Run(played,hfa,dr,null), kalman:_kalmanRun(played,hfa,dr,null) };
+  const out={ glicko:_glicko2Run(played,hfa,dr,null), kalman:_kalmanRun(played,hfa,dr,null), dc:_dcRun(played,hfa,dr) };
   if(seed){ out.glickoWarm=_glicko2Run(played,hfa,dr,seed); }
   return out;
 }
@@ -698,7 +727,7 @@ function walkForward(t){
     let cH=0,cD=0,cA=0,cws=0;
     for(const k of MOTORES){ if(!preds[k])continue; const wk=rw[k]||0; cH+=preds[k].pH*wk;cD+=preds[k].pD*wk;cA+=preds[k].pA*wk;cws+=wk; }
     if(cws<=0){ const e=preds.elo; cH=e.pH;cD=e.pD;cA=e.pA;cws=1; }
-    row.dict=argMax3({pH:cH/cws,pD:cD/cws,pA:cA/cws}); row.dictOk=row.dict===actual;
+    const consP={pH:cH/cws,pD:cD/cws,pA:cA/cws}; row.consP=consP; row.dict=argMax3(consP); row.dictOk=row.dict===actual;
     for(const k of MOTORES){
       if(!preds[k]) { row.res[k]=null; row.picks[k]=null; continue; }
       tot[k]++;
@@ -727,7 +756,15 @@ function walkForward(t){
   const w=_calcWeights(hits,tot,scored);
   const anomTuned=tuneAnom(anomComp);
   const lab=_runLab(played,hfa,drawRate,_loadSeedElo(t));
-  return {elo,glk,form,gp,anom,hits,tot,brier,mkt,weights:w,hfa,drawRate,anomTuned,log,lab,playedCount:scored,seedCount:played.length-scored};
+  // CALIBRACIÓN: temperatura global que minimiza el Brier del consenso (temperature scaling honesto)
+  let consT=1, consBrier=null;
+  if(log.length>=8){ let best=1e9, base=null;
+    for(let T=0.9;T<=1.5001;T+=0.05){ let b=0,n=0; for(const r of log){ if(!r.consP)continue; const a=r.sh>r.sa?'H':r.sh<r.sa?'A':'D'; b+=brierOf(_temp(r.consP,T),a); n++; } b=n?b/n:9; if(Math.abs(T-1)<1e-6)base=b; if(b<best){best=b;consT=+T.toFixed(2);} }
+    consBrier={base:base!=null?+base.toFixed(4):null,tuned:+best.toFixed(4)};
+    const conf=Math.min(1, log.length/45);           // con pocos partidos, no calibrar agresivo
+    consT=+(1+(consT-1)*conf).toFixed(2);
+  }
+  return {elo,glk,form,gp,anom,hits,tot,brier,mkt,weights:w,hfa,drawRate,anomTuned,consT,consBrier,log,lab,playedCount:scored,seedCount:played.length-scored};
 }
 // Pesos del consenso: reaccionan desde 5 partidos, con encogimiento hacia el
 // reparto igual al principio (evita saltos bruscos con pocos datos).
@@ -793,6 +830,7 @@ function predictMatch(t,m){
   let cons={pH:pH/s,pD:pD/s,pA:pA/s};
   cons=_injAdjust(m,cons);   // lesiones/alineaciones pesan sobre el pronóstico final
   cons=_coachAdjust(m,cons,cfg);   // cambio de DT: más incertidumbre (± palmarés)
+  cons=_temp(cons, wf.consT||1);   // calibración final (temperature scaling aprendido)
   return {pH:cons.pH,pD:cons.pD,pA:cons.pA,preds,calibrando:wf.playedCount<10,inj:m.inj||null,coach:m.coach||null};
 }
 // ==================== SYNC ESPN ====================
@@ -884,12 +922,17 @@ async function syncTorneo(t){
   const base=`https://site.api.espn.com/apis/site/v2/sports/soccer/${cfg.espn}/scoreboard`;
   const st0=loadState(t);
   // Siembra (una sola vez): historia previa para calibrar el ELO antes de la jornada 1
-  if(cfg.seedDesde && !st0.seedDone){
+  const seedVer=cfg.seedVer||1;
+  if(cfg.seedDesde && st0.seedDone!==seedVer){
     try{
-      const s0=new Date(cfg.seedDesde+'T00:00:00'), s1=new Date(cfg.seedHasta+'T00:00:00');
-      const sd=await fetchWithProxies(`${base}?dates=${_fmtD(s0)}-${_fmtD(s1)}&limit=500`);
-      parseEvents(t,sd.events||[],true);
-      st0.seedDone=true; saveState(t);
+      let cur=new Date(cfg.seedDesde+'T00:00:00'); const s1=new Date(cfg.seedHasta+'T00:00:00');
+      while(cur<s1){   // ventanas de 4 meses para respetar el límite de 500 por llamada
+        let end=new Date(cur); end.setMonth(end.getMonth()+4); if(end>s1) end=new Date(s1);
+        const sd=await fetchWithProxies(`${base}?dates=${_fmtD(cur)}-${_fmtD(end)}&limit=500`);
+        parseEvents(t,sd.events||[],true);
+        cur=new Date(end); cur.setDate(cur.getDate()+1);
+      }
+      st0.seedDone=seedVer; saveState(t);
     }catch(e){ console.warn('seed:',e.message); }
   }
   // Temporada completa: calendario entero para poder simular el título
@@ -1671,6 +1714,7 @@ function renderComparativa(){
     rowsL.push(['⚙️ ELO (producción)',eloAcc,eloBr,false]);
     rowsL.push(['🧬 ELO v2 · Glicko-2 (producción)',glkAcc,glkBr,false]);
     if(mktAcc!=null) rowsL.push(['🏛️ Mercado',mktAcc,mktBr,false]);
+    if(L.dc) rowsL.push(['🧪 Dixon-Coles (goles)',L.dc.acc,L.dc.brier,true]);
     if(L.kalman) rowsL.push(['🧪 Kalman / state-space',L.kalman.acc,L.kalman.brier,true]);
     if(L.glickoWarm) rowsL.push(['🧪 Glicko-2 (warm 2025)',L.glickoWarm.acc,L.glickoWarm.brier,true]);
     // mejor experimental por Brier
@@ -2039,7 +2083,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.2 · 23 ago 2026";
+const APP_VERSION="v5.3 · 23 ago 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
