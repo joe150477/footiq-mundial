@@ -270,13 +270,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.3 · 23 ago 2026</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.4 · 23 ago 2026</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.3 · 23 ago 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.4 · 23 ago 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1733,6 +1733,49 @@ function renderComparativa(){
         (beatsElo?'✅ <b style="color:var(--green)">Le gana al ELO</b> en calidad de probabilidad — muestra pequeña, lo vigilamos.':'Aún no le gana al ELO de producción de forma clara.')):'Reuniendo datos.')+
        ' Glicko-2 añade incertidumbre (RD) y volatilidad al rating; Kalman trata la fuerza como un estado latente que evoluciona (enfoque state-space, RSS 2024).</div>';
   }
+  // ---- 🔬 AUTOAUDITORÍA (laboratorio: por qué mejora o se estanca) ----
+  if(wf.log && wf.log.length>=6){
+    const L=wf.log, n=L.length;
+    const act=r=>r.sh>r.sa?'H':r.sh<r.sa?'A':'D';
+    // 1) ESTANCAMIENTO: primera vs segunda mitad (acc y Brier del consenso)
+    const half=Math.floor(n/2);
+    const accOf=arr=>arr.length?arr.reduce((s,r)=>s+(r.dictOk?1:0),0)/arr.length:null;
+    const brOf=arr=>arr.length?arr.reduce((s,r)=>s+(r.consP?brierOf(r.consP,act(r)):0),0)/arr.length:null;
+    const e1=L.slice(0,half),e2=L.slice(half);
+    const a1=accOf(e1),a2=accOf(e2),b1=brOf(e1),b2=brOf(e2);
+    let trend='estable';
+    if(b1!=null&&b2!=null){ if(b2<b1-0.02) trend='📈 mejorando'; else if(b2>b1+0.02) trend='📉 deteriorándose'; else trend='➡️ estable (posible techo)'; }
+    // 2) REDUNDANCIA: coincidencia media de picks entre motores
+    let pairs=0,agSum=0, maxPair=0, maxName='';
+    for(let i=0;i<MOTORES.length;i++)for(let j=i+1;j<MOTORES.length;j++){
+      let nn=0,ss=0; L.forEach(r=>{const a=r.picks[MOTORES[i]],b=r.picks[MOTORES[j]];if(a&&b){nn++;if(a===b)ss++;}});
+      if(nn>=5){ const ag=ss/nn; agSum+=ag; pairs++; if(ag>maxPair){maxPair=ag;maxName=MOTOR_LBL[MOTORES[i]]+'≈'+MOTOR_LBL[MOTORES[j]];} }
+    }
+    const avgAg=pairs?agSum/pairs:null;
+    // 3) FAMILIAS DE ERROR del consenso
+    let eD=0,eU=0,eO=0,fails=0;
+    L.forEach(r=>{ if(r.dictOk) return; fails++; const a=act(r); if(a==='D')eD++; else if((r.dict==='H'&&a==='A')||(r.dict==='A'&&a==='H'))eU++; else eO++; });
+    // 4) CALIBRACIÓN: confianza declarada vs aciertos reales
+    let sumTop=0,hit=0,cn=0; L.forEach(r=>{ if(!r.consP)return; sumTop+=Math.max(r.consP.pH,r.consP.pD,r.consP.pA); hit+=r.dictOk?1:0; cn++; });
+    const avgConf=cn?sumTop/cn:null, realAcc=cn?hit/cn:null;
+    const calib = (avgConf!=null)? (avgConf>realAcc+0.06?'sobreconfiado':avgConf<realAcc-0.06?'subconfiado':'bien calibrado') : '—';
+    // ---- "SI SOLO PUDIERAS CAMBIAR UNA COSA" ----
+    let one, why, how;
+    if(fails>0 && eD/fails>=0.4){ one='Predecir empates (motor de goles / Dixon-Coles)'; why=eD+' de '+fails+' fallos ('+Math.round(eD/fails*100)+'%) son empates que nadie eligió — es el error dominante y sistemático.'; how='Promover Dixon-Coles del laboratorio cuando, con más historia, su Brier baje del de ELO v2 en el A/B.'; }
+    else if(avgAg!=null && avgAg>=0.8){ one='Diversificar los motores (reducir redundancia)'; why='Los motores coinciden '+Math.round(avgAg*100)+'% de las veces ('+maxName+' casi idénticos): el ensemble no gana información nueva.'; how='Añadir un modelo genuinamente distinto (goles/Monte Carlo) y medir si baja la correlación de errores.'; }
+    else if(calib==='sobreconfiado'){ one='Recalibrar la confianza'; why='Declara ~'+Math.round(avgConf*100)+'% pero acierta ~'+Math.round(realAcc*100)+'%.'; how='Suavizar con temperature scaling (ya activo) y vigilar el Brier fuera de muestra.'; }
+    else { one='Acumular más historia fuera de muestra'; why='No hay un error estructural dominante; el límite hoy es tamaño de muestra ('+n+' evaluados).'; how='La siembra multi-temporada llena las ventanas de 25/50/100 para medir con rigor.'; }
+
+    h+='<div class="stitle">🔬 Autoauditoría del sistema</div>';
+    h+='<div class="card" style="border-color:rgba(47,168,245,.35);font-size:14px;line-height:1.55">';
+    h+='<div style="display:flex;justify-content:space-between;padding:3px 0"><span>📊 Índice de estancamiento</span><b>'+trend+'</b></div>';
+    h+='<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--border)"><span>1ª mitad → 2ª (Brier↓)</span><b>'+(b1!=null?b1.toFixed(3):'—')+' → '+(b2!=null?b2.toFixed(3):'—')+'</b></div>';
+    h+='<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--border)"><span>🔁 Redundancia (picks iguales)</span><b>'+(avgAg!=null?Math.round(avgAg*100)+'%':'—')+(avgAg!=null&&avgAg>=0.8?' ⚠️':'')+'</b></div>';
+    h+='<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--border)"><span>🎯 Calibración</span><b>'+calib+(avgConf!=null?(' ('+Math.round(avgConf*100)+'% vs '+Math.round(realAcc*100)+'%)'):'')+'</b></div>';
+    h+='<div style="padding:6px 0 2px;border-top:1px solid var(--border)">🧩 <b>Familias de error</b> ('+fails+' fallos): empate '+eD+' · sorpresa L/V '+eU+' · otros '+eO+'</div>';
+    h+='</div>';
+    h+='<div class="card" style="border-color:rgba(240,188,53,.5);font-size:14px;line-height:1.6"><b>🎯 Si solo pudieras cambiar UNA cosa:</b><br><b style="color:var(--gold)">'+one+'</b><br><span style="color:var(--muted)">Evidencia: '+why+'</span><br><span style="color:var(--muted)">Comprobación: '+how+'</span></div>';
+  }
   // Tarjeta del experimento de sobreajuste
   const anAcc=wf.tot.anomalia?(wf.hits.anomalia/wf.tot.anomalia*100).toFixed(1):null;
   h+=`<div class="card" style="border-color:rgba(240,188,53,.4);font-size:15px;line-height:1.6"><b>🌀 Experimento en curso — ¿transfiere el clon de la casa?</b><br>`+
@@ -2083,7 +2126,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.3 · 23 ago 2026";
+const APP_VERSION="v5.4 · 23 ago 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
