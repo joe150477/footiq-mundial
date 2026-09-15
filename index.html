@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.5 · 6 sep 2026</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.6 · 14 sep 2026</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.5 · 6 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.6 · 14 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -971,12 +971,21 @@ async function syncActive(){
   try{
     const res=await syncTorneo(ACTIVE);
     try{ applyHistoricOdds(ACTIVE); applyHistoricXG(ACTIVE); }catch(e){}
-    if(getApiKey()){ try{ await enrichAPIFootball(ACTIVE); invalidateWF(ACTIVE); }catch(e){} }
-
+    let bf=null;
+    if(getApiKey()){
+      try{ await enrichAPIFootball(ACTIVE); }catch(e){}
+      try{ bf=await backfillOdds(ACTIVE, 45); }catch(e){}   // rellena cuotas de partidos jugados (progresivo)
+      invalidateWF(ACTIVE);
+    }
     const now=new Date();
     document.getElementById('syncStatus').textContent='✓ '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
     const st=loadState(ACTIVE);
-    showToast(`✅ ${TORNEOS[ACTIVE].corto}: ${st.matches.filter(m=>m.played).length} jugados · ${st.matches.length} partidos en total`);
+    const conCuota=st.matches.filter(m=>m.played&&!m.seed&&m.odds&&m.odds.pH!=null).length;
+    const jugados=st.matches.filter(m=>m.played&&!m.seed).length;
+    let extra='';
+    if(getApiKey()){ extra=` · 🏦 cuotas ${conCuota}/${jugados}`; if(bf&&bf.remaining>0) extra+=` (faltan ${bf.remaining} días — sincroniza otra vez)`; }
+    else { extra=' · 🔑 conecta API-Football para cuotas (sube el acierto)'; }
+    showToast(`✅ ${TORNEOS[ACTIVE].corto}: ${jugados} jugados${extra}`);
     refreshAll();
   }catch(e){
     document.getElementById('syncStatus').textContent='⚠';
@@ -1686,6 +1695,22 @@ function renderComparativa(){
   let h='<div class="card" style="background:rgba(47,168,245,.07);border-color:rgba(47,168,245,.25);font-size:15px;line-height:1.5">'+
     '🔬 <b>Evaluación honesta (walk-forward):</b> cada motor se califica solo con lo que sabía ANTES de cada partido. Nada de autoevaluarse con datos del futuro (el bug que inflaba el 85% en la versión anterior).</div>';
   const ranked=MOTORES.map(k=>({k,acc:wf.tot[k]?wf.hits[k]/wf.tot[k]:null})).sort((a,b)=>(b.acc??-1)-(a.acc??-1));
+  // ===== HEADLINE: precisión del CONSENSO (lo que realmente apuestas) =====
+  if(wf.log && wf.log.length){
+    let ch=0; wf.log.forEach(r=>{ if(r.dictOk)ch++; });
+    const cacc=Math.round(ch/wf.log.length*100);
+    const mkA=(wf.mkt&&wf.mkt.tot)?Math.round(wf.mkt.hits/wf.mkt.tot*100):null;
+    const conCuota=(loadState(ACTIVE).matches.filter(m=>m.played&&!m.seed&&m.odds&&m.odds.pH!=null).length);
+    const jug=loadState(ACTIVE).matches.filter(m=>m.played&&!m.seed).length;
+    const cov = jug?Math.round(conCuota/jug*100):0;
+    const col = cacc>=55?'var(--green)':cacc>=50?'var(--gold)':'var(--orange)';
+    h+='<div class="card" style="text-align:center;border-color:'+col+';background:linear-gradient(180deg,rgba(90,169,240,.08),transparent)">'+
+       '<div style="font-size:13px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">🎯 Consenso — lo que apuestas</div>'+
+       '<div style="font-size:46px;font-weight:900;color:'+col+';letter-spacing:-.03em;margin:2px 0">'+cacc+'%</div>'+
+       '<div style="font-size:13px;color:var(--muted)">'+ch+'/'+wf.log.length+' aciertos'+(mkA!=null?(' · 🏛️ mercado '+mkA+'%'):'')+'</div>';
+    if(cov<80) h+='<div style="font-size:13px;color:var(--orange);margin-top:8px;padding:8px;background:rgba(240,147,78,.1);border-radius:9px;line-height:1.4">⚠️ Solo <b>'+cov+'%</b> de tus partidos tienen cuotas del mercado ('+conCuota+'/'+jug+'). El mercado es la señal más fuerte — <b>sincroniza otra vez</b> para que se rellenen y suba el acierto.</div>';
+    h+='</div>';
+  }
   h+='<div class="stitle">🏅 Precisión real · '+wf.playedCount+' partidos</div>';
   ranked.forEach((r,i)=>{
     const medal=['🥇','🥈','🥉','4️⃣'][i];
@@ -2161,7 +2186,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.5 · 6 sep 2026";
+const APP_VERSION="v5.6 · 14 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
