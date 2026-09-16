@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.11 · 16 sep 2026 · diagnóstico ESPN</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.12 · 16 sep 2026 · diag directo</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.11 · 16 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.12 · 16 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1047,29 +1047,38 @@ async function apiFB(path){
 }
 async function _diagFetch(u,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms||9000); try{ const r=await fetch(u,{signal:c.signal}); clearTimeout(id); const txt=await r.text(); let n=null; try{ let j=JSON.parse(txt); if(j&&typeof j.contents==='string')j=JSON.parse(j.contents); n=(j&&j.events)?j.events.length:null; }catch(e){} return {ok:r.ok,status:r.status,n,len:txt.length}; }catch(e){ clearTimeout(id); return {err:e.name==='AbortError'?'timeout':e.message}; } }
 async function testEspnProxies(){
-  const box=document.getElementById('espnDiag'); if(box) box.innerHTML='🔌 Probando proxies desde tu dispositivo…';
+  const box=document.getElementById('espnDiag'); if(box) box.innerHTML='🔌 Buscando el formato que ESPN acepta directo…';
   const cfg=TORNEOS[ACTIVE]||TORNEOS.betplay;
   const fmt=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
   const to=new Date(), from=new Date(); from.setDate(from.getDate()-8);
-  const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+cfg.espn+'/scoreboard?dates='+fmt(from)+'-'+fmt(to)+'&limit=100';
-  const enc=encodeURIComponent(url);
+  const bU='https://site.api.espn.com/apis/site/v2/sports/soccer/'+cfg.espn+'/scoreboard';
+  const rango=bU+'?dates='+fmt(from)+'-'+fmt(to);
+  const dir1=bU;                          // sin fechas (jornada actual)
+  const dir2=bU+'?dates='+fmt(to);        // un día
+  const encR=encodeURIComponent(rango+'&limit=100');
   const tests=[
-    ['Directo (CORS)',url,7000],
-    ['corsproxy.io','https://corsproxy.io/?url='+enc,12000],
-    ['allorigins raw','https://api.allorigins.win/raw?url='+enc,12000],
-    ['codetabs','https://api.codetabs.com/v1/proxy/?quest='+enc,12000],
-    ['allorigins get','https://api.allorigins.win/get?url='+enc,12000],
-    ['thingproxy','https://thingproxy.freeboard.io/fetch/'+url,12000],
-    ['cors.sh','https://proxy.cors.sh/'+url,12000]
+    ['Directo SIN fechas',dir1,7000,'dir'],
+    ['Directo 1 día',dir2,7000,'dir'],
+    ['Directo RANGO',rango,7000,'dir'],
+    ['corsproxy.io','https://corsproxy.io/?url='+encR,12000,'prox'],
+    ['codetabs','https://api.codetabs.com/v1/proxy/?quest='+encR,12000,'prox'],
+    ['allorigins get','https://api.allorigins.win/get?url='+encR,12000,'prox']
   ];
-  let out='';
-  for(const [name,u,ms] of tests){
+  let out='', win=null;
+  for(const [name,u,ms,kind] of tests){
     const t0=Date.now(); const r=await _diagFetch(u,ms); const dt=Date.now()-t0;
+    const ok=(!r.err&&r.ok&&r.n!=null);
     if(r.err) out+='❌ '+name+' — '+r.err+' ('+dt+'ms)<br>';
-    else out+=(r.ok&&r.n!=null?'✅':'⚠️')+' '+name+' — HTTP '+r.status+(r.n!=null?(' · '+r.n+' partidos'):' · sin JSON')+' ('+dt+'ms)<br>';
+    else out+=(ok?'✅':'⚠️')+' '+name+' — HTTP '+r.status+(r.n!=null?(' · '+r.n+' part.'):' · sin JSON')+' ('+dt+'ms)<br>';
     if(box) box.innerHTML=out;
+    if(ok&&!win) win={name,kind,u};
   }
-  out+='<br><span style="color:var(--dim)">✅ = ese proxy funciona en tu red. Si todos fallan, tu operador/WiFi bloquea los proxies — prueba con datos móviles o otra red.</span>';
+  if(win){
+    try{ localStorage.setItem('fiq2_espnok', win.kind); }catch(e){}
+    out+='<br><span style="color:var(--green)"><b>✅ ¡Encontré una vía que funciona: '+win.name+'!</b> La guardé. Cierra Ajustes y toca 🔄 — debería sincronizar.</span>';
+  } else {
+    out+='<br><span style="color:var(--orange)">Ninguna vía funcionó. Prueba con <b>datos móviles</b> (no WiFi) y repite: si ahí sí funciona, tu WiFi/operador bloquea ESPN.</span>';
+  }
   if(box) box.innerHTML=out;
 }
 async function testAPIFootball(){
@@ -2760,7 +2769,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.11 · 16 sep 2026";
+const APP_VERSION="v5.12 · 16 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
