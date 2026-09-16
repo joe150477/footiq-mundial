@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.9 · 16 sep 2026 · fix sync</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.10 · 16 sep 2026 · proxies robustos</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.9 · 16 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.10 · 16 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -867,19 +867,23 @@ async function fetchJSON(url,timeoutMs=9000){
     const r=await fetch(url,{signal:ctrl.signal});
     clearTimeout(tid);
     if(!r.ok) throw new Error('HTTP '+r.status);
-    return await r.json();
+    const txt=await r.text();                 // tolerante a content-type equivocado de los proxies
+    try{ return JSON.parse(txt); }catch(pe){ throw new Error('resp no-JSON'); }
   }catch(e){ clearTimeout(tid); throw e; }
 }
 async function fetchWithProxies(url){
   const enc=encodeURIComponent(url);
   const tries=[
-    ()=>fetchJSON(url,6000),
-    ()=>fetchJSON('https://api.allorigins.win/raw?url='+enc,12000),
-    async()=>{const w=await fetchJSON('https://api.allorigins.win/get?url='+enc,12000);return JSON.parse(w.contents);},
-    ()=>fetchJSON('https://api.codetabs.com/v1/proxy/?quest='+enc,12000),
+    ()=>fetchJSON(url,7000),                                              // directo (a veces ESPN sí permite)
+    ()=>fetchJSON('https://corsproxy.io/?url='+enc,13000),
+    ()=>fetchJSON('https://api.allorigins.win/raw?url='+enc,13000),
+    ()=>fetchJSON('https://api.codetabs.com/v1/proxy/?quest='+enc,13000),
+    async()=>{const w=await fetchJSON('https://api.allorigins.win/get?url='+enc,13000);return (w&&typeof w.contents==='string')?JSON.parse(w.contents):w;},
+    ()=>fetchJSON('https://thingproxy.freeboard.io/fetch/'+url,13000),
+    ()=>fetchJSON('https://proxy.cors.sh/'+url,13000),
   ];
   let lastErr;
-  for(const f of tries){ try{ return await f(); }catch(e){ lastErr=e; } }
+  for(const f of tries){ try{ const r=await f(); if(r) return r; }catch(e){ lastErr=e; } }
   throw lastErr||new Error('sin conexión');
 }
 function _fmtD(d){ return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`; }
@@ -999,7 +1003,7 @@ async function syncActive(){
     refreshAll();
   }catch(e){
     document.getElementById('syncStatus').textContent='⚠';
-    showToast('⚠ Sin conexión a ESPN — toca 🔄 para reintentar',false);
+    showToast('⚠ Sin conexión a ESPN ('+((e&&e.message)||'?')+') — toca 🔄 para reintentar',false);
   }finally{ btn.classList.remove('syncing'); }
 }
 
@@ -2727,7 +2731,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.9 · 16 sep 2026";
+const APP_VERSION="v5.10 · 16 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
