@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.12 · 16 sep 2026 · diag directo</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.13 · 16 sep 2026 · ESPN directo ✔</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.12 · 16 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.13 · 16 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -948,36 +948,40 @@ function parseEvents(t,events,isSeed){
   return {nuevos,actualizados};
 }
 
+// ESPN acepta fecha ÚNICA directo (CORS ok); RECHAZA rangos con 400. Por eso pedimos día por día.
+async function _fetchDay(base, day){
+  const url=base+'?dates='+day;      // fecha única → ESPN responde directo, sin proxy
+  try{ return await fetchJSON(url,8000); }catch(e){ return await fetchWithProxies(url); }  // proxy solo de respaldo
+}
 async function syncTorneo(t){
   const cfg=TORNEOS[t];
   if(!cfg||cfg.estado==='futuro'||cfg.estado==='finalizado') return {nuevos:0,actualizados:0};
   const base=`https://site.api.espn.com/apis/site/v2/sports/soccer/${cfg.espn}/scoreboard`;
-  // 1) ESENCIAL PRIMERO: la temporada actual. La app debe funcionar aunque la siembra falle.
-  const d0=new Date(cfg.inicio+'T00:00:00');
-  const d1=cfg.fin?new Date(cfg.fin+'T00:00:00'):(()=>{const x=new Date();x.setDate(x.getDate()+30);return x;})();
-  const data=await fetchWithProxies(`${base}?dates=${_fmtD(d0)}-${_fmtD(d1)}&limit=500`);
-  const res=parseEvents(t,data.events||[]);
+  // 1) ESENCIAL: ventana hoy-4 .. hoy+18, DÍA POR DÍA (fecha única = ESPN directo).
+  const now=new Date(); let got=0; const res={nuevos:0,actualizados:0};
+  for(let off=-4; off<=18; off++){
+    const d=new Date(now); d.setDate(d.getDate()+off);
+    try{ const data=await _fetchDay(base,_fmtD(d)); const r=parseEvents(t,data.events||[]); res.nuevos+=r.nuevos; res.actualizados+=r.actualizados; got++; }catch(e){}
+  }
+  if(got===0) throw new Error('ESPN no respondió');   // solo si TODOS los días fallan (sin red real)
   invalidateWF(t);
-  // 2) SIEMBRA PROGRESIVA (best-effort): máx 2 ventanas por sync, con progreso persistente,
-  //    para NO saturar los proxies gratuitos ni bloquear la sincronización esencial.
-  try{ await seedProgressive(t,cfg,base); }catch(e){ console.warn('seed:',e.message); }
+  // 2) BACKFILL de la temporada (días previos aún no traídos), progresivo y cacheado.
+  try{ await seasonBackfill(t,cfg,base); }catch(e){ console.warn('backfill:',e.message); }
   return res;
 }
-async function seedProgressive(t,cfg,base){
-  if(!cfg.seedDesde) return;
-  const st=loadState(t); const seedVer=cfg.seedVer||1;
-  if(st.seedDone===seedVer) return;
-  let cur = st.seedProgress ? new Date(st.seedProgress) : new Date(cfg.seedDesde+'T00:00:00');
-  const s1=new Date(cfg.seedHasta+'T00:00:00');
-  let chunks=0;
-  while(cur<s1 && chunks<2){   // solo 2 ventanas por sync → los proxies no se saturan
-    let end=new Date(cur); end.setMonth(end.getMonth()+4); if(end>s1) end=new Date(s1);
-    const sd=await fetchWithProxies(`${base}?dates=${_fmtD(cur)}-${_fmtD(end)}&limit=500`);
-    parseEvents(t,sd.events||[],true);
-    cur=new Date(end); cur.setDate(cur.getDate()+1);
-    st.seedProgress=cur.toISOString(); saveState(t); chunks++;
+async function seasonBackfill(t,cfg,base){
+  const st=loadState(t); st.fetchedDays=st.fetchedDays||{};
+  const start=new Date(cfg.inicio+'T00:00:00');
+  const end=new Date(); end.setDate(end.getDate()-5);   // lo reciente ya lo cubre la ventana esencial
+  const pend=[];
+  for(let d=new Date(start); d<end; d.setDate(d.getDate()+1)){ const k=_fmtD(d); if(!st.fetchedDays[k]) pend.push(k); }
+  let n=0;
+  for(const day of pend){
+    if(n>=30) break;   // 30 días por sync → en 1-2 sync queda toda la temporada, sin saturar
+    try{ const data=await _fetchDay(base,day); parseEvents(t,data.events||[]); st.fetchedDays[day]=1; n++; }
+    catch(e){ break; }   // si falla, se reintenta el próximo sync (progreso guardado)
   }
-  if(cur>=s1){ st.seedDone=seedVer; saveState(t); }   // completada: no vuelve a intentar
+  saveState(t);
 }
 
 async function syncActive(){
@@ -2769,7 +2773,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.12 · 16 sep 2026";
+const APP_VERSION="v5.13 · 16 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
