@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.6 · 14 sep 2026</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.8 · 16 sep 2026 · 🔮 Oráculo</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.6 · 14 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.8 · 16 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -320,6 +320,13 @@ body{
     </div>
     <div id="footiqoStatus" style="font-size:13px;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--green-soft);color:var(--green);line-height:1.5"></div>
     <button class="mbtn" style="width:100%;margin-top:10px" onclick="runBackfill()">📥 Aprender del pasado · API-Football</button>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border2)">
+      <div style="font-weight:700;font-size:15px">🤖 IA del Oráculo · Gemini (opcional)</div>
+      <div class="modal-desc" style="margin-top:4px">Gratis en <b>aistudio.google.com/app/apikey</b> (sin tarjeta). Solo propone hipótesis medibles; nunca decide el pronóstico. La clave se guarda solo en este dispositivo.</div>
+      <input id="aiKeyInput" class="modal-input" placeholder="Pega aquí tu clave de Gemini" autocomplete="off">
+      <div class="modal-btns"><button class="mbtn mbtn-primary" onclick="saveAiKeyUI()">Guardar clave IA</button></div>
+      <div id="aiKeyMsg" style="font-size:13px;margin-top:8px;color:var(--muted)"></div>
+    </div>
     <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.4">Este botón usa API-Football (el plan gratis casi nunca trae cuotas viejas — es normal que diga que no encontró). No afecta las cuotas del CSV, que ya cargan solas.</div>
     <div id="apiMsg" class="modal-msg"></div>
     <div class="modal-btns" style="margin-top:14px">
@@ -1006,6 +1013,7 @@ function getApiKey(){ try{return localStorage.getItem('fiq2_apifb')||'';}catch(e
 function openSettings(){
   const m=document.getElementById('settingsModal'); if(!m)return; m.style.display='flex';
   document.getElementById('apiKeyInput').value=getApiKey();
+  { const ai=document.getElementById('aiKeyInput'); if(ai) ai.value=getAiKey(); }
   apiMsg(getApiKey()?'Clave guardada. Toca “Probar conexión”.':'', 'muted');
   // Estado de las cuotas del CSV (footiqo) — para que veas que SÍ cargaron
   try{
@@ -1021,6 +1029,7 @@ function openSettings(){
 function closeSettings(){ const m=document.getElementById('settingsModal'); if(m)m.style.display='none'; }
 function apiMsg(t,cls){ const el=document.getElementById('apiMsg'); if(!el)return; el.innerHTML=t; el.style.color=cls==='ok'?'var(--green)':cls==='err'?'var(--red)':cls==='warn'?'var(--orange)':'var(--muted)'; }
 function saveApiKey(){ const k=(document.getElementById('apiKeyInput').value||'').trim(); try{localStorage.setItem('fiq2_apifb',k);}catch(e){} apiMsg(k?'✅ Clave guardada solo en este dispositivo.':'Clave borrada.', k?'ok':'warn'); }
+function saveAiKeyUI(){ const k=(document.getElementById('aiKeyInput').value||'').trim(); saveAiKey(k); const el=document.getElementById('aiKeyMsg'); if(el){el.textContent=k?'✅ Clave IA guardada solo en este dispositivo.':'Clave IA borrada.'; el.style.color=k?'var(--green)':'var(--orange)';} }
 async function apiFB(path){
   const key=getApiKey(); if(!key) throw new Error('sin clave');
   const r=await fetch(APIFB_BASE+path,{headers:{'x-apisports-key':key}});
@@ -1077,6 +1086,420 @@ function _altBonus(h,a){
   const b=0.020*Math.max(0,d)+0.008*Math.max(0,-d);  // subir pesa más que bajar
   return Math.max(-70,Math.min(70,b));           // en puntos ELO, con tope
 }
+
+// ==================== 🔎 FORENSE · TABLAS ESTÁTICAS ====================
+const VENUES = {
+  america:{lat:3.4206,lon:-76.5420,sup:'nat'}, cali:{lat:3.5500,lon:-76.3800,sup:'nat'},
+  nacional:{lat:6.2567,lon:-75.5900,sup:'nat'}, medellin:{lat:6.2567,lon:-75.5900,sup:'nat'},
+  junior:{lat:10.9100,lon:-74.8000,sup:'nat'}, bucaramanga:{lat:7.1193,lon:-73.1227,sup:'nat'},
+  tolima:{lat:4.4389,lon:-75.2322,sup:'nat'}, millonarios:{lat:4.6459,lon:-74.0770,sup:'nat'},
+  santafe:{lat:4.6459,lon:-74.0770,sup:'nat'}, bogota:{lat:4.6459,lon:-74.0770,sup:'nat'},
+  fortaleza:{lat:4.6200,lon:-74.1400,sup:'sint'}, pasto:{lat:1.2136,lon:-77.2811,sup:'nat'},
+  jaguares:{lat:8.7500,lon:-75.8800,sup:'nat'}, pereira:{lat:4.8000,lon:-75.7000,sup:'nat'},
+  aguilas:{lat:6.1500,lon:-75.3700,sup:'nat'}, alianza:{lat:10.4600,lon:-73.2500,sup:'nat'},
+  llaneros:{lat:4.1400,lon:-73.6300,sup:'nat'}, cucuta:{lat:7.8900,lon:-72.5000,sup:'nat'},
+  chico:{lat:5.5400,lon:-73.3600,sup:'nat'}, caldas:{lat:5.0650,lon:-75.5200,sup:'nat'}
+};
+const DERBIES = {
+  'america|cali':3,'medellin|nacional':3,'millonarios|santafe':3,
+  'junior|nacional':2,'millonarios|nacional':2,'america|nacional':2,
+  'america|millonarios':2,'junior|millonarios':2,'nacional|santafe':2,
+  'caldas|pereira':2,'bucaramanga|cucuta':2,'caldas|tolima':1
+};
+function _derbyLevel(h,a){ const x=_teamKey(h),y=_teamKey(a); const k=(x<y)?(x+'|'+y):(y+'|'+x); return DERBIES[k]||0; }
+function _haversine(la1,lo1,la2,lo2){ const R=6371,r=Math.PI/180; const dLa=(la2-la1)*r,dLo=(lo2-lo1)*r; const s=Math.sin(dLa/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.min(1,Math.sqrt(s))); }
+function _travelKm(h,a){ const H=VENUES[_teamKey(h)],A=VENUES[_teamKey(a)]; if(!H||!A)return null; return +_haversine(H.lat,H.lon,A.lat,A.lon).toFixed(1); }
+
+// ==================== 🔎 FORENSE · CONTEXTO CRONOLÓGICO + L0 ====================
+const _FCT=[1,1,2,6,24,120,720,5040,40320,362880];
+function _pois(k,l){ return Math.exp(-l)*Math.pow(l,k)/_FCT[k]; }
+function _dcProb(lh,la,rho){
+  let pH=0,pD=0,pA=0;
+  for(let x=0;x<=8;x++)for(let y=0;y<=8;y++){
+    let t=1; if(x===0&&y===0)t=1-lh*la*rho; else if(x===0&&y===1)t=1+lh*rho; else if(x===1&&y===0)t=1+la*rho; else if(x===1&&y===1)t=1-rho;
+    const p=_pois(x,lh)*_pois(y,la)*t; if(x>y)pH+=p; else if(x<y)pA+=p; else pD+=p;
+  }
+  const s=(pH+pD+pA)||1; return {pH:pH/s,pD:pD/s,pA:pA/s};
+}
+function buildForenseContext(t){
+  const st=loadState(t);
+  const all=st.matches.filter(m=>m.played&&m.sh!=null&&m.sa!=null&&!m.postponed)
+    .sort((x,y)=>(x.date||'').localeCompare(y.date||''));
+  const K=t=>_teamKey(t);
+  const last={},recent={},pts={},pj={},gf={},ga={},xgf={},golesReales={},cerrados={},cerradosTot={},formaPts={};
+  const elo={},gp={},glk={},dcSF={},dcSC={},dcGP={}; let dcSumH=0,dcSumA=0,dcNG=0;
+  const HFA=35, DR=0.26, RHO=-0.05;
+  const ini=k=>{ if(pts[k]==null){pts[k]=0;pj[k]=0;gf[k]=0;ga[k]=0;xgf[k]=0;golesReales[k]=0;cerrados[k]=0;cerradosTot[k]=0;formaPts[k]=[];recent[k]=[];} };
+  const out=[];
+  for(const m of all){
+    const kh=K(m.h),ka=K(m.a); ini(kh);ini(ka);
+    const d=_asDate(m.date), tms=d.getTime();
+    const rH=elo[kh]??1500, rA=elo[ka]??1500;
+    const pE=eloProb(rH,rA,DR,HFA);
+    const gH=glk[kh]||_g2init(), gA=glk[ka]||_g2init();
+    const pG=glickoProb(gH,gA,HFA,DR)||pE;
+    const lg=dcNG?(dcSumH+dcSumA)/(2*dcNG):1.2, avgH=dcNG?dcSumH/dcNG:1.3, avgA=dcNG?dcSumA/dcNG:1.0;
+    const shr=(rate,n)=>(n*rate+4*lg)/(n+4);
+    const gph=dcGP[kh]||0, gpa=dcGP[ka]||0;
+    const attH=shr((dcSF[kh]||0)/Math.max(1,gph),gph)/Math.max(0.2,lg), defH=shr((dcSC[kh]||0)/Math.max(1,gph),gph)/Math.max(0.2,lg);
+    const attA=shr((dcSF[ka]||0)/Math.max(1,gpa),gpa)/Math.max(0.2,lg), defA=shr((dcSC[ka]||0)/Math.max(1,gpa),gpa)/Math.max(0.2,lg);
+    const pD_=_dcProb(Math.max(0.15,attH*defA*avgH),Math.max(0.15,attA*defH*avgA),RHO);
+    const L0={pH:(pE.pH+pG.pH+pD_.pH)/3, pD:(pE.pD+pG.pD+pD_.pD)/3, pA:(pE.pA+pG.pA+pD_.pA)/3};
+    const s0=L0.pH+L0.pD+L0.pA; L0.pH/=s0;L0.pD/=s0;L0.pA/=s0;
+    const restH=last[kh]?Math.max(0,(tms-_asDate(last[kh]).getTime())/864e5):null;
+    const restA=last[ka]?Math.max(0,(tms-_asDate(last[ka]).getTime())/864e5):null;
+    const cong=k=>(recent[k]||[]).filter(iso=>(tms-_asDate(iso).getTime())/864e5<=10).length;
+    const altH=ALTITUDE[kh],altA=ALTITUDE[ka]; const dAlt=(altH!=null&&altA!=null)?(altH-altA):null;
+    const utcH=d.getUTCHours(), locH=(utcH+24-5)%24;
+    const dow=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())).getUTCDay();
+    const tabla=Object.keys(pts).map(k=>({k,p:pts[k],dg:gf[k]-ga[k]})).sort((x,y)=>y.p-x.p||y.dg-x.dg);
+    const p8=tabla.length>=8?tabla[7].p:null;
+    const posOf=k=>{const i=tabla.findIndex(r=>r.k===k);return i<0?null:i+1;};
+    const jornada=Math.max(pj[kh],pj[ka])+1, restantes=Math.max(0,19-jornada+1);
+    const luckOf=k=>(pj[k]>=3&&xgf[k]>0)?+((golesReales[k]-xgf[k])/pj[k]).toFixed(3):null;
+    const closeOf=k=>cerradosTot[k]>=3?+(cerrados[k]/cerradosTot[k]).toFixed(3):null;
+    const f5=k=>{const arr=(formaPts[k]||[]).slice(-5);return arr.length?arr.reduce((s,x)=>s+x,0)/(3*arr.length):null;};
+    out.push({m,pre:{
+      L0, restH,restA,congH:cong(kh),congA:cong(ka),
+      dAlt,travel:_travelKm(m.h,m.a), locH,dow,entreSemana:(dow>=2&&dow<=4)?1:0,
+      derby:_derbyLevel(m.h,m.a), posH:posOf(kh),posA:posOf(ka),
+      gap8H:(p8!=null)?pts[kh]-p8:null, gap8A:(p8!=null)?pts[ka]-p8:null,
+      jornada,restantes, luckH:luckOf(kh),luckA:luckOf(ka),
+      closeH:closeOf(kh),closeA:closeOf(ka), formaH:f5(kh),formaA:f5(ka),
+      supLocal:(VENUES[kh]&&VENUES[kh].sup)||null, esSeed:!!m.seed
+    }});
+    const rrH=m.sh>m.sa?3:m.sh===m.sa?1:0, rrA=m.sa>m.sh?3:m.sh===m.sa?1:0;
+    pts[kh]+=rrH;pts[ka]+=rrA;pj[kh]++;pj[ka]++;
+    gf[kh]+=m.sh;ga[kh]+=m.sa;gf[ka]+=m.sa;ga[ka]+=m.sh;
+    golesReales[kh]+=m.sh;golesReales[ka]+=m.sa;
+    if(m.xg&&m.xg.h!=null){xgf[kh]+=m.xg.h;xgf[ka]+=m.xg.a;}
+    const diff=Math.abs(m.sh-m.sa); cerradosTot[kh]++;cerradosTot[ka]++; if(diff<=1){cerrados[kh]++;cerrados[ka]++;}
+    formaPts[kh].push(rrH);formaPts[ka].push(rrA);
+    last[kh]=m.date;last[ka]=m.date; recent[kh].push(m.date);recent[ka].push(m.date);
+    eloUpdate(elo,m.h,m.a,m.sh,m.sa,HFA+_altBonus(m.h,m.a),gp,m.xg);
+    const mov=1+0.3*Math.log(1+diff), sc=m.sh>m.sa?1:m.sh===m.sa?0.5:0, hAdj=(HFA+_altBonus(m.h,m.a))/G2_SC;
+    const H2=glk[kh]||_g2init(), A2=glk[ka]||_g2init();
+    glk[kh]=_g2update(H2,A2.mu,A2.phi,sc,hAdj,mov); glk[ka]=_g2update(A2,H2.mu+hAdj,H2.phi,1-sc,0,mov);
+    dcSF[kh]=(dcSF[kh]||0)+m.sh;dcSC[kh]=(dcSC[kh]||0)+m.sa;dcGP[kh]=gph+1;
+    dcSF[ka]=(dcSF[ka]||0)+m.sa;dcSC[ka]=(dcSC[ka]||0)+m.sh;dcGP[ka]=gpa+1;
+    dcSumH+=m.sh;dcSumA+=m.sa;dcNG++;
+  }
+  return out;
+}
+
+// ==================== 🔎 FORENSE · VECTOR DE FEATURES (pre-pitazo) ====================
+function forenseFeatures(m,pre){
+  const F=[],N=[];
+  const push=(name,val,fb=0)=>{ const ok=(val!=null&&isFinite(val)); F.push(ok?val:fb);N.push(name); F.push(ok?1:0);N.push(name+'_present'); };
+  const pushS=(name,val)=>{ F.push(val);N.push(name); };
+  push('descanso_dif', ((pre.restH??5)-(pre.restA??5))/5);
+  pushS('cong_dif', (pre.congA-pre.congH)/3);
+  push('d_alt', pre.dAlt!=null?pre.dAlt/1000:null);
+  pushS('alt_x_descanso', (pre.dAlt!=null&&pre.restA!=null)?(Math.max(0,pre.dAlt)/1000)*Math.max(0,(4-Math.min(7,pre.restA))/4):0);
+  push('viaje_km', pre.travel!=null?pre.travel/500:null);
+  pushS('hora_sin', Math.sin(2*Math.PI*pre.locH/24));
+  pushS('hora_cos', Math.cos(2*Math.PI*pre.locH/24));
+  pushS('derby', pre.derby/3);
+  push('gap8_dif', (pre.gap8H!=null&&pre.gap8A!=null)?Math.max(-15,Math.min(15,pre.gap8H-pre.gap8A))/10:null);
+  pushS('fase_torneo', Math.min(1,pre.jornada/19));
+  push('suerte_dif', (pre.luckH!=null&&pre.luckA!=null)?Math.max(-1.5,Math.min(1.5,pre.luckH-pre.luckA)):null);
+  push('cerrados_dif', (pre.closeH!=null&&pre.closeA!=null)?(pre.closeH-pre.closeA):null);
+  push('forma_dif', (pre.formaH!=null&&pre.formaA!=null)?(pre.formaH-pre.formaA):null);
+  const o=m.odds, movOK=o&&o.src==='espn'&&o.first&&o.first.pH!=null;
+  push('mov_h', movOK?(o.pH-o.first.pH)*10:null);
+  push('overround',(o&&o.margin!=null)?(o.margin-0.06)*10:null);
+  return {x:F,names:N};
+}
+
+// ==================== 🔎 FORENSE · APRENDIZAJE L1 (softmax + L2, JS puro) ====================
+function _standardize(X){ const n=X.length,d=X[0].length,mu=new Array(d).fill(0),sd=new Array(d).fill(0);
+  for(const r of X)for(let j=0;j<d;j++)mu[j]+=r[j]/n;
+  for(const r of X)for(let j=0;j<d;j++)sd[j]+=Math.pow(r[j]-mu[j],2)/n;
+  for(let j=0;j<d;j++)sd[j]=Math.sqrt(sd[j])||1; return {mu,sd}; }
+function _applyStd(x,stx){ return x.map((v,j)=>(v-stx.mu[j])/stx.sd[j]); }
+function fitL1(X,P0,y,{lambda=1.0,lr=0.25,iters=2000}={}){
+  const n=X.length,d=X[0].length; let wH=new Array(d).fill(0),wA=new Array(d).fill(0),bH=0,bA=0;
+  const LOG=v=>Math.log(Math.max(1e-9,v));
+  for(let it=0;it<iters;it++){ const gH=new Array(d).fill(0),gA=new Array(d).fill(0); let gbH=0,gbA=0;
+    for(let i=0;i<n;i++){ const x=X[i],p0=P0[i]; let zH=LOG(p0[0])+bH,zA=LOG(p0[2])+bA; const zD=LOG(p0[1]);
+      for(let j=0;j<d;j++){zH+=wH[j]*x[j];zA+=wA[j]*x[j];}
+      const mx=Math.max(zH,zD,zA),eH=Math.exp(zH-mx),eD=Math.exp(zD-mx),eA=Math.exp(zA-mx),s=eH+eD+eA;
+      const errH=eH/s-(y[i]===0?1:0),errA=eA/s-(y[i]===2?1:0); gbH+=errH;gbA+=errA;
+      for(let j=0;j<d;j++){gH[j]+=errH*x[j];gA[j]+=errA*x[j];} }
+    for(let j=0;j<d;j++){ wH[j]-=lr*(gH[j]/n+lambda*wH[j]/n); wA[j]-=lr*(gA[j]/n+lambda*wA[j]/n); }
+    bH-=lr*(gbH/n);bA-=lr*(gbA/n); }
+  return {wH,wA,bH,bA}; }
+function applyL1(p0,x,M){ const LOG=v=>Math.log(Math.max(1e-9,v));
+  let zH=LOG(p0.pH)+M.bH,zA=LOG(p0.pA)+M.bA; const zD=LOG(p0.pD);
+  for(let j=0;j<x.length;j++){zH+=M.wH[j]*x[j];zA+=M.wA[j]*x[j];}
+  const mx=Math.max(zH,zD,zA),eH=Math.exp(zH-mx),eD=Math.exp(zD-mx),eA=Math.exp(zA-mx),s=eH+eD+eA;
+  return {pH:eH/s,pD:eD/s,pA:eA/s}; }
+
+// ==================== 🔎 FORENSE · ORQUESTADOR ====================
+let FORENSE_MODEL=null;
+function _fmArg(p){ return argMax3(p); }
+function _shuffle(a){ const b=a.slice(); for(let i=b.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]]; } return b; }
+function _selectCols(X,cols){ return X.map(r=>cols.map(j=>r[j])); }
+
+function fitForense(t){
+  const ctx=buildForenseContext(t);
+  const rows=ctx.filter(e=>!e.pre.esSeed);
+  if(rows.length<8){ FORENSE_MODEL={meta:{insuf:true,partidos:rows.length}}; return FORENSE_MODEL; }
+  const Xraw=[],P0=[],y=[],meta=[],names=forenseFeatures(rows[0].m,rows[0].pre).names;
+  for(const e of rows){
+    const f=forenseFeatures(e.m,e.pre); Xraw.push(f.x);
+    P0.push([e.pre.L0.pH,e.pre.L0.pD,e.pre.L0.pA]);
+    const a=e.m.sh>e.m.sa?0:e.m.sh<e.m.sa?2:1; y.push(a);
+    meta.push({id:e.m.id,h:e.m.h,a:e.m.a,sh:e.m.sh,sa:e.m.sa,L0:e.pre.L0,odds:e.m.odds||null,xg:e.m.xg||null,act:a});
+  }
+  const N=rows.length, d=names.length;
+  const actL=i=>y[i]===0?'H':y[i]===1?'D':'A';
+  const brier=(p,c)=>brierOf(p,c);
+
+  // ---- selección de λ por encadenamiento hacia adelante (Brier de test) ----
+  const nb=Math.max(3,Math.min(5,Math.floor(N/8))); const bs=Math.ceil(N/nb);
+  const lambdas=[0.3,1,3,10]; let bestLam=1, bestB=Infinity;
+  for(const lam of lambdas){
+    let bsum=0,bn=0;
+    for(let b=1;b<nb;b++){
+      const trEnd=b*bs, teEnd=Math.min(N,(b+1)*bs); if(teEnd<=trEnd) break;
+      const Xtr=Xraw.slice(0,trEnd), Xte=Xraw.slice(trEnd,teEnd);
+      const stx=_standardize(Xtr);
+      const M=fitL1(Xtr.map(x=>_applyStd(x,stx)),P0.slice(0,trEnd),y.slice(0,trEnd),{lambda:lam,iters:1200});
+      for(let i=trEnd;i<teEnd;i++){ const p=applyL1({pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]},_applyStd(Xraw[i],stx),M); bsum+=brier(p,actL(i)); bn++; }
+    }
+    const avg=bn?bsum/bn:Infinity; if(avg<bestB){bestB=avg;bestLam=lam;}
+  }
+
+  // ---- fit completo (retro) + selección de features por magnitud ----
+  const stAll=_standardize(Xraw); const Xs=Xraw.map(x=>_applyStd(x,stAll));
+  const Mfull=fitL1(Xs,P0,y,{lambda:bestLam,iters:2000});
+  const score=names.map((nm,j)=>({j,nm,s:Math.abs(Mfull.wH[j])+Math.abs(Mfull.wA[j])})).sort((a,b)=>b.s-a.s);
+  const maxFeat=Math.min(8, Math.floor(18/2));
+  const sel=score.filter(o=>o.s>0.02).slice(0,maxFeat).map(o=>o.j);
+  const selNames=sel.map(j=>names[j]);
+  const Xsel=_selectCols(Xraw,sel), stSel=_standardize(Xsel), XselS=Xsel.map(x=>_applyStd(x,stSel));
+  const M=fitL1(XselS,P0,y,{lambda:bestLam,iters:2200});
+
+  // ---- PRESUPUESTO L0 / L1 / L2(=0) / L3 ----
+  let L0c=0,L1c=0; const L3rows=[];
+  const resid={H:0,D:0,A:0};
+  for(let i=0;i<N;i++){
+    const L0={pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]};
+    if(_fmArg(L0)===actL(i)){ L0c++; continue; }
+    const pf=applyL1(L0,XselS[i],M);
+    if(_fmArg(pf)===actL(i)){ L1c++; continue; }
+    L3rows.push(i); resid[actL(i)]++;
+  }
+  const L3c=L3rows.length;
+  const residualRate=+(L3c/N).toFixed(3);
+  const nCoef=sel.length*2; const densidad=+(nCoef/N).toFixed(3);
+
+  // ---- validación temporal 2/3 train, 1/3 test ----
+  const cut=Math.floor(N*2/3);
+  const Xtr=Xsel.slice(0,cut), Xte=Xsel.slice(cut);
+  const stTr=_standardize(Xtr); const XtrS=Xtr.map(x=>_applyStd(x,stTr));
+  const Mtr=fitL1(XtrS,P0.slice(0,cut),y.slice(0,cut),{lambda:bestLam,iters:2200});
+  const accOn=(idxs)=>{ let h=0; for(const i of idxs){ const L0={pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]}; const p=applyL1(L0,_applyStd(Xsel[i],stTr),Mtr); if(_fmArg(p)===actL(i))h++; } return idxs.length?h/idxs.length:null; };
+  const trIdx=[...Array(cut).keys()], teIdx=[]; for(let i=cut;i<N;i++)teIdx.push(i);
+  const accTrain=accOn(trIdx), accTest=accOn(teIdx);
+  // Brier/logloss test
+  let brTe=0,llTe=0; for(const i of teIdx){ const L0={pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]}; const p=applyL1(L0,_applyStd(Xsel[i],stTr),Mtr); brTe+=brier(p,actL(i)); const pc=actL(i)==='H'?p.pH:actL(i)==='D'?p.pD:p.pA; llTe+=-Math.log(Math.max(1e-9,pc)); }
+  const brierTest=teIdx.length?+(brTe/teIdx.length).toFixed(4):null, loglossTest=teIdx.length?+(llTe/teIdx.length).toFixed(4):null;
+
+  // ---- líneas base de la vergüenza (en el MISMO test set) ----
+  const baseHome=teIdx.length?teIdx.filter(i=>actL(i)==='H').length/teIdx.length:null;
+  const baseMkt=(()=>{ let h=0,n=0; for(const i of teIdx){ const o=meta[i].odds; if(!o||o.pH==null)continue; n++; if(_fmArg(o)===actL(i))h++; } return n?h/n:null; })();
+  const baseL0=teIdx.length?teIdx.filter(i=>_fmArg({pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]})===actL(i)).length/teIdx.length:null;
+
+  // ---- TEST DE PERMUTACIÓN ----
+  let permSum=0, permRuns=12;
+  const L0fails=[]; for(let i=0;i<N;i++){ if(_fmArg({pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]})!==actL(i)) L0fails.push(i); }
+  for(let r=0;r<permRuns;r++){
+    const yp=_shuffle(y);
+    const Mp=fitL1(XselS,P0,yp,{lambda:bestLam,iters:1000});
+    let corr=0; for(const i of L0fails){ const L0={pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]}; const p=applyL1(L0,XselS[i],Mp); const ap=yp[i]===0?'H':yp[i]===1?'D':'A'; if(_fmArg(p)===ap)corr++; }
+    permSum+=L0fails.length?corr/L0fails.length:0;
+  }
+  const accPermutado=+(permSum/permRuns).toFixed(3);
+
+  // ---- ABLACIÓN (quita una feature, mide Δ residual) ----
+  const ablacion=[];
+  for(let s=0;s<sel.length;s++){
+    const keep=sel.filter((_,k)=>k!==s);
+    const Xk=_selectCols(Xraw,keep), stK=_standardize(Xk), XkS=Xk.map(x=>_applyStd(x,stK));
+    const Mk=fitL1(XkS,P0,y,{lambda:bestLam,iters:1200});
+    let l3=0; for(let i=0;i<N;i++){ const L0={pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]}; if(_fmArg(L0)===actL(i))continue; if(_fmArg(applyL1(L0,XkS[i],Mk))!==actL(i))l3++; }
+    ablacion.push({variable:names[sel[s]], deltaResidual:+((l3/N)-residualRate).toFixed(3)});
+  }
+  ablacion.sort((a,b)=>b.deltaResidual-a.deltaResidual);
+
+  // ---- L3 acta forense (append-only) + featuresPropuestos ----
+  let prev=[]; try{ const raw=localStorage.getItem('fiq2_forense_'+t); if(raw){ const o=JSON.parse(raw); if(o&&o.memoria)prev=o.memoria; } }catch(e){}
+  const prevIds=new Set(prev.map(x=>x.id));
+  const memoria=prev.slice();
+  const causaCount={};
+  for(const i of L3rows){
+    const mm=meta[i]; let causa='sin_explicacion', ev={};
+    if(mm.xg&&mm.xg.h!=null){ const xgW=mm.xg.h>mm.xg.a?'H':mm.xg.h<mm.xg.a?'A':'D'; ev={xgH:mm.xg.h,xgA:mm.xg.a}; if(xgW!==actL(i)&&actL(i)!=='D')causa='xg_invertido'; }
+    causaCount[causa]=(causaCount[causa]||0)+1;
+    if(!prevIds.has(mm.id)){
+      memoria.push({id:mm.id, real:actL(i), causa,
+        evidencia:ev,
+        contrafactual: causa==='xg_invertido'?'xG contradecía el marcador — ¿medía mejor la calidad de ocasiones el modelo de goles?':'Sin variable pre-pitazo identificable; posible evento en juego (roja/penal/portero)',
+        ts:Date.now()});
+    }
+  }
+  const featuresPropuestos=Object.keys(causaCount).filter(c=>causaCount[c]>=3&&c!=='sin_explicacion').map(c=>({
+    nombre:c, apariciones:causaCount[c], fuenteGratuita:'xG ya en estado (HIST_XG / API-Football)', llamadasApiNecesarias:0,
+    hipotesis:'Casos donde xG contradijo el marcador — señal de reversión no capturada', comoValidar:'promover Dixon-Coles y medir caída de residualRate'
+  }));
+
+  FORENSE_MODEL={
+    meta:{ torneo:t, partidos:N, nCoef, densidad, lambda:bestLam,
+      accL0:+(L0c/N).toFixed(3), accL0L1:+((L0c+L1c)/N).toFixed(3), accFinal:100,
+      residualRate, residuo:resid,
+      accTrain:accTrain!=null?+accTrain.toFixed(3):null, accTest:accTest!=null?+accTest.toFixed(3):null,
+      brierTest, loglossTest, accPermutado,
+      baseHome:baseHome!=null?+baseHome.toFixed(3):null, baseMkt:baseMkt!=null?+baseMkt.toFixed(3):null, baseL0:baseL0!=null?+baseL0.toFixed(3):null,
+      L0c,L1c,L2c:0,L3c },
+    selNames, coefL1:selNames.map((nm,k)=>({nm,wH:+M.wH[k].toFixed(3),wA:+M.wA[k].toFixed(3)})),
+    ablacion, memoria, featuresPropuestos,
+    _M:M, _stSel:stSel, _sel:sel, _names:names
+  };
+  try{ localStorage.setItem('fiq2_forense_'+t, JSON.stringify({memoria, ts:Date.now()})); }catch(e){}
+  return FORENSE_MODEL;
+}
+// forenseProb: retroajustado, NO predictivo, fuera del consenso.
+function forenseProb(m, pre){
+  if(!FORENSE_MODEL||!FORENSE_MODEL._M||!pre) return null;
+  const f=forenseFeatures(m,pre); const xs=FORENSE_MODEL._sel.map(j=>f.x[j]);
+  return applyL1(pre.L0, _applyStd(xs,FORENSE_MODEL._stSel), FORENSE_MODEL._M);
+}
+
+// ==================== 🔮 MOTOR ORÁCULO · CAPA EVOLUTIVA ====================
+// Cada sync re-evalúa la contribución FUERA DE MUESTRA (Δ Brier) de cada variable,
+// actualiza su ciclo de vida y versiona el conocimiento. Nada se aplica al Motor A
+// automáticamente: el ORÁCULO recomienda; la validación decide.
+let ORACLE_KB=null;
+function oracleEvolve(t){
+  const ctx=buildForenseContext(t); const rows=ctx.filter(e=>!e.pre.esSeed);
+  if(rows.length<10){ ORACLE_KB={insuf:true,n:rows.length}; return ORACLE_KB; }
+  const Xraw=[],P0=[],y=[]; const names=forenseFeatures(rows[0].m,rows[0].pre).names;
+  for(const e of rows){ const f=forenseFeatures(e.m,e.pre); Xraw.push(f.x); P0.push([e.pre.L0.pH,e.pre.L0.pD,e.pre.L0.pA]); y.push(e.m.sh>e.m.sa?0:e.m.sh<e.m.sa?2:1); }
+  const N=y.length, cut=Math.floor(N*2/3);
+  const actL=i=>y[i]===0?'H':y[i]===1?'D':'A';
+  let b0=0; for(let i=cut;i<N;i++) b0+=brierOf({pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]},actL(i)); b0=(N>cut)?b0/(N-cut):null;
+  const baseFeat=names.map((nm,j)=>({nm,j})).filter(o=>!o.nm.endsWith('_present'));
+  const evals={};
+  for(const {nm,j} of baseFeat){
+    const pj=names.indexOf(nm+'_present'); const cols=pj>=0?[j,pj]:[j];
+    const X=Xraw.map(r=>cols.map(c=>r[c]));
+    const Xtr=X.slice(0,cut), stx=_standardize(Xtr), XtrS=Xtr.map(x=>_applyStd(x,stx));
+    const M=fitL1(XtrS,P0.slice(0,cut),y.slice(0,cut),{lambda:2,iters:1200});
+    let bw=0; for(let i=cut;i<N;i++){ const p=applyL1({pH:P0[i][0],pD:P0[i][1],pA:P0[i][2]},_applyStd(X[i],stx),M); bw+=brierOf(p,actL(i)); }
+    evals[nm]=b0!=null?+((bw/(N-cut))-b0).toFixed(4):null;   // negativo = mejora fuera de muestra
+  }
+  let kb={version:'1.0',hyp:{},versions:[]};
+  try{ const raw=localStorage.getItem('fiq2_oracle_'+t); if(raw) kb=JSON.parse(raw); }catch(e){}
+  kb.hyp=kb.hyp||{}; kb.versions=kb.versions||[];
+  const parts=String(kb.version||'1.0').split('.'); let vmaj=+parts[0]||1, vmin=+parts[1]||0; let changed=false;
+  for(const nm in evals){
+    const delta=evals[nm]; if(delta==null) continue;
+    const H=kb.hyp[nm]||(kb.hyp[nm]={state:'DISCOVERED',firstSeen:Date.now(),hist:[]});
+    H.hist.push({ts:Date.now(),delta,n:N}); if(H.hist.length>24)H.hist=H.hist.slice(-24);
+    const recent=H.hist.slice(-3).map(h=>h.delta);
+    const improvesConsist = recent.length>=2 && recent.every(d=>d<-0.001);
+    const sorted=H.hist.map(h=>h.delta).slice().sort((a,b)=>a-b); const median=sorted[Math.floor(sorted.length/2)];
+    let ns=H.state;
+    if(improvesConsist) ns='VALIDATED';
+    else if(H.state==='VALIDATED' && delta>0.001) ns='DEGRADING';
+    else if(H.hist.length>=4 && median>=0) ns='DISCARDED';
+    else ns='IN_VALIDATION';
+    if(ns!==H.state){ H.prevState=H.state; H.state=ns; H.changedTs=Date.now(); kb.versions.push({v:vmaj+'.'+(vmin+1),ts:Date.now(),nm,from:H.prevState,to:ns,delta}); vmin++; changed=true; }
+    H.lastDelta=delta; H.n=N;
+  }
+  if(changed) kb.version=vmaj+'.'+vmin;
+  kb.ts=Date.now(); kb.baselineBrier=(b0!=null)?+b0.toFixed(4):null; kb.n=N;
+  if(kb.versions.length>60) kb.versions=kb.versions.slice(-60);
+  try{ localStorage.setItem('fiq2_oracle_'+t, JSON.stringify(kb)); }catch(e){}
+  ORACLE_KB=kb; return kb;
+}
+function oracleSummary(){
+  if(!ORACLE_KB||ORACLE_KB.insuf) return null;
+  const H=ORACLE_KB.hyp, arr=Object.keys(H).map(nm=>({nm,...H[nm]}));
+  const by=s=>arr.filter(h=>h.state===s).sort((a,b)=>(a.lastDelta??9)-(b.lastDelta??9));
+  return {version:ORACLE_KB.version, validated:by('VALIDATED'), inval:by('IN_VALIDATION'), degrading:by('DEGRADING'), discarded:by('DISCARDED'), all:arr, versions:(ORACLE_KB.versions||[]).slice(-8).reverse()};
+}
+
+// ==================== 🔮 ORÁCULO · CAPA IA (AIProvider · Gemini) ====================
+// La IA razona SOBRE nuestros datos y propone hipótesis medibles. NUNCA decide el
+// pronóstico ni inventa hechos externos. Toda hipótesis pasa por validación estadística.
+const DAILY_AI_LIMIT=25;
+function getAiKey(){ try{return localStorage.getItem('fiq2_aikey')||'';}catch(e){return '';} }
+function saveAiKey(k){ try{localStorage.setItem('fiq2_aikey',(k||'').trim());}catch(e){} }
+function _aiUsage(){ const today=new Date().toISOString().slice(0,10); let u={day:today,count:0}; try{const r=localStorage.getItem('fiq2_aiusage'); if(r){u=JSON.parse(r); if(u.day!==today)u={day:today,count:0};}}catch(e){} return u; }
+function _aiUsageInc(){ const u=_aiUsage(); u.count++; try{localStorage.setItem('fiq2_aiusage',JSON.stringify(u));}catch(e){} return u; }
+function _hashStr(s){ let h=0; for(let i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;} return h+''; }
+function _aiCacheGet(t,h){ try{const r=localStorage.getItem('fiq2_aicache_'+t); if(r){const o=JSON.parse(r); if(o.h===h)return o.data;}}catch(e){} return null; }
+function _aiCacheSet(t,h,data){ try{localStorage.setItem('fiq2_aicache_'+t,JSON.stringify({h,data,ts:Date.now()}));}catch(e){} }
+
+async function _geminiCall(key,prompt){
+  const url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+encodeURIComponent(key);
+  const body={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,responseMimeType:'application/json'}};
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.status===429) throw new Error('cuota agotada (429)');
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  const c=d&&d.candidates&&d.candidates[0];
+  const txt=c&&c.content&&c.content.parts&&c.content.parts[0]&&c.content.parts[0].text;
+  if(!txt) throw new Error('respuesta vacía');
+  return txt;
+}
+const AI_PROVIDERS={ gemini:{name:'Gemini',call:_geminiCall} };
+let AI_PROVIDER='gemini';
+
+function _oraclePrompt(sum,fm,abl){
+  const val=(sum&&sum.validated||[]).map(h=>h.nm).join(', ')||'ninguna aún';
+  const disc=(sum&&sum.discarded||[]).map(h=>h.nm).join(', ')||'ninguna';
+  const res=fm?('local '+fm.residuo.H+' / empate '+fm.residuo.D+' / visita '+fm.residuo.A):'?';
+  const ablTop=(abl||[]).slice(0,6).map(a=>a.variable+' ('+a.deltaResidual+')').join(', ');
+  return [
+    'Eres el MOTOR ORÁCULO, un investigador estadístico de fútbol colombiano (Liga BetPlay).',
+    'NO predices resultados. NO inventas datos externos (lesiones, noticias). Solo propones HIPÓTESIS MEDIBLES con datos que YA tenemos.',
+    'Datos disponibles pre-partido por partido: días de descanso, congestión (partidos en 10 días), altitud e interacción con descanso, viaje km, hora/día, clásico, posición y distancia al 8º (cuadrangulares), forma, suerte (goles-xG), partidos cerrados, movimiento de cuota (solo fuente ESPN), overround.',
+    'Estado actual del conocimiento:',
+    '- Variables ya VALIDADas fuera de muestra: '+val,
+    '- Variables ya DESCARTADAS (no ayudan): '+disc,
+    '- El residuo (lo que el modelo no explica) está dominado por: '+res+' → los EMPATES son el mayor agujero.',
+    '- Ablación (impacto en residuo): '+ablTop,
+    '',
+    'Propón hasta 5 hipótesis NUEVAS y medibles (idealmente interacciones de variables) que podrían ayudar a predecir, sobre todo, EMPATES o sorpresas, usando SOLO las variables listadas. No repitas las ya validadas o descartadas.',
+    'Responde SOLO JSON, array de objetos con este esquema exacto:',
+    '[{"nombre":"","variables":["",""],"condicion":"","efecto_esperado":"","por_que":"","testeable_con":"datos ya disponibles"}]'
+  ].join('\n');
+}
+// Devuelve {hypotheses:[...]} o {error} o {cached:true,...}. On-demand (controla cuota).
+async function oracleAskAI(t){
+  const key=getAiKey(); if(!key) return {error:'Pega tu clave gratuita de Gemini en ⚙️ Ajustes para activar la IA del ORÁCULO.'};
+  const u=_aiUsage(); if(u.count>=DAILY_AI_LIMIT) return {error:'Límite diario de IA alcanzado ('+u.count+'/'+DAILY_AI_LIMIT+'). Vuelve mañana o usa la caché.'};
+  const sum=oracleSummary(); const fm=FORENSE_MODEL&&FORENSE_MODEL.meta; const abl=FORENSE_MODEL&&FORENSE_MODEL.ablacion;
+  if(!sum||!fm) return {error:'El ORÁCULO necesita primero reconstruir el pasado (abre Motores y espera el cálculo).'};
+  const prompt=_oraclePrompt(sum,fm,abl); const h=_hashStr(prompt);
+  const cached=_aiCacheGet(t,h); if(cached) return {hypotheses:cached,cached:true};
+  try{
+    const txt=await AI_PROVIDERS[AI_PROVIDER].call(key,prompt); _aiUsageInc();
+    let parsed=[]; try{parsed=JSON.parse(txt);}catch(e){ const mm=txt.match(/\[[\s\S]*\]/); if(mm)parsed=JSON.parse(mm[0]); }
+    if(!Array.isArray(parsed)) parsed=[];
+    parsed=parsed.slice(0,5).map(x=>({nombre:x.nombre||'?',variables:x.variables||[],condicion:x.condicion||'',efecto_esperado:x.efecto_esperado||'',por_que:x.por_que||'',fuente:'IA·no verificado'}));
+    _aiCacheSet(t,h,parsed);
+    return {hypotheses:parsed};
+  }catch(e){ return {error:'IA no disponible: '+e.message+'. El sistema sigue funcionando sin IA.'}; }
+}
+
+
+
+
 // Aplica las cuotas históricas a los partidos jugados que no tengan cuotas (una vez, gratis)
 const HIST_XG={betplay:[{"h": "alianza", "a": "bucaramanga", "d": "2026-08-09", "xh": 0.71, "xa": 1.83}, {"h": "pasto", "a": "cali", "d": "2026-08-09", "xh": 0.55, "xa": 0.9}, {"h": "tolima", "a": "bogota", "d": "2026-08-09", "xh": 1.03, "xa": 0.67}, {"h": "fortaleza", "a": "cucuta", "d": "2026-08-08", "xh": 0.78, "xa": 1.38}, {"h": "santafe", "a": "chico", "d": "2026-08-08", "xh": 0.93, "xa": 0.79}, {"h": "caldas", "a": "america", "d": "2026-08-06", "xh": 0.58, "xa": 1.3}, {"h": "bogota", "a": "jaguares", "d": "2026-08-06", "xh": 2.35, "xa": 0.36}, {"h": "millonarios", "a": "pasto", "d": "2026-08-05", "xh": 1.75, "xa": 0.18}, {"h": "tolima", "a": "medellin", "d": "2026-08-05", "xh": 2.67, "xa": 1.55}, {"h": "llaneros", "a": "fortaleza", "d": "2026-08-04", "xh": 0.92, "xa": 0.7}, {"h": "bucaramanga", "a": "cucuta", "d": "2026-08-04", "xh": 1.98, "xa": 1.38}, {"h": "santafe", "a": "caldas", "d": "2026-08-03", "xh": 0.5, "xa": 1.48}, {"h": "america", "a": "chico", "d": "2026-08-03", "xh": 1.67, "xa": 0.51}, {"h": "jaguares", "a": "nacional", "d": "2026-08-02", "xh": 0.94, "xa": 0.85}, {"h": "junior", "a": "millonarios", "d": "2026-08-02", "xh": 0.4, "xa": 0.64}, {"h": "medellin", "a": "cali", "d": "2026-08-02", "xh": 0.91, "xa": 1.41}, {"h": "alianza", "a": "tolima", "d": "2026-08-01", "xh": 1.57, "xa": 1.38}, {"h": "pasto", "a": "aguilas", "d": "2026-08-01", "xh": 0.5, "xa": 1.57}, {"h": "fortaleza", "a": "pereira", "d": "2026-08-01", "xh": 1.27, "xa": 0.15}, {"h": "bucaramanga", "a": "llaneros", "d": "2026-07-31", "xh": 0.23, "xa": 0.77}, {"h": "caldas", "a": "cucuta", "d": "2026-07-27", "xh": 1.05, "xa": 1.62}, {"h": "alianza", "a": "fortaleza", "d": "2026-07-27", "xh": 0.55, "xa": 0.37}, {"h": "aguilas", "a": "santafe", "d": "2026-07-26", "xh": 1.33, "xa": 1.06}, {"h": "bogota", "a": "america", "d": "2026-07-26", "xh": 1.28, "xa": 1.34}, {"h": "tolima", "a": "junior", "d": "2026-07-26", "xh": 1.41, "xa": 0.89}]};
 function applyHistoricXG(t){
@@ -1679,6 +2102,112 @@ function renderHoy(){
 }
 
 // ==================== RENDER MOTORES (comparativa walk-forward) ====================
+// ==================== 🔎 FORENSE · UI ====================
+function _fHash(t){ const st=loadState(t); return st.matches.filter(m=>m.played&&!m.seed).map(m=>m.id+':'+m.sh+':'+m.sa).join('|'); }
+// ==================== 🔮 ORÁCULO · UI ====================
+let ORACLE_AI_RESULT=null;
+function renderOracleHTML(){
+  const sum=oracleSummary(); if(!sum) return '';
+  const chip=(h,col)=>'<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--border)"><span>'+h.nm+'</span><span style="color:'+col+';font-weight:700">Δ'+(h.lastDelta!=null?h.lastDelta:'?')+'</span></div>';
+  let h='<div class="stitle">🔮 Oráculo · aprendizaje evolutivo <span style="color:var(--dim);font-weight:600;font-size:12px">v'+sum.version+' · fuera del consenso</span></div>';
+  h+='<div style="font-size:13px;color:var(--muted);padding:0 4px 8px">Cada sincronización re-mide, FUERA DE MUESTRA, si cada variable de verdad mejora la predicción (Δ Brier, negativo = mejora). Las variables suben o bajan de estado solas. Nada se aplica al Motor A automáticamente.</div>';
+  h+='<div class="card">';
+  if(sum.validated.length){ h+='<div style="font-weight:700;color:var(--green)">✅ VALIDADAS (mejoran fuera de muestra)</div>'; sum.validated.forEach(x=>h+=chip(x,'var(--green)')); }
+  else h+='<div style="color:var(--muted);font-size:13px">Aún ninguna variable validada fuera de muestra — con más fechas aparecerán.</div>';
+  if(sum.inval.length){ h+='<div style="font-weight:700;color:var(--gold);margin-top:8px">🔬 EN VALIDACIÓN</div>'; sum.inval.slice(0,6).forEach(x=>h+=chip(x,'var(--gold)')); }
+  if(sum.degrading.length){ h+='<div style="font-weight:700;color:var(--orange);margin-top:8px">📉 DEGRADÁNDOSE</div>'; sum.degrading.forEach(x=>h+=chip(x,'var(--orange)')); }
+  if(sum.discarded.length){ h+='<div style="font-weight:700;color:var(--dim);margin-top:8px">🗑️ DESCARTADAS ('+sum.discarded.length+')</div><div style="font-size:12px;color:var(--dim)">'+sum.discarded.map(x=>x.nm).join(', ')+'</div>'; }
+  h+='</div>';
+  if(sum.versions.length){ h+='<details class="card" style="font-size:12px"><summary style="cursor:pointer;font-weight:700">🧬 Historial de conocimiento ('+sum.versions.length+' cambios)</summary>'; sum.versions.forEach(v=>h+='<div style="border-top:1px solid var(--border);padding:5px 0;color:var(--muted)">v'+v.v+' · <b>'+v.nm+'</b> '+v.from+'→'+v.to+' (Δ'+v.delta+')</div>'); h+='</details>'; }
+  // Botón IA
+  const hasKey=getAiKey(); const u=_aiUsage();
+  h+='<div class="card" style="border-color:rgba(160,120,240,.4)"><div style="font-weight:700">🤖 IA del Oráculo (Gemini · opcional)</div>'+
+     '<div style="font-size:12px;color:var(--muted);margin:4px 0 8px">La IA razona sobre estos datos y propone hipótesis nuevas medibles. No decide pronósticos ni inventa noticias. '+(hasKey?('Uso hoy: '+u.count+'/'+DAILY_AI_LIMIT):'Pega tu clave gratis de Gemini en ⚙️ Ajustes.')+'</div>'+
+     '<button class="mbtn mbtn-primary" style="width:100%" onclick="runOracleAI()">🔮 Pedir hipótesis a la IA</button>'+
+     '<div id="oracleAiBox" style="margin-top:10px">'+(ORACLE_AI_RESULT?renderOracleAIHTML(ORACLE_AI_RESULT):'')+'</div></div>';
+  return h;
+}
+function renderOracleAIHTML(r){
+  if(!r) return '';
+  if(r.error) return '<div style="font-size:13px;color:var(--orange)">⚠ '+r.error+'</div>';
+  const hs=r.hypotheses||[];
+  if(!hs.length) return '<div style="font-size:13px;color:var(--muted)">La IA no propuso hipótesis nuevas.</div>';
+  let h='<div style="font-size:12px;color:var(--dim);margin-bottom:6px">'+(r.cached?'(desde caché — sin gastar cuota)':'Hipótesis IA · no verificadas · deben pasar validación estadística antes de usarse')+'</div>';
+  hs.forEach(x=>{ h+='<div style="border-top:1px solid var(--border);padding:7px 0"><b style="color:#cdb8ff">'+x.nombre+'</b><div style="font-size:13px;color:var(--muted)">'+(x.condicion||'')+' → '+(x.efecto_esperado||'')+'<br><span style="color:var(--dim)">'+(x.por_que||'')+' · vars: '+((x.variables||[]).join(', '))+'</span></div></div>'; });
+  return h;
+}
+async function runOracleAI(){
+  const el=document.getElementById('oracleAiBox'); if(el) el.innerHTML='<div style="color:var(--muted);font-size:13px">🔮 Consultando IA…</div>';
+  try{ const r=await oracleAskAI(ACTIVE); ORACLE_AI_RESULT=r; if(el) el.innerHTML=renderOracleAIHTML(r); }
+  catch(e){ if(el) el.innerHTML='<div style="color:var(--orange);font-size:13px">⚠ '+e.message+'</div>'; }
+}
+function renderForenseHTML(FM){
+  const m=FM.meta;
+  if(m.insuf) return '<div class="stitle">🔎 Forense · retroajustado · no predictivo</div><div class="card" style="color:var(--muted);font-size:14px">Aún faltan partidos jugados ('+m.partidos+') para reconstruir el pasado con rigor.</div>';
+  const N=m.partidos, pct=x=>Math.round(x/N*100);
+  const seg=(c,cls,lbl)=>c>0?('<div style="width:'+pct(c)+'%;background:'+cls+'" title="'+lbl+'"></div>'):'';
+  let h='<div class="stitle">🔎 Forense · <span style="color:var(--dim);font-weight:600;font-size:12px">retroajustado · no predictivo · explica el pasado, no lo pronostica</span></div>';
+  // banners de fracaso
+  const warn=[];
+  if(m.residualRate>0.20) warn.push('residuo '+(m.residualRate*100).toFixed(0)+'% > 20% — las variables nuevas casi no aportaron');
+  if(m.densidad>0.71) warn.push('densidad '+m.densidad+' > 0.71 — demasiados parámetros para tan pocos partidos (memoriza)');
+  if(m.accPermutado>0.30) warn.push('permutación '+(m.accPermutado*100).toFixed(0)+'% > 30% — con etiquetas barajadas sigue "corrigiendo": está memorizando');
+  if(m.accTest!=null&&m.baseL0!=null&&m.accTest<m.baseL0) warn.push('acierto test ('+(m.accTest*100).toFixed(0)+'%) por debajo de la estructura L0 ('+(m.baseL0*100).toFixed(0)+'%) — L1 no ayuda fuera de muestra');
+  if(m.L3c/N>0.25) warn.push('L3 '+(m.L3c/N*100).toFixed(0)+'% > 25% — motor declarado FRACASADO, el 100% no significa nada aún');
+  if(warn.length) h+='<div class="card" style="border-color:var(--red);background:rgba(240,101,111,.08);font-size:13px;line-height:1.5"><b style="color:var(--red)">⚠️ Diagnóstico honesto — condiciones de fracaso activas:</b><br>• '+warn.join('<br>• ')+'<br><span style="color:var(--muted)">Es lo esperable con pocos partidos. Mejora al acumular fechas (siembra multi-temporada + cuotas).</span></div>';
+  // presupuesto de explicación
+  h+='<div class="card">';
+  h+='<div style="font-size:13px;color:var(--muted);font-weight:700;margin-bottom:6px">📊 Presupuesto de explicación ('+N+' partidos = 100%)</div>';
+  h+='<div style="display:flex;height:26px;border-radius:8px;overflow:hidden;border:1px solid var(--border2)">'+
+     seg(m.L0c,'var(--accent)','L0')+seg(m.L1c,'var(--gold)','L1')+seg(m.L2c,'#a078f0','L2')+seg(m.L3c,'var(--dim)','L3')+'</div>';
+  h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:6px;color:var(--muted)">'+
+     '<span><b style="color:var(--accent)">L0</b> estructura '+m.L0c+' ('+pct(m.L0c)+'%)</span>'+
+     '<span><b style="color:var(--gold)">L1</b> contexto '+m.L1c+' ('+pct(m.L1c)+'%)</span>'+
+     '<span><b style="color:#a078f0">L2</b> '+m.L2c+'</span>'+
+     '<span><b style="color:var(--dim)">L3</b> residuo '+m.L3c+' ('+pct(m.L3c)+'%)</span></div>';
+  h+='<div style="font-size:11px;color:var(--dim);margin-top:6px">L2 (régimen) plegada en L1 en esta versión. El 100% se cierra con L3 (acta forense, no predictiva).</div>';
+  h+='</div>';
+  // números grandes: residual y densidad
+  const rc = m.residualRate<0.231?'var(--green)':'var(--red)';
+  const dc = m.densidad<0.71?'var(--green)':'var(--red)';
+  h+='<div style="display:flex;gap:10px;margin-bottom:14px">'+
+     '<div class="card" style="flex:1;text-align:center;margin:0"><div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Residuo (L3)</div><div style="font-size:34px;font-weight:900;color:'+rc+'">'+(m.residualRate*100).toFixed(0)+'%</div><div style="font-size:12px;color:var(--dim)">Mundial: 23%</div></div>'+
+     '<div class="card" style="flex:1;text-align:center;margin:0"><div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Densidad</div><div style="font-size:34px;font-weight:900;color:'+dc+'">'+m.densidad+'</div><div style="font-size:12px;color:var(--dim)">Mundial: 0.71</div></div>'+
+     '</div>';
+  // acierto honesto fuera de muestra vs líneas base
+  const pctS=x=>x!=null?(x*100).toFixed(0)+'%':'—';
+  h+='<div class="card"><div style="font-size:13px;color:var(--muted);font-weight:700;margin-bottom:6px">🎯 Acierto FUERA de muestra (tercio final) vs líneas base</div>'+
+     '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>🔎 Forense (L0+L1, L3 apagado)</span><b>'+pctS(m.accTest)+'</b></div>'+
+     '<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--border)"><span>Estructura L0 sola</span><b>'+pctS(m.baseL0)+'</b></div>'+
+     '<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--border)"><span>🏛️ Favorito del mercado</span><b>'+pctS(m.baseMkt)+'</b></div>'+
+     '<div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--border)"><span>Siempre local</span><b>'+pctS(m.baseHome)+'</b></div>'+
+     '<div style="font-size:12px;color:var(--muted);margin-top:6px">Entrenamiento '+pctS(m.accTrain)+' vs test '+pctS(m.accTest)+(m.accTrain!=null&&m.accTest!=null&&(m.accTrain-m.accTest)>0.15?' — <b style="color:var(--orange)">brecha >15pt: sobreajuste</b>':'')+'. Permutación '+pctS(m.accPermutado)+' (barajado; &gt;30% = memoriza).</div></div>';
+  // residuo por resultado
+  h+='<div class="card" style="font-size:13px"><b>🧩 Residuo por resultado real:</b> local '+m.residuo.H+' · empate '+m.residuo.D+' · visita '+m.residuo.A+(m.residuo.D>=Math.max(m.residuo.H,m.residuo.A)?' <span style="color:var(--orange)">— el empate sigue siendo el agujero (no resuelto, solo reubicado)</span>':'')+'</div>';
+  // ablación
+  if(FM.ablacion&&FM.ablacion.length){
+    h+='<div class="card" style="padding:8px 6px;overflow-x:auto"><div style="font-size:13px;color:var(--muted);font-weight:700;padding:0 6px 6px">🔬 Ablación — qué variable de verdad baja el residuo</div><table class="mtab"><thead><tr><th>Variable</th><th>Δ residuo si se quita</th></tr></thead><tbody>';
+    FM.ablacion.slice(0,8).forEach(a=>{ h+='<tr><td>'+a.variable+'</td><td>'+(a.deltaResidual>0?'+':'')+(a.deltaResidual*100).toFixed(1)+'%</td></tr>'; });
+    h+='</tbody></table></div>';
+  }
+  // features propuestos
+  if(FM.featuresPropuestos&&FM.featuresPropuestos.length){
+    h+='<div class="card" style="font-size:13px"><b>🧪 Variables candidatas (del acta L3):</b><br>';
+    FM.featuresPropuestos.forEach(f=>{ h+='• <b>'+f.nombre+'</b> ×'+f.apariciones+' — '+f.hipotesis+'<br>'; });
+    h+='</div>';
+  }
+  // acta L3 (expandible)
+  if(FM.memoria&&FM.memoria.length){
+    h+='<details class="card" style="font-size:13px"><summary style="cursor:pointer;font-weight:700">📋 Acta forense L3 ('+FM.memoria.length+' partidos sin explicación estructural)</summary>';
+    FM.memoria.slice(-12).forEach(e=>{ h+='<div style="border-top:1px solid var(--border);padding:6px 0;color:var(--muted)">'+e.real+' · <b>'+e.causa+'</b> — '+e.contrafactual+'</div>'; });
+    h+='</details>';
+  }
+  // bugs documentados
+  h+='<div class="card" style="font-size:12px;color:var(--muted);line-height:1.5"><b>🐞 Bugs conocidos (documentados, no escondidos):</b><br>• <b>Bug 1:</b> en BetPlay, 🌀 Anomalía = 70% la cuota del mercado (no hay ratings colombianos en ANOM_MODEL). Es el mercado encogido, no un motor de anomalías.<br>• <b>Bug 2:</b> la alerta dorada exige que Anomalía le gane a la casa en Brier — casi imposible por el Bug 1. Queda estructuralmente bloqueada.</div>';
+  h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin:4px 0 10px">explica el 100% del pasado · <span style="color:var(--dim)">retroajustado</span> · no es un pronóstico</div>';
+  return h;
+}
+
 function renderComparativa(){
   const pg=document.getElementById('page-comp');
   const cfg=TORNEOS[ACTIVE];
@@ -1835,6 +2364,15 @@ function renderComparativa(){
     h+='<div style="padding:6px 0 2px;border-top:1px solid var(--border)">🧩 <b>Familias de error</b> ('+fails+' fallos): empate '+eD+' · sorpresa L/V '+eU+' · otros '+eO+'</div>';
     h+='</div>';
     h+='<div class="card" style="border-color:rgba(240,188,53,.5);font-size:14px;line-height:1.6"><b>🎯 Si solo pudieras cambiar UNA cosa:</b><br><b style="color:var(--gold)">'+one+'</b><br><span style="color:var(--muted)">Evidencia: '+why+'</span><br><span style="color:var(--muted)">Comprobación: '+how+'</span></div>';
+  }
+  // ---- 🔎 FORENSE + 🔮 ORÁCULO (retroajustado/evolutivo, fuera del consenso) ----
+  if(wf.log && wf.log.length>=8){
+    const fh=_fHash(ACTIVE);
+    if(FORENSE_MODEL && FORENSE_MODEL._hash===fh){ h+=renderForenseHTML(FORENSE_MODEL); h+=renderOracleHTML(); }
+    else {
+      h+='<div class="stitle">🔎 Forense · 🔮 Oráculo</div><div class="card" style="color:var(--muted)">🔎 Reconstruyendo el pasado y evolucionando el conocimiento…</div>';
+      setTimeout(()=>{ try{ fitForense(ACTIVE); oracleEvolve(ACTIVE); if(FORENSE_MODEL) FORENSE_MODEL._hash=fh; renderComparativa(); }catch(e){ console.warn("forense/oraculo:",e.message); } },30);
+    }
   }
   // Tarjeta del experimento de sobreajuste
   const anAcc=wf.tot.anomalia?(wf.hits.anomalia/wf.tot.anomalia*100).toFixed(1):null;
@@ -2186,7 +2724,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.6 · 14 sep 2026";
+const APP_VERSION="v5.8 · 16 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
