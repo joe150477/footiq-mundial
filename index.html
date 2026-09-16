@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.10 · 16 sep 2026 · proxies robustos</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.11 · 16 sep 2026 · diagnóstico ESPN</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.10 · 16 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.11 · 16 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -320,6 +320,8 @@ body{
     </div>
     <div id="footiqoStatus" style="font-size:13px;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--green-soft);color:var(--green);line-height:1.5"></div>
     <button class="mbtn" style="width:100%;margin-top:10px" onclick="runBackfill()">📥 Aprender del pasado · API-Football</button>
+    <button class="mbtn" style="width:100%;margin-top:10px" onclick="testEspnProxies()">🔌 Probar conexión ESPN (diagnóstico)</button>
+    <div id="espnDiag" style="font-size:12px;margin-top:10px;line-height:1.7;font-variant-numeric:tabular-nums"></div>
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border2)">
       <div style="font-weight:700;font-size:15px">🤖 IA del Oráculo · Gemini (opcional)</div>
       <div class="modal-desc" style="margin-top:4px">Gratis en <b>aistudio.google.com/app/apikey</b> (sin tarjeta). Solo propone hipótesis medibles; nunca decide el pronóstico. La clave se guarda solo en este dispositivo.</div>
@@ -1042,6 +1044,33 @@ async function apiFB(path){
   const r=await fetch(APIFB_BASE+path,{headers:{'x-apisports-key':key}});
   if(!r.ok) throw new Error('HTTP '+r.status);
   return await r.json();
+}
+async function _diagFetch(u,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms||9000); try{ const r=await fetch(u,{signal:c.signal}); clearTimeout(id); const txt=await r.text(); let n=null; try{ let j=JSON.parse(txt); if(j&&typeof j.contents==='string')j=JSON.parse(j.contents); n=(j&&j.events)?j.events.length:null; }catch(e){} return {ok:r.ok,status:r.status,n,len:txt.length}; }catch(e){ clearTimeout(id); return {err:e.name==='AbortError'?'timeout':e.message}; } }
+async function testEspnProxies(){
+  const box=document.getElementById('espnDiag'); if(box) box.innerHTML='🔌 Probando proxies desde tu dispositivo…';
+  const cfg=TORNEOS[ACTIVE]||TORNEOS.betplay;
+  const fmt=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  const to=new Date(), from=new Date(); from.setDate(from.getDate()-8);
+  const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+cfg.espn+'/scoreboard?dates='+fmt(from)+'-'+fmt(to)+'&limit=100';
+  const enc=encodeURIComponent(url);
+  const tests=[
+    ['Directo (CORS)',url,7000],
+    ['corsproxy.io','https://corsproxy.io/?url='+enc,12000],
+    ['allorigins raw','https://api.allorigins.win/raw?url='+enc,12000],
+    ['codetabs','https://api.codetabs.com/v1/proxy/?quest='+enc,12000],
+    ['allorigins get','https://api.allorigins.win/get?url='+enc,12000],
+    ['thingproxy','https://thingproxy.freeboard.io/fetch/'+url,12000],
+    ['cors.sh','https://proxy.cors.sh/'+url,12000]
+  ];
+  let out='';
+  for(const [name,u,ms] of tests){
+    const t0=Date.now(); const r=await _diagFetch(u,ms); const dt=Date.now()-t0;
+    if(r.err) out+='❌ '+name+' — '+r.err+' ('+dt+'ms)<br>';
+    else out+=(r.ok&&r.n!=null?'✅':'⚠️')+' '+name+' — HTTP '+r.status+(r.n!=null?(' · '+r.n+' partidos'):' · sin JSON')+' ('+dt+'ms)<br>';
+    if(box) box.innerHTML=out;
+  }
+  out+='<br><span style="color:var(--dim)">✅ = ese proxy funciona en tu red. Si todos fallan, tu operador/WiFi bloquea los proxies — prueba con datos móviles o otra red.</span>';
+  if(box) box.innerHTML=out;
 }
 async function testAPIFootball(){
   const key=(document.getElementById('apiKeyInput').value||'').trim();
@@ -2731,7 +2760,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.10 · 16 sep 2026";
+const APP_VERSION="v5.11 · 16 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
