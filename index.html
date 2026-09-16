@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.8 · 16 sep 2026 · 🔮 Oráculo</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.9 · 16 sep 2026 · fix sync</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.8 · 16 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.9 · 16 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -946,29 +946,32 @@ async function syncTorneo(t){
   const cfg=TORNEOS[t];
   if(!cfg||cfg.estado==='futuro'||cfg.estado==='finalizado') return {nuevos:0,actualizados:0};
   const base=`https://site.api.espn.com/apis/site/v2/sports/soccer/${cfg.espn}/scoreboard`;
-  const st0=loadState(t);
-  // Siembra (una sola vez): historia previa para calibrar el ELO antes de la jornada 1
-  const seedVer=cfg.seedVer||1;
-  if(cfg.seedDesde && st0.seedDone!==seedVer){
-    try{
-      let cur=new Date(cfg.seedDesde+'T00:00:00'); const s1=new Date(cfg.seedHasta+'T00:00:00');
-      while(cur<s1){   // ventanas de 4 meses para respetar el límite de 500 por llamada
-        let end=new Date(cur); end.setMonth(end.getMonth()+4); if(end>s1) end=new Date(s1);
-        const sd=await fetchWithProxies(`${base}?dates=${_fmtD(cur)}-${_fmtD(end)}&limit=500`);
-        parseEvents(t,sd.events||[],true);
-        cur=new Date(end); cur.setDate(cur.getDate()+1);
-      }
-      st0.seedDone=seedVer; saveState(t);
-    }catch(e){ console.warn('seed:',e.message); }
-  }
-  // Temporada completa: calendario entero para poder simular el título
+  // 1) ESENCIAL PRIMERO: la temporada actual. La app debe funcionar aunque la siembra falle.
   const d0=new Date(cfg.inicio+'T00:00:00');
   const d1=cfg.fin?new Date(cfg.fin+'T00:00:00'):(()=>{const x=new Date();x.setDate(x.getDate()+30);return x;})();
-  const rng=`${_fmtD(d0)}-${_fmtD(d1)}`;
-  const data=await fetchWithProxies(`${base}?dates=${rng}&limit=500`);
+  const data=await fetchWithProxies(`${base}?dates=${_fmtD(d0)}-${_fmtD(d1)}&limit=500`);
   const res=parseEvents(t,data.events||[]);
   invalidateWF(t);
+  // 2) SIEMBRA PROGRESIVA (best-effort): máx 2 ventanas por sync, con progreso persistente,
+  //    para NO saturar los proxies gratuitos ni bloquear la sincronización esencial.
+  try{ await seedProgressive(t,cfg,base); }catch(e){ console.warn('seed:',e.message); }
   return res;
+}
+async function seedProgressive(t,cfg,base){
+  if(!cfg.seedDesde) return;
+  const st=loadState(t); const seedVer=cfg.seedVer||1;
+  if(st.seedDone===seedVer) return;
+  let cur = st.seedProgress ? new Date(st.seedProgress) : new Date(cfg.seedDesde+'T00:00:00');
+  const s1=new Date(cfg.seedHasta+'T00:00:00');
+  let chunks=0;
+  while(cur<s1 && chunks<2){   // solo 2 ventanas por sync → los proxies no se saturan
+    let end=new Date(cur); end.setMonth(end.getMonth()+4); if(end>s1) end=new Date(s1);
+    const sd=await fetchWithProxies(`${base}?dates=${_fmtD(cur)}-${_fmtD(end)}&limit=500`);
+    parseEvents(t,sd.events||[],true);
+    cur=new Date(end); cur.setDate(cur.getDate()+1);
+    st.seedProgress=cur.toISOString(); saveState(t); chunks++;
+  }
+  if(cur>=s1){ st.seedDone=seedVer; saveState(t); }   // completada: no vuelve a intentar
 }
 
 async function syncActive(){
@@ -2724,7 +2727,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.8 · 16 sep 2026";
+const APP_VERSION="v5.9 · 16 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
