@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.14 · 17 sep 2026 · Plan seguro 🟢</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.15 · 17 sep 2026 · Plan claro 🟢</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.14 · 17 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.15 · 17 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -626,37 +626,37 @@ function getPlanBudget(){ try{return +(localStorage.getItem('fiq2_planbudget')||
 function setPlanBudget(v){ try{localStorage.setItem('fiq2_planbudget',String(Math.max(0,parseInt(String(v).replace(/[^0-9]/g,''))||0)));}catch(e){} renderHoy(); }
 function _fmtCOP(n){ return '$'+Math.round(n).toLocaleString('es-CO'); }
 function renderPlanCard(win){
-  const cfg=TORNEOS[ACTIVE];
   const pend=win.filter(m=>!m.played&&!m.postponed);
   const picks=[];
   for(const m of pend){ try{ const p=predictMatch(ACTIVE,m); const sp=_safePick(m,p); if(sp&&sp.prob>=0.70){ picks.push({m,sp,p}); } }catch(e){} }
   picks.sort((a,b)=>b.sp.prob-a.sp.prob);
-  const top=picks.slice(0,10);   // hasta 10 partidos
+  const top=picks.slice(0,10);
   const st=_safeStats(ACTIVE);
   const budget=getPlanBudget();
   let h='<div class="card" style="border-color:rgba(62,207,142,.45);background:linear-gradient(180deg,rgba(62,207,142,.07),transparent)">';
-  h+='<div style="font-weight:800;font-size:16px;color:var(--green)">🟢 Plan seguro de la jornada</div>';
-  h+='<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">Mercado más seguro: <b>“el favorito no pierde”</b> (gana o empata). '+(st.favT>=5?('Histórico en tu data: <b>'+Math.round(st.favNoLose*100)+'%</b> ('+st.favN+'/'+st.favT+').'):'Aún pocos partidos para medir el histórico.')+'</div>';
-  if(!top.length){ h+='<div style="font-size:14px;color:var(--muted)">No hay partidos con un favorito claro (≥70%) en la ventana. Mejor no forzar apuestas.</div></div>'; return h; }
-  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:14px;color:var(--muted)">Presupuesto total:</span>'+
-     '<input inputmode="numeric" value="'+(budget||'')+'" placeholder="ej. 100000" onchange="setPlanBudget(this.value)" style="flex:1;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;color:var(--text);padding:8px 10px;font-size:15px;font-variant-numeric:tabular-nums"></div>';
-  // reparto ponderado por confianza (edge sobre 0.55), tope 30% por partido
+  h+='<div style="font-weight:800;font-size:17px;color:var(--green)">🟢 Plan seguro de la jornada</div>';
+  h+='<div style="font-size:13px;color:var(--muted);margin:6px 0 10px;line-height:1.5">Apuesta a que <b>“el favorito no pierde”</b> (gana o empata). En tu data acierta <b>'+(st.favT>=5?Math.round(st.favNoLose*100)+'%':'~80%')+'</b>'+(st.favT>=5?(' ('+st.favN+'/'+st.favT+')'):'')+'.<br><b>Cómo usarlo en BetPlay:</b> entra al partido → busca el mercado <b>“Doble Oportunidad”</b> → toca la opción que te digo → <b style="color:var(--gold)">SOLO apuesta si la cuota que ves es MAYOR a la “cuota mínima”.</b> Si es menor, NO la juegues (aunque aciertes, pierdes).</div>';
+  if(!top.length){ h+='<div style="font-size:14px;color:var(--muted)">No hay partidos con favorito claro (≥70%) en la ventana. Mejor no apostar esta jornada.</div></div>'; return h; }
+  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:14px;color:var(--muted);white-space:nowrap">💰 Presupuesto:</span>'+
+     '<input inputmode="numeric" value="'+(budget||'')+'" placeholder="ej. 100000" onchange="setPlanBudget(this.value)" style="flex:1;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;color:var(--text);padding:9px 11px;font-size:16px;font-variant-numeric:tabular-nums"></div>';
   const wts=top.map(x=>Math.max(0.01, x.sp.prob-0.55));
   const sw=wts.reduce((a,b)=>a+b,0)||1;
   let stakes=top.map((x,i)=>budget*wts[i]/sw);
   stakes=stakes.map(s=>Math.min(s, budget*0.30));
-  const used=stakes.reduce((a,b)=>a+b,0)||1; stakes=stakes.map(s=>s*budget/used);   // renormaliza tras el tope
-  h+='<div style="overflow-x:auto"><table class="mtab"><thead><tr><th>Partido</th><th>Apuesta</th><th>Conf.</th><th>Cuota mín.</th>'+(budget?'<th>Monto</th>':'')+'</tr></thead><tbody>';
+  const used=stakes.reduce((a,b)=>a+b,0)||1; stakes=stakes.map(s=>s*budget/used);
   top.forEach((x,i)=>{
     const sp=x.sp; const spair=shortPair(x.m.h,x.m.a);
-    h+='<tr><td style="font-size:13px">'+spair.hs+' v '+spair.as+'</td><td style="font-weight:700">'+sp.tipo+'</td><td>'+Math.round(sp.prob*100)+'%</td><td style="color:var(--gold);font-weight:700">'+sp.cuotaMin.toFixed(2)+'</td>'+(budget?('<td style="font-weight:800;color:var(--green)">'+_fmtCOP(stakes[i])+'</td>'):'')+'</tr>';
+    const opcion = sp.code==='1X' ? ('“1X” ('+spair.hs+' o empate)') : ('“X2” (empate o '+spair.as+')');
+    h+='<div style="background:var(--bg2);border:1px solid var(--border2);border-left:3px solid var(--green);border-radius:12px;padding:11px 13px;margin-bottom:10px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:15px">'+x.m.h+' vs '+x.m.a+'</b><span style="font-size:13px;color:var(--green);font-weight:800">'+Math.round(sp.prob*100)+'% seguro</span></div>';
+    h+='<div style="font-size:14px;margin-top:6px;line-height:1.5">📱 En BetPlay → mercado <b>Doble Oportunidad</b> → toca <b style="color:#8ec7ff">'+opcion+'</b></div>';
+    h+='<div style="font-size:14px;margin-top:4px;line-height:1.5">✅ Apuesta <b>solo si la cuota es mayor a <span style="color:var(--gold)">'+sp.cuotaMin.toFixed(2)+'</span></b>'+(budget?(' · pon <b style="color:var(--green)">'+_fmtCOP(stakes[i])+'</b>'):'')+'</div>';
+    h+='</div>';
   });
-  h+='</tbody></table></div>';
-  h+='<div style="font-size:12px;color:var(--dim);margin-top:10px;line-height:1.5"><b style="color:var(--orange)">⚠️ Lo honesto:</b> acertar 70-80% NO es lo mismo que ganar dinero. Estas apuestas pagan cuotas bajas. <b>Solo apuesta un partido si la cuota real que te ofrecen es MAYOR a la “cuota mínima”</b> de la tabla — si es menor, aunque aciertes pierdes plata a la larga. Reparte más a los de mayor confianza, nunca todo a uno. Apuesta solo lo que puedas permitirte perder; esto es azar, no un ingreso.</div>';
+  h+='<div style="font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5"><b style="color:var(--orange)">⚠️ Lo más importante:</b> los mercados seguros suelen pagar poco. Si BetPlay te ofrece, por ejemplo, <b>1.06</b> en un partido cuya cuota mínima es <b>1.19</b>, <b>NO apuestes ese</b> — aunque el equipo no pierda, pierdes plata a la larga. Solo juega los que superen su cuota mínima. Apuesta solo lo que puedas perder; esto es azar, no un ingreso.</div>';
   h+='</div>';
   return h;
-}
-function betSuggest(p){
+}function betSuggest(p){
 
   if(!p) return null;
   const {pH,pD,pA}=p, top=Math.max(pH,pD,pA);
@@ -2832,7 +2832,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.14 · 17 sep 2026";
+const APP_VERSION="v5.15 · 17 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
