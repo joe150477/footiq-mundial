@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.16 · 18 sep 2026 · Plan por fecha 🟢</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.17 · 18 sep 2026 · fix partidos</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.16 · 18 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.17 · 18 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -2062,7 +2062,7 @@ function renderHoy(){
   if(cfg.estado==='futuro'){ renderChamp(); pg.innerHTML=document.getElementById('page-champ').innerHTML; return; }
   const st=loadState(ACTIVE);
   if(!st.matches.length){
-    pg.innerHTML=`<div class="card future-card"><div class="future-icon">📥</div><div class="future-note">Sin calendario aún. Toca 🔄 para sincronizar ${cfg.nombre}.</div></div>`;
+    pg.innerHTML=`<div class="card future-card"><div class="future-icon">📥</div><div class="future-note">Sin partidos en memoria todavía. Toca 🔄 para sincronizar ${cfg.nombre}.<br><br>Si ya sincronizaste y sigue vacío, abre ⚙️ Ajustes → <b>🔌 Probar conexión ESPN</b> y dime qué sale.</div></div>`;
     return;
   }
   const now=new Date();
@@ -2073,14 +2073,19 @@ function renderHoy(){
     const d=_asDate(m.date); return !isNaN(d)&&d>=from&&d<=to;
   }).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   if(!win.length){
-    pg.innerHTML='<div class="card future-card"><div class="future-icon">📭</div><div class="future-note">Sin partidos entre ayer y los próximos 7 días.</div></div>';
+    const totJug=st.matches.filter(m=>m.played&&!m.seed).length;
+    const totFut=st.matches.filter(m=>!m.played&&!m.seed&&!m.postponed).length;
+    const prox=st.matches.filter(m=>!m.played&&!m.seed&&!m.postponed&&m.date).sort((a,b)=>(a.date||'').localeCompare(b.date||''))[0];
+    const proxTxt=prox?('Próximo en memoria: '+prox.h+' vs '+prox.a+' ('+_fmtDayCol(prox.date)+').'):'No hay partidos futuros en memoria.';
+    pg.innerHTML='<div class="card future-card"><div class="future-icon">📭</div><div class="future-note">Sin partidos en la ventana (–3 a +18 días).<br><br>En memoria: <b>'+st.matches.length+'</b> partidos ('+totJug+' jugados, '+totFut+' futuros).<br>'+proxTxt+'<br><br>Toca 🔄 para sincronizar. Si sigue vacío, abre ⚙️ Ajustes → <b>🔌 Probar conexión ESPN</b>.</div></div>';
     return;
   }
-  const wf=getWF(ACTIVE); const logById={}; wf.log.forEach(r=>logById[r.id]=r);
+  const wf=getWF(ACTIVE); const logById={}; (wf.log||[]).forEach(r=>logById[r.id]=r);
   const dayCounts={}; win.forEach(m=>{ const d=_colDay(m.date); dayCounts[d]=(dayCounts[d]||0)+1; });
   const _now=new Date(); const todayCol=_colDay(_now.toISOString());
   const _tm=new Date(_now); _tm.setDate(_tm.getDate()+1); const tomCol=_colDay(_tm.toISOString());
-  let h=renderPlanCard(win),lastDay='';
+  let h='',lastDay='';
+  try{ h=renderPlanCard(win); }catch(e){ h=''; console.warn('plan:',e&&e.message); }
   const fmtDay=_fmtDayCol;
   const fmtHr=_fmtHrCol;
   const nm=(t,who)=>{const s=t.split(' ')[0]; return who==='H'?s:who==='A'?s:'Empate';};
@@ -2233,6 +2238,16 @@ function renderOracleHTML(){
      '<button class="mbtn mbtn-primary" style="width:100%" onclick="runOracleAI()">🔮 Pedir hipótesis a la IA</button>'+
      '<div id="oracleAiBox" style="margin-top:10px">'+(ORACLE_AI_RESULT?renderOracleAIHTML(ORACLE_AI_RESULT):'')+'</div></div>';
   return h;
+}
+function betSuggest(p){
+  if(!p) return null;
+  const {pH,pD,pA}=p, top=Math.max(pH,pD,pA);
+  const pick=top===pH?'H':top===pA?'A':'D';
+  if(top>=0.50) return pick==='H'?{code:'1',txt:'Gana local'}:pick==='A'?{code:'2',txt:'Gana visitante'}:{code:'X',txt:'Empate'};
+  const low=Math.min(pH,pD,pA);
+  if(low===pA) return {code:'1X',txt:'Local o empate'};
+  if(low===pH) return {code:'X2',txt:'Empate o visitante'};
+  return {code:'12',txt:'Local o visitante'};
 }
 function renderOracleAIHTML(r){
   if(!r) return '';
@@ -2831,7 +2846,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.16 · 18 sep 2026";
+const APP_VERSION="v5.17 · 18 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
