@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.18 · 25 sep 2026 · 🌡️ Clima + 🏛️ Jerarquía</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.19 · 25 sep 2026 · 🔮 Cazador de valor</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.18 · 25 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.19 · 25 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -628,42 +628,43 @@ function _fmtCOP(n){ return '$'+Math.round(n).toLocaleString('es-CO'); }
 function renderPlanCard(win){
   const pend=win.filter(m=>!m.played&&!m.postponed&&m.date);
   const picks=[];
-  for(const m of pend){ try{ const p=predictMatch(ACTIVE,m); const sp=_safePick(m,p); if(sp&&sp.prob>=0.70){ picks.push({m,sp,p,date:m.date}); } }catch(e){} }
-  const st=_safeStats(ACTIVE);
+  for(const m of pend){ try{ const p=predictMatch(ACTIVE,m); picks.push({m,p,date:m.date}); }catch(e){} }
   const budget=getPlanBudget();
-  let h='<div class="card" style="border-color:rgba(62,207,142,.45);background:linear-gradient(180deg,rgba(62,207,142,.07),transparent)">';
-  h+='<div style="font-weight:800;font-size:17px;color:var(--green)">🟢 Plan seguro de la jornada</div>';
-  h+='<div style="font-size:13px;color:var(--muted);margin:6px 0 10px;line-height:1.5">Apuesta a que <b>“el favorito no pierde”</b> (gana o empata). En tu data acierta <b>'+(st.favT>=5?Math.round(st.favNoLose*100)+'%':'~80%')+'</b>'+(st.favT>=5?(' ('+st.favN+'/'+st.favT+')'):'')+'.<br><b>En BetPlay:</b> entra al partido → mercado <b>“Doble Oportunidad”</b> → toca la opción indicada → <b style="color:var(--gold)">SOLO apuesta si la cuota es MAYOR a la “cuota mínima”.</b></div>';
-  if(!picks.length){ h+='<div style="font-size:14px;color:var(--muted)">No hay partidos con favorito claro (≥70%) en la ventana. Mejor no apostar esta jornada.</div></div>'; return h; }
-  // top 10 por confianza para repartir presupuesto, pero SE MUESTRA por fecha
-  const byConf=picks.slice().sort((a,b)=>b.sp.prob-a.sp.prob).slice(0,10);
-  const wts=byConf.map(x=>Math.max(0.01,x.sp.prob-0.55)); const sw=wts.reduce((a,b)=>a+b,0)||1;
-  let stakes=byConf.map((x,i)=>budget*wts[i]/sw); stakes=stakes.map(s=>Math.min(s,budget*0.30));
-  const used=stakes.reduce((a,b)=>a+b,0)||1; stakes=stakes.map(s=>s*budget/used);
-  byConf.forEach((x,i)=>{ x.stake=stakes[i]; x.enPlan=true; });
-  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:14px;color:var(--muted);white-space:nowrap">💰 Presupuesto:</span>'+
-     '<input inputmode="numeric" value="'+(budget||'')+'" placeholder="ej. 100000" onchange="setPlanBudget(this.value)" style="flex:1;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;color:var(--text);padding:9px 11px;font-size:16px;font-variant-numeric:tabular-nums"></div>';
-  // ORDENAR CRONOLÓGICAMENTE y agrupar por día
-  const show=byConf.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  let h='<div class="card" style="border-color:rgba(90,169,240,.45);background:linear-gradient(180deg,rgba(90,169,240,.07),transparent)">';
+  h+='<div style="font-weight:800;font-size:17px;color:var(--accent)">🔮 Pronóstico + Valor de la jornada</div>';
+  h+='<div style="font-size:12.5px;color:var(--muted);margin:6px 0 10px;line-height:1.5"><b style="color:var(--orange)">La verdad:</b> apostar lo obvio no deja ganancia (la casa ya lo tiene en el precio). La única apuesta con sentido es cuando <b>nuestra probabilidad le gana a la del mercado</b> = <b style="color:var(--green)">🟢 VALOR</b>. Con jerarquía y clima nuevos, el modelo caza mejor esos huecos. Si no hay valor, lo honesto es <b>no apostar</b>.</div>';
+  if(!picks.length){ h+='<div style="font-size:14px;color:var(--muted)">Sin partidos próximos en la ventana. Toca 🔄.</div></div>'; return h; }
+  const val=[];
+  picks.forEach(x=>{ const p=x.p,o=x.m.odds; x.bb=betSuggest(p); x.conf=Math.max(p.pH,p.pD,p.pA);
+    if(o&&o.pH!=null){ const outs=[['H',p.pH,o.pH,'Gana '+x.m.h],['D',p.pD,o.pD,'Empate'],['A',p.pA,o.pA,'Gana '+x.m.a]];
+      let best=null; outs.forEach(o2=>{ const c=o2[0],pp=o2[1],mp=o2[2],lbl=o2[3]; const edge=pp-mp; if(edge>=0.06&&pp>=0.34&&(!best||edge>best.edge)) best={c,edge,pp,mp,lbl,odd:(x.m.oddsBest&&x.m.oddsBest[c])||+(1/Math.max(0.02,mp)).toFixed(2)}; });
+      if(best){ x.value=best; val.push(x); } } });
+  if(budget&&val.length){ const wts=val.map(x=>x.value.edge); const sw=wts.reduce((a,b)=>a+b,0)||1; let stakes=val.map((x,i)=>budget*wts[i]/sw); stakes=stakes.map(s=>Math.min(s,budget*0.35)); const used=stakes.reduce((a,b)=>a+b,0)||1; val.forEach((x,i)=>x.stake=stakes[i]*budget/used); }
+  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:14px;color:var(--muted);white-space:nowrap">💰 Presupuesto:</span><input inputmode="numeric" value="'+(budget||'')+'" placeholder="ej. 100000" onchange="setPlanBudget(this.value)" style="flex:1;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;color:var(--text);padding:9px 11px;font-size:16px;font-variant-numeric:tabular-nums"></div>';
+  if(val.length){ h+='<div style="font-size:13px;color:var(--green);font-weight:700;margin-bottom:8px">🟢 '+val.length+' apuesta(s) con VALOR esta jornada</div>'; }
+  else { h+='<div style="font-size:13px;color:var(--muted);margin-bottom:8px">⚪ Esta jornada <b>no hay valor claro</b> (el mercado paga justo o menos). Lo honesto: no apostar. Abajo van solo los pronósticos.</div>'; }
+  const show=picks.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   let lastDay='';
   show.forEach(x=>{
     const day=_colDay(x.date);
-    if(day!==lastDay){ lastDay=day;
-      const dd=_asDate(x.date);
+    if(day!==lastDay){ lastDay=day; const dd=_asDate(x.date);
       const dw=dd.toLocaleDateString('es-CO',{weekday:'long',timeZone:'America/Bogota'});
       const dmd=dd.toLocaleDateString('es-CO',{day:'numeric',month:'short',timeZone:'America/Bogota'}).replace('.','');
-      h+='<div style="font-size:13px;font-weight:800;color:var(--accent);text-transform:capitalize;margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border2)">📅 '+dw+' '+dmd+'</div>';
+      h+='<div style="font-size:13px;font-weight:800;color:var(--accent);text-transform:capitalize;margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border2)">📅 '+dw+' '+dmd+'</div>'; }
+    const conf=Math.round(x.conf*100); const hasVal=!!x.value;
+    h+='<div style="background:var(--bg2);border:1px solid var(--border2);border-left:3px solid '+(hasVal?'var(--green)':'var(--dim)')+';border-radius:12px;padding:11px 13px;margin-bottom:10px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:700">'+x.m.h+' vs '+x.m.a+'</span><span style="font-size:12px;color:var(--muted);white-space:nowrap">🕐 '+_fmtHrCol(x.date)+'</span></div>';
+    h+='<div style="font-size:14px;margin-top:6px;color:var(--muted)">🔮 Pronóstico: <b style="color:var(--text)">'+x.bb.txt+'</b> ('+conf+'%)</div>';
+    if(hasVal){ const v=x.value;
+      h+='<div style="font-size:14px;margin-top:6px;color:var(--green);font-weight:700">🟢 VALOR: apuesta <b>'+v.lbl+'</b> · cuota ≈'+v.odd.toFixed(2)+' · nosotros '+Math.round(v.pp*100)+'% vs mercado '+Math.round(v.mp*100)+'%'+(budget?(' · pon <b>'+_fmtCOP(x.stake||0)+'</b>'):'')+'</div>';
+    } else if(x.m.odds&&x.m.odds.pH!=null){
+      h+='<div style="font-size:13px;margin-top:4px;color:var(--dim)">⚪ Sin valor — el mercado lo paga justo o menos. No apostar.</div>';
+    } else {
+      h+='<div style="font-size:13px;margin-top:4px;color:var(--dim)">(sin cuotas para medir valor — sincroniza con tu clave API-Football)</div>';
     }
-    const sp=x.sp; const spair=shortPair(x.m.h,x.m.a);
-    const opcion = sp.code==='1X' ? ('“1X” ('+spair.hs+' o empate)') : ('“X2” (empate o '+spair.as+')');
-    const hr=_fmtHrCol(x.date);
-    h+='<div style="background:var(--bg2);border:1px solid var(--border2);border-left:3px solid var(--green);border-radius:12px;padding:11px 13px;margin-bottom:10px">';
-    h+='<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:700">'+x.m.h+' vs '+x.m.a+'</span><span style="font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap">🕐 '+hr+'</span></div>';
-    h+='<div style="font-size:14px;margin-top:6px;line-height:1.5">📱 <b>Doble Oportunidad</b> → toca <b style="color:#8ec7ff">'+opcion+'</b> <span style="color:var(--green);font-weight:800">('+Math.round(sp.prob*100)+'%)</span></div>';
-    h+='<div style="font-size:14px;margin-top:4px;line-height:1.5">✅ solo si la cuota es mayor a <b style="color:var(--gold)">'+sp.cuotaMin.toFixed(2)+'</b>'+(budget?(' · pon <b style="color:var(--green)">'+_fmtCOP(x.stake)+'</b>'):'')+'</div>';
     h+='</div>';
   });
-  h+='<div style="font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5"><b style="color:var(--orange)">⚠️ Clave:</b> los mercados seguros pagan poco. Si BetPlay te da <b>1.06</b> y la cuota mínima es <b>1.19</b>, <b>NO apuestes ese</b> — aunque no pierda, pierdes plata. Solo juega los que superen su cuota mínima. Apuesta solo lo que puedas perder; esto es azar.</div>';
+  h+='<div style="font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5">Apuesta solo las 🟢, montos pequeños, como entretenimiento — nunca como ingreso. El “valor” es una ventaja estadística, no una garantía; a veces perderás. Ni el mejor modelo le gana a la casa de forma consistente.</div>';
   h+='</div>';
   return h;
 }function brierOf(p,actual){ // 0=perfecto, 2=peor
@@ -2887,7 +2888,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.18 · 25 sep 2026";
+const APP_VERSION="v5.19 · 25 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
