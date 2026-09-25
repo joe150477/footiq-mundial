@@ -289,13 +289,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.17 · 18 sep 2026 · fix partidos</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.18 · 25 sep 2026 · 🌡️ Clima + 🏛️ Jerarquía</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.17 · 18 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.18 · 25 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -774,6 +774,7 @@ function walkForward(t){
   const cfg=TORNEOS[t];
   const elo={}; const form={}; const gp={};      // gp = partidos jugados por equipo
   const glk={};   // estado Glicko-2 por equipo (motor ELO v2)
+  st.matches.forEach(m=>{ [m.h,m.a].forEach(nm=>{ if(nm&&elo[nm]==null){ const r=_pedElo(nm); elo[nm]=r; glk[nm]=_g2init(r); } }); });   // 🏛️ siembra por jerarquía
   const g2upd=(h,a,sh,sa,hAdjElo)=>{ const H=glk[h]||(glk[h]=_g2init()), A=glk[a]||(glk[a]=_g2init()); const mov=1+0.3*Math.log(1+Math.abs(sh-sa)); const sc=sh>sa?1:sh===sa?0.5:0; const hAdj=hAdjElo/G2_SC; glk[h]=_g2update(H,A.mu,A.phi,sc,hAdj,mov); glk[a]=_g2update(A,H.mu+hAdj,H.phi,1-sc,0,mov); };
   const anom={favW:0,favN:0,draws:0,n:0};
   // Aprendizaje de parámetros de la liga (localía y empates), estimados sobre la marcha
@@ -890,10 +891,44 @@ function _coachAdjust(m,cons,cfg){
   pH=Math.max(0.02,pH+tiltH-tiltA); pA=Math.max(0.02,pA+tiltA-tiltH);
   const sm=pH+pD+pA; return {pH:pH/sm,pD:pD/sm,pA:pA/sm};
 }
+// ==================== 🌡️ CLIMA (Open-Meteo · gratis, sin clave) ====================
+async function fetchWeather(t){
+  const st=loadState(t); const now=Date.now();
+  const up=st.matches.filter(m=>!m.played&&!m.seed&&!m.postponed&&m.date);
+  for(const m of up){
+    const dt=_asDate(m.date).getTime(); const days=(dt-now)/864e5;
+    if(days<-0.2||days>7) continue;                       // Open-Meteo pronostica ~7 días
+    if(m.weather&&m.weather.ts&&(now-m.weather.ts)<6*3600e3) continue;   // caché 6h
+    const V=VENUES[_teamKey(m.h)]; if(!V) continue;
+    try{
+      const url='https://api.open-meteo.com/v1/forecast?latitude='+V.lat+'&longitude='+V.lon+'&hourly=temperature_2m,relative_humidity_2m,precipitation&forecast_days=8&timezone=America%2FBogota';
+      const d=await fetchJSON(url,9000); const H=d&&d.hourly; if(!H||!H.time) continue;
+      const key=_asDate(m.date).toLocaleString('sv-SE',{timeZone:'America/Bogota'}).slice(0,13).replace(' ','T'); // 'YYYY-MM-DDTHH'
+      let idx=H.time.findIndex(x=>x.slice(0,13)===key);
+      if(idx<0){ let best=1e18; H.time.forEach((x,i)=>{ const diff=Math.abs(new Date(x).getTime()-new Date(key+':00').getTime()); if(diff<best){best=diff;idx=i;} }); }
+      if(idx<0) continue;
+      m.weather={ temp:Math.round(H.temperature_2m[idx]), hum:Math.round(H.relative_humidity_2m[idx]), precip:+(H.precipitation[idx]||0).toFixed(1), ts:now };
+    }catch(e){}
+  }
+  saveState(t);
+}
+function _weatherAdjust(m,cons){
+  if(!m.weather) return cons;
+  const w=m.weather; let pH=cons.pH,pD=cons.pD,pA=cons.pA;
+  const ak=_teamKey(m.a);
+  // calor+humedad de la sede: desventaja para el visitante (más si viene de altura/frío)
+  if(w.temp>=30 && w.hum>=60){
+    const altVis=ALTITUDE[ak]; const bump=0.03+((altVis!=null&&altVis>=1500)?0.03:0);
+    pH+=bump; pA=Math.max(0.02,pA-bump);
+  }
+  // lluvia fuerte: empareja el partido (hacia el empate)
+  if(w.precip>=2){ const shift=Math.min(0.04,w.precip*0.01); if(pH>=pA){pH=Math.max(0.02,pH-shift);pD+=shift;}else{pA=Math.max(0.02,pA-shift);pD+=shift;} }
+  const s=pH+pD+pA; return {pH:pH/s,pD:pD/s,pA:pA/s};
+}
 function predictMatch(t,m){
   const wf=getWF(t);
   const cfg=TORNEOS[t];
-  const rH=wf.elo[m.h]??1500, rA=wf.elo[m.a]??1500;
+  const rH=wf.elo[m.h]??_pedElo(m.h), rA=wf.elo[m.a]??_pedElo(m.a);
   const hfa=wf.hfa??55, drawRate=wf.drawRate??cfg.baseDraw;
   const alt=_altBonus(m.h,m.a);
   const f5=team=>{const arr=(wf.form[team]||[]).slice(-5);return {pts:arr.reduce((s,x)=>s+x,0),n:arr.length};};
@@ -916,8 +951,9 @@ function predictMatch(t,m){
   let cons={pH:pH/s,pD:pD/s,pA:pA/s};
   cons=_injAdjust(m,cons);   // lesiones/alineaciones pesan sobre el pronóstico final
   cons=_coachAdjust(m,cons,cfg);   // cambio de DT: más incertidumbre (± palmarés)
+  cons=_weatherAdjust(m,cons);     // 🌡️ clima real (calor/humedad/lluvia)
   cons=_temp(cons, wf.consT||1);   // calibración final (temperature scaling aprendido)
-  return {pH:cons.pH,pD:cons.pD,pA:cons.pA,preds,calibrando:wf.playedCount<10,inj:m.inj||null,coach:m.coach||null};
+  return {pH:cons.pH,pD:cons.pD,pA:cons.pA,preds,calibrando:wf.playedCount<10,inj:m.inj||null,coach:m.coach||null,weather:m.weather||null};
 }
 // ==================== SYNC ESPN ====================
 async function fetchJSON(url,timeoutMs=9000){
@@ -1053,8 +1089,9 @@ async function syncActive(){
     if(getApiKey()){
       try{ await enrichAPIFootball(ACTIVE); }catch(e){}
       try{ bf=await backfillOdds(ACTIVE, 45); }catch(e){}   // rellena cuotas de partidos jugados (progresivo)
-      invalidateWF(ACTIVE);
     }
+    try{ await fetchWeather(ACTIVE); }catch(e){}   // 🌡️ clima (Open-Meteo, sin clave, siempre)
+    invalidateWF(ACTIVE);
     const now=new Date();
     document.getElementById('syncStatus').textContent='✓ '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
     const st=loadState(ACTIVE);
@@ -1185,6 +1222,9 @@ function _teamKey(name){
 }
 // 🏔️ ALTITUD de la sede (m). Solo BetPlay. Factor conservador: subir castiga más que bajar.
 const ALTITUDE={america:1018,nacional:1495,junior:18,bucaramanga:959,medellin:1495,tolima:1285,millonarios:2640,pasto:2527,jaguares:18,bogota:2640,pereira:1411,aguilas:2125,alianza:168,llaneros:467,fortaleza:2600,cucuta:320,santafe:2640,chico:2820,caldas:2160,cali:1000};
+// 🏛️ JERARQUÍA HISTÓRICA (tradición/abolengo) — ELO inicial. Los grandes arrancan arriba de los recién ascendidos. Editable.
+const PEDIGREE={ nacional:1655, millonarios:1600, junior:1600, america:1590, tolima:1560, santafe:1550, medellin:1550, cali:1535, bucaramanga:1515, pereira:1500, caldas:1500, aguilas:1495, pasto:1485, alianza:1460, jaguares:1455, chico:1440, cucuta:1440, fortaleza:1435, bogota:1430, llaneros:1400 };
+function _pedElo(name){ const k=_teamKey(name); return PEDIGREE[k]!=null?PEDIGREE[k]:1500; }
 function _altBonus(h,a){
   const hk=_teamKey(h), ak=_teamKey(a);
   const ah=ALTITUDE[hk], aa=ALTITUDE[ak];
@@ -2152,6 +2192,7 @@ function renderHoy(){
       h+=`<div class="verdict v-pre"><span>🔮 Dictamen: <b>${pickLabel(dictP,hShort,aShort)}</b></span><span class="v-code">${bb.code} · ${conf}%</span></div>`;
       if(m.inj){ const kh=m.inj.keyHome||[], ka=m.inj.keyAway||[]; if(kh.length||ka.length){ const tag=m.inj.confirmed?'XI confirmado':'baja reportada'; h+='<div class="injnote">🏥 '+(kh.length?('<b>'+hShort+'</b> sin '+kh.join(', ')):'')+((kh.length&&ka.length)?' · ':'')+(ka.length?('<b>'+aShort+'</b> sin '+ka.join(', ')):'')+' <span style="opacity:.7;font-weight:500">('+tag+')</span></div>'; } }
       if(m.coach){ const parts=[]; const fmt=(side,sh)=>{ if(!side||!side.new) return null; const st=side.prestige>=0.5?' ⭐ganador':(side.titles?(' · '+side.titles+' títulos'):' · sin títulos'); return '<b>'+sh+'</b> DT nuevo'+(side.matches!=null?(' ('+side.matches+' part.)'):'')+st; }; const fh=fmt(m.coach.h,hShort), fa=fmt(m.coach.a,aShort); if(fh)parts.push(fh); if(fa)parts.push(fa); if(parts.length) h+='<div class="injnote" style="background:rgba(120,140,240,.10);border-color:rgba(120,140,240,.30);color:#cdd6ff">🔁 '+parts.join(' · ')+' <span style="opacity:.7;font-weight:500">(más incertidumbre)</span></div>'; }
+      if(m.weather){ const w=m.weather; const hot=(w.temp>=30&&w.hum>=60), rain=(w.precip>=2); if(hot||rain||w.temp!=null){ let ic=hot?'🔥':rain?'🌧️':'🌡️'; let extra=hot?' — calor/humedad: desventaja para el visitante':rain?' — lluvia: empareja el partido':''; h+='<div class="injnote" style="background:rgba(240,180,60,.10);border-color:rgba(240,180,60,.30);color:#ffe0a3">'+ic+' '+w.temp+'° · 💧'+w.hum+'%'+(w.precip>0?(' · 🌧️'+w.precip+'mm'):'')+'<span style="opacity:.7;font-weight:500">'+extra+'</span></div>'; } }
       // Cada motor se juega su pick explícito
       h+='<div style="margin-top:6px">';
       for(const k of MOTORES){
@@ -2846,7 +2887,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.17 · 18 sep 2026";
+const APP_VERSION="v5.18 · 25 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
