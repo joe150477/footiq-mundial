@@ -297,13 +297,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.22 · 25 sep 2026 · tarjeta limpia</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.23 · 26 sep 2026 · pronóstico claro</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.22 · 25 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.23 · 26 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -662,9 +662,13 @@ function renderPlanCard(win){
     const conf=Math.round(x.conf*100); const hasVal=!!x.value;
     h+='<div style="background:var(--bg2);border:1px solid var(--border2);border-left:3px solid '+(hasVal?'var(--green)':'var(--dim)')+';border-radius:12px;padding:11px 13px;margin-bottom:10px">';
     h+='<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:700">'+x.m.h+' vs '+x.m.a+'</span><span style="font-size:12px;color:var(--muted);white-space:nowrap">🕐 '+_fmtHrCol(x.date)+'</span></div>';
-    h+='<div style="font-size:14px;margin-top:6px;color:var(--muted)">🔮 Pronóstico: <b style="color:var(--text)">'+x.bb.txt+'</b> ('+conf+'%)</div>';
+    { const pp=x.p; const sp=shortPair(x.m.h,x.m.a); const pH=Math.round(pp.pH*100),pD=Math.round(pp.pD*100),pA=Math.round(pp.pA*100); const top=Math.max(pH,pD,pA); const lectura= top>=55?'favorito claro':top>=45?'ligero favorito':'partido parejo';
+      const b=(v,cls)=>'<b style="color:'+cls+'">'+v+'%</b>'; const ch=(v)=>v===top;
+      h+='<div style="font-size:13.5px;margin-top:6px;color:var(--muted)">🔮 '+(ch(pH)?b(pH,'#8ec7ff'):pH+'%')+' '+sp.hs+' · '+(ch(pD)?b(pD,'var(--gold)'):pD+'%')+' empate · '+(ch(pA)?b(pA,'var(--orange)'):pA+'%')+' '+sp.as+' <span style="color:var(--dim)">('+lectura+')</span></div>'; }
     if(hasVal){ const v=x.value;
-      h+='<div style="font-size:14px;margin-top:6px;color:var(--green);font-weight:700">🟢 VALOR: apuesta <b>'+v.lbl+'</b> · cuota ≈'+v.odd.toFixed(2)+' · nosotros '+Math.round(v.pp*100)+'% vs mercado '+Math.round(v.mp*100)+'%'+(budget?(' · pon <b>'+_fmtCOP(x.stake||0)+'</b>'):'')+'</div>';
+      { const risky=v.pp<0.45; const ev=(v.pp*v.odd).toFixed(2);
+        h+='<div style="font-size:14px;margin-top:6px;color:var(--green);font-weight:700">🟢 VALOR: <b>'+v.lbl+'</b> · cuota ≈'+v.odd.toFixed(2)+(budget?(' · pon <b>'+_fmtCOP(x.stake||0)+'</b>'):'')+'</div>';
+        h+='<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45">Gana '+Math.round(v.pp*100)+'% de las veces, pero la cuota paga como si fuera '+Math.round(v.mp*100)+'% → rentable a la larga (retorno esperado '+ev+'× lo apostado).'+(risky?' <b style="color:var(--orange)">⚠️ Arriesgada: la pierdes más de la mitad de las veces; solo gana repitiéndola mucho.</b>':'')+'</div>'; }
     } else if(x.m.odds&&x.m.odds.pH!=null){
       h+='<div style="font-size:13px;margin-top:4px;color:var(--dim)">⚪ Sin valor — el mercado lo paga justo o menos. No apostar.</div>';
     } else {
@@ -2937,7 +2941,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.22 · 25 sep 2026";
+const APP_VERSION="v5.23 · 26 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
