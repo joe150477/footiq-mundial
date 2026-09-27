@@ -297,13 +297,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.23 · 26 sep 2026 · pronóstico claro</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.24 · 27 sep 2026 · 🔒 Segura del Día</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.23 · 26 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.24 · 27 sep 2026</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -352,12 +352,14 @@ body{
   <div class="tab active" onclick="showTab(this,'champ')"><span class="ti">🏆</span>Campeón</div>
   <div class="tab" onclick="showTab(this,'hoy')"><span class="ti">📅</span>Partidos</div>
   <div class="tab" onclick="showTab(this,'comp')"><span class="ti">📊</span>Motores</div>
+  <div class="tab" onclick="showTab(this,'safe')"><span class="ti">🔒</span>Segura</div>
 </div>
 
 <div class="pages">
   <div class="page active" id="page-champ"></div>
   <div class="page" id="page-hoy"></div>
   <div class="page" id="page-comp"></div>
+  <div class="page" id="page-safe"></div>
 </div>
 
 <script>
@@ -2001,6 +2003,7 @@ function showTab(el,name){
   if(name==='champ') renderChamp();
   else if(name==='hoy') renderHoy();
   else if(name==='comp') renderComparativa();
+  else if(name==='safe') renderSafe();
 }
 function refreshAll(){
   try{
@@ -2009,6 +2012,7 @@ function refreshAll(){
     if(id==='champ') renderChamp();
     else if(id==='hoy') renderHoy();
     else if(id==='comp') renderComparativa();
+    else if(id==='safe') renderSafe();
   }catch(e){ console.warn('refreshAll:',e); }
 }
 
@@ -2683,6 +2687,134 @@ function shortPair(hh,aa){
   const uh=th.filter(w=>!inA.has(w.toLowerCase())), ua=ta.filter(w=>!inH.has(w.toLowerCase()));
   return { hs:(uh[0]||th[0]||hh), as:(ua[0]||ta[0]||aa) };
 }
+// ==================== 🔒 LA SEGURA DEL DÍA ====================
+// Escanea partidos próximos y devuelve la ÚNICA jugada más firme, confirmada por
+// motores + mercado + lesiones. "Segura" = mayor probabilidad (nunca 100%).
+// Marca 🥇 ORO cuando además está bien pagada (nuestra prob > la del mercado).
+function _goalsModel(t){
+  const st=loadState(t);
+  const played=st.matches.filter(m=>m.played&&m.sh!=null&&m.sa!=null).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if(played.length<8) return {ready:false};
+  const sf={},sc={},gp={}; let sumH=0,sumA=0,ng=0;
+  for(const m of played){
+    sf[m.h]=(sf[m.h]||0)+m.sh; sc[m.h]=(sc[m.h]||0)+m.sa; gp[m.h]=(gp[m.h]||0)+1;
+    sf[m.a]=(sf[m.a]||0)+m.sa; sc[m.a]=(sc[m.a]||0)+m.sh; gp[m.a]=(gp[m.a]||0)+1;
+    sumH+=m.sh; sumA+=m.sa; ng++;
+  }
+  const avgH=ng?sumH/ng:1.3, avgA=ng?sumA/ng:1.0, lg=((avgH+avgA)/2)||1.15;
+  const shrink=(rate,n)=>(n*rate+4*lg)/(n+4);
+  function exp(h,a){
+    const gh=gp[h]||0, ga=gp[a]||0;
+    const attH=shrink((sf[h]||0)/Math.max(1,gh),gh)/Math.max(0.2,lg);
+    const defA=shrink((sc[a]||0)/Math.max(1,ga),ga)/Math.max(0.2,lg);
+    const attA=shrink((sf[a]||0)/Math.max(1,ga),ga)/Math.max(0.2,lg);
+    const defH=shrink((sc[h]||0)/Math.max(1,gh),gh)/Math.max(0.2,lg);
+    const lh=Math.max(0.15,attH*defA*avgH), la=Math.max(0.15,attA*defH*avgA);
+    return {lh,la};
+  }
+  return {ready:true, exp};
+}
+function _over15Prob(lh,la){
+  const e0h=Math.exp(-lh), e0a=Math.exp(-la);
+  const p00=e0h*e0a, p10=lh*e0h*e0a, p01=e0h*la*e0a;
+  return Math.max(0,Math.min(1,1-(p00+p10+p01)));
+}
+function safestOfDay(t){
+  const cfg=TORNEOS[t];
+  if(!cfg||cfg.estado!=='activo') return {ready:false, reason:'Este torneo no está en juego en este momento. Cambia al torneo activo arriba.'};
+  const wf=getWF(t);
+  if((wf.playedCount||0)<8) return {ready:false, reason:'El modelo todavía se está calibrando (necesita ~8 partidos jugados y lleva '+(wf.playedCount||0)+'). Sus porcentajes aún son ruidosos: sería deshonesto llamar "segura" a nada ahora.'};
+  const st=loadState(t); const now=new Date();
+  const d0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const to=new Date(d0); to.setDate(to.getDate()+8);
+  const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h&&m.a&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&_asDate(m.date)>=d0&&_asDate(m.date)<=to);
+  if(!up.length) return {ready:false, reason:'No hay partidos próximos en los siguientes 8 días. Toca 🔄 para sincronizar.'};
+  const gm=_goalsModel(t);
+  const cands=[];
+  for(const m of up){
+    let p; try{ p=predictMatch(t,m); }catch(e){ continue; }
+    const sp=shortPair(m.h,m.a);
+    const favIsH=p.pH>=p.pA, favSide=favIsH?'H':'A', favShort=favIsH?sp.hs:sp.as;
+    // acuerdo de motores (elo, glicko, anomalia) sobre el favorito
+    const eng=['elo','glicko','anomalia']; let agree=0,engTot=0;
+    for(const k of eng){ if(p.preds&&p.preds[k]){ engTot++; if(argMax3(p.preds[k])===favSide) agree++; } }
+    const enginesAgree=engTot>=2 && agree===engTot;
+    // acuerdo del mercado
+    let mktAgree=null;
+    if(m.odds&&m.odds.pH!=null){ const mf=(m.odds.pH>=m.odds.pA)?'H':'A'; mktAgree=(mf===favSide); }
+    // lesión de figura contra el favorito
+    const inj=_injImpact(m); // >0 favorece al local
+    const injAgainstFav = favIsH ? inj<-1.5 : inj>1.5;
+    const opts=[];
+    // 1) favorito no pierde (doble oportunidad)
+    { const prob=(favIsH?p.pH:p.pA)+p.pD;
+      let impl=null,cuota=null; if(m.odds&&m.odds.pH!=null){ impl=(favIsH?m.odds.pH:m.odds.pA)+m.odds.pD; cuota=+(1/Math.max(0.02,impl)).toFixed(2); }
+      opts.push({market:'no_pierde', label:'No pierde '+favShort, prob, cuota, implied:impl, needsFav:true}); }
+    // 2) resultado directo
+    { const prob=favIsH?p.pH:p.pA;
+      const impl=m.odds?(favIsH?m.odds.pH:m.odds.pA):null;
+      const cuota=(m.oddsBest&&m.oddsBest[favSide])?m.oddsBest[favSide]:(impl!=null?+(1/Math.max(0.02,impl)).toFixed(2):null);
+      opts.push({market:'directo', label:'Gana '+favShort, prob, cuota, implied:impl, needsFav:true}); }
+    // 3) Más de 1.5 goles
+    if(gm.ready){ const e=gm.exp(m.h,m.a); const prob=_over15Prob(e.lh,e.la);
+      opts.push({market:'over15', label:'Más de 1.5 goles', prob, cuota:null, implied:null, needsFav:false}); }
+    for(const o of opts){
+      if(o.needsFav){ if(!enginesAgree) continue; if(mktAgree===false) continue; if(injAgainstFav) continue; }
+      const confirmations=[];
+      if(o.needsFav){ confirmations.push('Nuestros motores coinciden en el favorito ('+agree+'/'+engTot+')'); if(mktAgree) confirmations.push('El mercado (BetPlay) también lo ve favorito'); confirmations.push('El favorito no tiene baja de figura'); }
+      else { confirmations.push('Ambos equipos suelen sumar 2+ goles entre los dos, por su promedio'); }
+      let edge=null, ev=null, isGold=false;
+      if(o.cuota&&o.implied!=null){ edge=o.prob-o.implied; ev=o.prob*o.cuota-1; if(edge>=0.05 && o.cuota>=1.5 && o.prob>=0.6) isGold=true; }
+      cands.push({m, sp, favShort, market:o.market, label:o.label, prob:o.prob, cuota:o.cuota, implied:o.implied, conf:o.prob, confirmations, edge, ev, isGold});
+    }
+  }
+  if(!cands.length) return {ready:true, best:null, reason:'Hoy ninguna jugada pasa los filtros de seguridad: en los partidos próximos los motores y el mercado no coinciden con claridad, o hay bajas de figuras. Lo honesto es no forzar una apuesta.'};
+  const byConf=cands.slice().sort((a,b)=>b.conf-a.conf);
+  const best=byConf[0];
+  best.tier = best.conf>=0.78?'muy':best.conf>=0.70?'firme':'baja';
+  const goldSorted=cands.slice().sort((a,b)=>(b.isGold-a.isGold)||(b.conf-a.conf));
+  const gold=goldSorted.find(c=>c.isGold)||null;
+  return {ready:true, best, gold, all:byConf};
+}
+function renderSafe(){
+  const pg=document.getElementById('page-safe'); if(!pg) return;
+  const t=ACTIVE;
+  let h='<div class="stitle">🔒 La Segura del Día</div>';
+  h+='<div class="card" style="font-size:12.5px;color:var(--muted);line-height:1.5"><b style="color:var(--text)">Qué es:</b> de todos los partidos próximos, la <b>ÚNICA</b> jugada con mayor probabilidad de acertar, confirmada por nuestros motores, por el mercado y por las lesiones. <b style="color:var(--orange)">Ojo:</b> "seguro" al 100% no existe en el fútbol — hasta el favorito más claro pierde a veces (recuerda Llaneros 2-0 Nacional). Aquí "segura" = la más firme, con su probabilidad real y honesta.</div>';
+  const r=safestOfDay(t);
+  if(!r.ready){ h+='<div class="card future-card"><div class="future-icon">⏳</div><div class="future-note">'+(r.reason||'Sin datos')+'</div></div>'; pg.innerHTML=h; return; }
+  if(!r.best){ h+='<div class="card future-card"><div class="future-icon">🤷</div><div class="future-note">'+(r.reason||'Hoy no hay ninguna suficientemente firme.')+'</div></div>'; pg.innerHTML=h; return; }
+  const x=r.best; const conf=Math.round(x.conf*100), lose=100-conf;
+  const tierTxt=x.tier==='muy'?'🟢 Muy firme':x.tier==='firme'?'🟡 Firme':'⚪ Poco firme — hoy no hay nada realmente seguro';
+  const tierCol=x.tier==='muy'?'var(--green)':x.tier==='firme'?'var(--gold)':'var(--dim)';
+  const bg=x.tier==='muy'?'rgba(74,222,128,.08)':x.tier==='firme'?'rgba(240,205,106,.08)':'transparent';
+  const mktLabel=x.market==='over15'?'Más de 1.5 goles — que el partido tenga 2 goles o más (de cualquiera)':x.market==='no_pierde'?('"'+x.label+'" — ganas si '+x.favShort+' gana O empata'):x.label;
+  h+='<div class="card" style="border:1px solid '+tierCol+';background:linear-gradient(180deg,'+bg+',transparent)">';
+  h+='<div style="font-size:12px;color:'+tierCol+';font-weight:800;letter-spacing:.4px">'+tierTxt+'</div>';
+  h+='<div style="font-size:19px;font-weight:800;margin-top:6px">'+x.m.h+' vs '+x.m.a+'</div>';
+  h+='<div style="font-size:12.5px;color:var(--muted);margin-top:2px;text-transform:capitalize">📅 '+_fmtDayCol(x.m.date)+' · 🕐 '+_fmtHrCol(x.m.date)+'</div>';
+  h+='<div style="margin-top:12px;padding:13px;background:var(--bg2);border-radius:12px">';
+  h+='<div style="font-size:12px;color:var(--muted)">La apuesta</div>';
+  h+='<div style="font-size:19px;font-weight:800;color:var(--text);margin:3px 0 6px;line-height:1.3">'+mktLabel+'</div>';
+  h+='<div style="font-size:16px;color:'+tierCol+';font-weight:800">Acierta ≈ '+conf+'% de las veces'+(x.cuota?(' <span style="color:var(--muted);font-weight:600">· cuota ≈'+x.cuota.toFixed(2)+'</span>'):'')+'</div>';
+  h+='<div style="font-size:12.5px;color:var(--orange);margin-top:5px">⚠️ Aun así falla '+lose+' de cada 100 veces. No es garantía.</div>';
+  h+='</div>';
+  if(x.isGold){ h+='<div style="margin-top:11px;padding:11px 13px;background:linear-gradient(135deg,rgba(227,178,77,.2),rgba(240,205,106,.1));border:1px solid var(--gold);border-radius:12px;font-size:13px;line-height:1.5"><b style="color:var(--gold)">🥇 ¡ORO!</b> Además está <b>bien pagada</b>: el mercado la trata como '+Math.round(x.implied*100)+'% pero nosotros la vemos '+conf+'%. Retorno esperado <b>'+(x.ev>0?'+':'')+Math.round(x.ev*100)+'%</b> a la larga. Es el cruce raro de segura + rentable — el verdadero oro.</div>'; }
+  h+='<div style="margin-top:13px"><div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:5px">✔ Por qué pasa el filtro de seguridad</div>';
+  x.confirmations.forEach(c=>{ h+='<div style="font-size:13px;color:var(--text);margin:4px 0">✅ '+c+'</div>'; });
+  h+='</div></div>';
+  if(r.gold && r.gold!==x && !x.isGold){ const g=r.gold, gc=Math.round(g.conf*100);
+    h+='<div class="card" style="border:1px solid var(--gold)"><div style="font-size:12px;color:var(--gold);font-weight:800">🥇 Y además: una oportunidad de ORO</div>';
+    h+='<div style="font-size:16px;font-weight:700;margin-top:4px">'+g.m.h+' vs '+g.m.a+'</div>';
+    h+='<div style="font-size:13px;color:var(--muted);margin-top:3px;line-height:1.5"><b>'+g.label+'</b> · acierta ≈'+gc+'% · cuota ≈'+(g.cuota?g.cuota.toFixed(2):'?')+' · retorno esperado <b style="color:var(--gold)">'+(g.ev>0?'+':'')+Math.round(g.ev*100)+'%</b><br>Menos segura que la de arriba, pero paga más de lo que debería.</div></div>'; }
+  const seenM={}; if(x)seenM[x.m.id]=1; if(r.gold&&r.gold!==x)seenM[r.gold.m.id]=1;
+  const others=r.all.filter(c=>{ if(c===x||c.conf<0.68||seenM[c.m.id])return false; seenM[c.m.id]=1; return true; }).slice(0,3);
+  if(others.length){ h+='<div class="card"><div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">Otras firmes (por si quieres comparar)</div>';
+    others.forEach((o,i)=>{ h+='<div style="font-size:13px;color:var(--text);padding:'+(i?'7px':'0')+' 0 7px;'+(i?'border-top:1px solid var(--border2)':'')+'">'+o.sp.hs+' vs '+o.sp.as+' — <b>'+o.label+'</b> · '+Math.round(o.conf*100)+'%'+(o.cuota?(' · cuota ≈'+o.cuota.toFixed(2)):'')+(o.isGold?' <span style="color:var(--gold)">🥇</span>':'')+'</div>'; });
+    h+='</div>'; }
+  h+='<div class="card" style="font-size:12px;color:var(--dim);line-height:1.55">Juega solo lo que puedas permitirte perder — nunca dinero de tus gastos o ingresos. Esto es entretenimiento con análisis, no una fuente de dinero ni asesoría financiera. Ninguna apuesta es 100% segura.</div>';
+  pg.innerHTML=h;
+}
 // ==================== 🚨 OPORTUNIDAD DE ORO ====================
 // Alerta SOLO si: (a) Anomalía consolidada (≥20 evaluados y le gana a la casa en Brier),
 // (b) contradice a ELO+Momentum, (c) segura (≥45%), (d) valor fuerte (EV ≥ +8%).
@@ -2941,7 +3073,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.23 · 26 sep 2026";
+const APP_VERSION="v5.24 · 27 sep 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
