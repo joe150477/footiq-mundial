@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.26 =====================
+/* ===================== 🍃 ZEN v5.27 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.26 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.27 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.26</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.27</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -772,12 +772,15 @@ function _trSave(t,db){ try{ const ids=Object.keys(db.recs||{}); if(ids.length>3
 function trampaAprendizaje(t){
   const db=_trLoad(t); const recs=db.recs||{}; const st=loadState(t);
   const byId={}; st.matches.forEach(x=>{ byId[x.id]=x; });
-  const grp={alert:[],ctrl:[]};
+  const grp={alert:[],ctrl:[]}; const roi={n:0,won:0,pnl:0,nB:0,pnlB:0};
   for(const id in recs){ const r=recs[id], x=byId[id];
     if(!x||!x.played||x.sh==null) continue;
     const fs=r.favSide==='H'?x.sh:x.sa, os=r.favSide==='H'?x.sa:x.sh;
     const won=fs>os?1:0;
     (r.alert?grp.alert:grp.ctrl).push({won, crowd:r.crowd, indep:r.indep});
+    if(r.contra&&(r.contra.clase==='A'||r.contra.clase==='B')){ const act=x.sh>x.sa?'H':x.sh<x.sa?'A':'D'; const c=r.contra.c;
+      const hit=c===act||(c.length===2&&(act==='D'||act===c[1])); const pl=hit?r.contra.odd-1:-1;
+      if(r.contra.clase==='A'){ roi.n++; roi.pnl+=pl; if(hit)roi.won++; } else { roi.nB++; roi.pnlB+=pl; } }
   }
   const agg=a=>{ if(!a.length) return null; const n=a.length;
     const s=k=>a.reduce((z,x)=>z+x[k],0)/n;
@@ -791,7 +794,7 @@ function trampaAprendizaje(t){
     if(A.brierIndep<A.brierCrowd && A.overconf>0){ thrGap=0.06; nota='Las alertas vienen anticipando bien la sobreconfianza → umbral algo más sensible.'; }
     else { thrGap=0.10; nota='Las alertas no han superado al mercado en calibración → se exige más discrepancia para alertar.'; }
   }
-  return {A,C,thrGap,nota,pend:Object.keys(recs).length-(A?A.n:0)-(C?C.n:0)};
+  return {A,C,roi,thrGap,nota,pend:Object.keys(recs).length-(A?A.n:0)-(C?C.n:0)};
 }
 // Caso de referencia: si existen los Nacional–Tolima 2026 en los datos, se reconstruye su perfil
 function _trampaRef(t){
@@ -847,40 +850,124 @@ function trampaConfianza(t,m,p,learn){
   if(ind.draw>=0.24) escenarios.push('Empate ('+Math.round(ind.draw*100)+'%)');
   if(ind.upset>=0.18) escenarios.push('Gana '+(favSide==='H'?sp.as:sp.hs)+' ('+Math.round(ind.upset*100)+'%)');
   if(ind.spread>=0.12) escenarios.push('Los motores discrepan entre sí ('+Math.round(ind.spread*100)+' pts): incertidumbre alta');
-  return {alert,nivel,favSide,favShort,nr,crowd,src,move,indep:ind.win,draw:ind.draw,upset:ind.upset,spread:ind.spread,gap,statsAgree,prep,sim,ref:R,escenarios,thrGap:L.thrGap};
+  return {alert,nivel,favSide,favShort,pInd:ind.p,nr,crowd,src,move,indep:ind.win,draw:ind.draw,upset:ind.upset,spread:ind.spread,gap,statsAgree,prep,sim,ref:R,escenarios,thrGap:L.thrGap};
+}
+// ==================== 🌀 MÓDULO CONTRARIANO (valor del otro lado de la trampa) ====================
+// Si el público sobrevalora al favorito, el empate / el no favorito pueden quedar BARATOS.
+// Pero no se apuesta "lo contrario" por reflejo: solo si EV = p × cuota − 1 es positivo
+// también en un escenario CONSERVADOR (p menos su incertidumbre). Si no, abstención.
+// Cuota ejecutable: la mejor real si existe; si no, la justa recargada con el margen de la casa.
+function _cuotaExec(m,qFair){
+  const mg=(m.odds&&m.odds.margin!=null)?m.odds.margin:0.07;
+  return +(1/Math.max(0.02,qFair*(1+mg))).toFixed(2);
+}
+function contrarianValue(t,m,tr){
+  if(!tr||!tr.pInd||!m.odds||m.odds.pH==null) return {clase:'E',txt:'Mercado no evaluable'};
+  const P=tr.pInd, Q=m.odds, fav=tr.favSide, und=fav==='H'?'A':'H';
+  const sp=shortPair(m.h,m.a); const undShort=und==='H'?sp.hs:sp.as;
+  const pk=k=>k==='H'?P.pH:k==='A'?P.pA:P.pD, qk=k=>k==='H'?Q.pH:k==='A'?Q.pA:Q.pD;
+  const best=k=>(m.oddsBest&&m.oddsBest[k])||null;
+  const u=Math.max(0.03,(tr.spread||0)/2);   // incertidumbre del modelo
+  const opts=[
+    {c:'D', label:'Empate', p:pk('D'), odd:best('D')||_cuotaExec(m,qk('D')), u},
+    {c:und, label:'Gana '+undShort, p:pk(und), odd:best(und)||_cuotaExec(m,qk(und)), u},
+    {c:'X'+und, label:'Empate o '+undShort, p:pk('D')+pk(und), odd:_cuotaExec(m,qk('D')+qk(und)), u:u*1.2}
+  ];
+  // Protección anti-espejismo: la prob. del modelo se encoge 50% hacia el mercado (el mercado
+  // también sabe cosas) y una divergencia > 15 pts se trata como posible error del modelo → máx. "B".
+  const qOf=o=>o.c==='D'?qk('D'):o.c.length===2?qk('D')+qk(und):qk(und);
+  opts.forEach(o=>{ const q=qOf(o); o.pModel=o.p; o.extrema=Math.abs(o.p-q)>0.15; o.p=0.5*o.p+0.5*q;
+    o.u=o.u*0.5;   // al mezclar 50/50, el error del modelo pesa la mitad
+    o.ev=o.p*o.odd-1; o.evCons=Math.max(0,o.p-o.u)*o.odd-1;
+    o.clase=(o.ev>=0.04&&o.evCons>0&&!o.extrema)?'A':(o.ev>=0.02)?'B':(o.ev>-0.02)?'C':'D'; });
+  const rk={A:0,B:1,C:2,D:3}; opts.sort((a,b)=>(rk[a.clase]-rk[b.clase])||(a.clase==='A'?(b.p-a.p):(b.evCons-a.evCons)));   // entre las rentables, la de mayor acierto (menos varianza)
+  const top=opts[0];
+  const NOM={A:'Valor positivo robusto',B:'Valor positivo incierto',C:'Sin ventaja identificada',D:'Valor negativo',E:'Mercado no evaluable'};
+  return Object.assign({},top,{txt:NOM[top.clase],opts});
+}
+// ==================== 🛡️ INTEGRIDAD (módulo independiente) ====================
+// Solo señales de MERCADO observables. Nunca afirma amaño ni da un % de manipulación:
+// sin evidencia documental (fallos, sanciones, investigaciones) el máximo nivel es "Posible".
+function integridadSenales(m,tr){
+  const s=[]; const o=m.odds;
+  if(o&&o.pH!=null&&o.first&&o.first.pH!=null){
+    const mv={H:o.pH-o.first.pH,D:o.pD-o.first.pD,A:o.pA-o.first.pA};
+    const big=Object.entries(mv).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0];
+    const noticia=!!(m.inj&&((m.inj.keyHome||[]).length||(m.inj.keyAway||[]).length));
+    if(Math.abs(big[1])>=0.08&&!noticia) s.push('Movimiento fuerte de cuota ('+Math.round(Math.abs(big[1])*100)+' pts) sin noticia deportiva conocida');
+    if(tr&&tr.favSide){ const und=tr.favSide==='H'?'A':'H'; if(mv[und]>=0.03||mv.D>=0.03) s.push('Entra dinero CONTRA la narrativa popular'); }
+  }
+  if(o&&o.pH!=null&&m.oddsBest){ for(const k of ['H','D','A']){ const ob=m.oddsBest[k]; const q=k==='H'?o.pH:k==='A'?o.pA:o.pD; if(ob&&q&&(1/ob)<q-0.06){ s.push('Diferencia grande entre casas de apuestas'); break; } } }
+  return {senales:s, nivel:s.length?'Posible (señal de mercado, no prueba)':'Sin evidencia suficiente', nota:'Probabilidad de manipulación no estimable con rigor con estos datos.'};
 }
 // Registra la lectura PRE-partido (alertas y controles) para evaluarla después
 function trampaRegistrar(t,m,tr){
   if(!tr||tr.crowd==null||tr.crowd<0.55||!m.date||m.played) return;
   if(_asDate(m.date)<=new Date()) return;   // solo lecturas tomadas ANTES del partido
   const db=_trLoad(t); db.recs=db.recs||{};
-  db.recs[m.id]={h:m.h,a:m.a,date:m.date,favSide:tr.favSide,alert:!!tr.alert,nivel:tr.nivel,crowd:+tr.crowd.toFixed(3),indep:+tr.indep.toFixed(3),gap:+tr.gap.toFixed(3),N:+tr.nr.N.toFixed(3),sim:+tr.sim.toFixed(2),src:tr.src,at:new Date().toISOString()};
+  let cv=null; if(tr.alert){ try{ const c=contrarianValue(t,m,tr); if(c&&c.c) cv={c:c.c,odd:c.odd,p:+c.p.toFixed(3),ev:+c.ev.toFixed(3),clase:c.clase}; }catch(e){} }
+  const prev=(db.recs[m.id]&&db.recs[m.id].contra)||null;
+  db.recs[m.id]={h:m.h,a:m.a,date:m.date,favSide:tr.favSide,alert:!!tr.alert,nivel:tr.nivel,crowd:+tr.crowd.toFixed(3),indep:+tr.indep.toFixed(3),gap:+tr.gap.toFixed(3),N:+tr.nr.N.toFixed(3),sim:+tr.sim.toFixed(2),src:tr.src,contra:(prev&&prev.clase==='A')?prev:cv,at:new Date().toISOString()};
   _trSave(t,db);
 }
 function renderTrampaCard(tr,m){
+  const cv=contrarianValue(ACTIVE,m,tr); const ig=integridadSenales(m,tr);
   let h='<div class="card">';
   h+='<div style="font-size:13px;color:var(--muted);text-transform:capitalize">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
   h+='<div style="font-size:17px;font-weight:600;margin-top:6px">'+m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+m.a+'</div>';
-  h+='<div class="bet bet-trap"><span class="bw">NO APOSTAR</span><span class="bd">'+tr.favShort+' parece seguro<br><span style="color:var(--muted)">cuota '+Math.round(tr.crowd*100)+'% · real ≈'+Math.round(tr.indep*100)+'%</span></span></div>';
+  h+='<div style="font-size:13.5px;color:var(--muted);margin-top:6px">'+tr.favShort+' parece seguro: cuota '+Math.round(tr.crowd*100)+'% · real ≈'+Math.round(tr.indep*100)+'%</div>';
+  if(cv.clase==='A') h+='<div class="bet bet-yes"><span class="bw">APOSTAR ↺</span><span class="bd">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">valor +'+Math.round(cv.ev*100)+'% · acierta ≈'+Math.round(cv.p*100)+'%</span></span></div>';
+  else if(cv.clase==='B') h+='<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">VIGILAR</span><span class="bd" style="color:var(--text)">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">valor dudoso: no alcanza con margen de error</span></span></div>';
+  else h+='<div class="bet bet-trap"><span class="bw">NO APOSTAR</span><span class="bd">Ni al favorito ni en contra<br><span style="color:var(--muted)">'+(cv.clase==='E'?'faltan cuotas':'el otro lado tampoco paga')+'</span></span></div>';
   h+='<div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5">'+TRAMPA_MSG+'</div>';
   h+='<details class="more"><summary>Por qué</summary><div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px">';
   tr.nr.parts.forEach(x=>{ h+='<div>· '+x+'</div>'; });
-  if(tr.move>=0.02) h+='<div>· La cuota se acortó '+Math.round(tr.move*100)+' pts</div>';
+  if(tr.move>=0.02) h+='<div>· La cuota del favorito se acortó '+Math.round(tr.move*100)+' pts</div>';
   h+='<div>· Sobrevaloración: '+Math.round(tr.gap*100)+' pts · parecido al caso Nacional–Tolima: '+Math.round(tr.sim*100)+'%</div>';
-  if(tr.escenarios.length) h+='<div>· Ignorado: '+tr.escenarios.join(' · ')+'</div>';
-  h+='<div style="color:var(--dim);margin-top:6px">Patrón de riesgo, no acusación de amaño.</div></div></details>';
-  h+='</div>';
+  if(cv.opts){ h+='<div style="margin-top:6px;color:var(--text)">Lado contrario (valor = prob × cuota − 1):</div>';
+    cv.opts.forEach(o=>{ h+='<div>· '+o.label+': '+Math.round(o.p*100)+'% × '+o.odd.toFixed(2)+' → '+(o.ev>=0?'+':'')+Math.round(o.ev*100)+'% <span style="color:var(--dim)">(con error: '+(o.evCons>=0?'+':'')+Math.round(o.evCons*100)+'%)</span></div>'; }); }
+  h+='<div style="margin-top:6px;color:var(--text)">🛡️ Integridad: '+ig.nivel+'</div>';
+  ig.senales.forEach(x=>{ h+='<div>· '+x+'</div>'; });
+  h+='<div style="color:var(--dim)">'+ig.nota+' Una señal de mercado no prueba amaño.</div>';
+  h+='</div></details></div>';
   return h;
+}
+// 🔔 Aviso a tiempo: trampas con apuesta contraria (o a vigilar) en los próximos 3 días
+function trampaAvisar(){
+  try{
+    const t=ACTIVE, cfg=TORNEOS[t]; if(!cfg||cfg.estado!=='activo') return;
+    const st=loadState(t), now=new Date(), to=new Date(now); to.setDate(to.getDate()+3);
+    const L=trampaAprendizaje(t); L.ref=_trampaRef(t);
+    let hit=null;
+    for(const m of st.matches){
+      if(m.played||m.seed||!m.date) continue; const d=_asDate(m.date); if(!(d>now&&d<=to)) continue;
+      const p=predictMatch(t,m); const tr=trampaConfianza(t,m,p,L); if(!tr||!tr.alert) continue;
+      const cv=contrarianValue(t,m,tr); const k='fiq2_aviso_'+m.id+'_'+cv.clase;
+      try{ if(localStorage.getItem(k)) continue; }catch(e){}
+      if(!hit||(cv.clase==='A'&&hit.cv.clase!=='A')) hit={m,tr,cv,k};
+    }
+    if(!hit) return;
+    try{ localStorage.setItem(hit.k,'1'); }catch(e){}
+    const old=document.getElementById('trampaBanner'); if(old) old.remove();
+    const b=document.createElement('div'); b.id='trampaBanner';
+    b.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;background:var(--card2);color:var(--text);border:1px solid var(--border2);padding:13px 18px;border-radius:16px;font-size:14px;line-height:1.45;max-width:92vw;width:380px;cursor:pointer';
+    const sp=shortPair(hit.m.h,hit.m.a);
+    b.innerHTML='<span style="color:var(--gold)">⚠️ Posible trampa</span> · '+sp.hs+' vs '+sp.as+'<br>'+(hit.cv.clase==='A'?('<b style="color:var(--green)">Apostar ↺ '+hit.cv.label+'</b> @'+hit.cv.odd.toFixed(2)):hit.cv.clase==='B'?('Vigilar: '+hit.cv.label):'No apostar al favorito')+' <span style="color:var(--dim)">· tocar para ver</span>';
+    b.onclick=()=>{ b.remove(); showTab(document.querySelectorAll('.tab')[3],'safe'); };
+    document.body.appendChild(b); setTimeout(()=>{ if(b&&b.remove) b.remove(); },20000);
+  }catch(e){ console.warn('trampaAvisar',e); }
 }
 function renderTrampaAprendizaje(t){
   const L=trampaAprendizaje(t); const R=_trampaRef(t);
-  if(!L.A&&!L.C) return '';
+  if(!L.A&&!L.C&&!(L.roi&&(L.roi.n||L.roi.nB))) return '';
   const pc=x=>Math.round(x*100)+'%';
   let h='<details class="more" style="margin:0 4px 14px"><summary>Lo que ha aprendido el detector</summary><div style="font-size:13px;line-height:1.6;margin-top:6px">';
   h+='<div style="color:var(--muted);font-size:12px;margin-bottom:6px">Se evalúa la <b>calibración</b> de cada lectura pre-partido (no si un partido suelto salió o no). Referencia: '+(R.fuente==='datos'?('Nacional–Tolima 2026 desde tus datos ('+R.partido+')'):'perfil plantilla Nacional–Tolima 2026 (aún no está en tus datos)')+'.</div>';
   if(L.A) h+='<div class="mkt-row"><span>Con alerta ('+L.A.n+')</span><span class="mkt-v" style="font-weight:400">cuota decía '+pc(L.A.crowd)+' · motor '+pc(L.A.indep)+' · real '+pc(L.A.winRate)+'</span></div>';
   if(L.C) h+='<div class="mkt-row"><span>Sin alerta ('+L.C.n+')</span><span class="mkt-v" style="font-weight:400">cuota decía '+pc(L.C.crowd)+' · motor '+pc(L.C.indep)+' · real '+pc(L.C.winRate)+'</span></div>';
   if(L.A&&L.A.n>=3) h+='<div style="margin-top:4px">'+(L.A.brierIndep<L.A.brierCrowd?'✅ En las alertas, el motor estuvo <b>mejor calibrado</b> que la confianza del mercado.':'⚠️ En las alertas, el mercado estuvo igual o mejor calibrado que el motor.')+'</div>';
+  if(L.roi&&L.roi.n) h+='<div class="mkt-row"><span>Apuestas contrarias ('+L.roi.n+')</span><span class="mkt-v" style="font-weight:400">ganó '+L.roi.won+' · rendimiento '+(L.roi.pnl>=0?'+':'')+Math.round(L.roi.pnl/L.roi.n*100)+'% por apuesta</span></div>';
+  if(L.roi&&L.roi.nB) h+='<div class="mkt-row"><span>Vigiladas sin apostar ('+L.roi.nB+')</span><span class="mkt-v" style="font-weight:400">habrían rendido '+(L.roi.pnlB>=0?'+':'')+Math.round(L.roi.pnlB/L.roi.nB*100)+'%</span></div>';
   h+='<div style="color:var(--dim);font-size:12px;margin-top:4px">'+L.nota+' Umbral actual de discrepancia: '+Math.round(L.thrGap*100)+' pts.'+(L.pend>0?(' Pendientes de jugarse: '+L.pend+'.'):'')+'</div></div></details>';
   return h;
 }
@@ -934,12 +1021,18 @@ function betDecision(t,m,p){
   let best=null;
   [['H',p.pH,o.pH,'Gana '+sp.hs],['D',p.pD,o.pD,'Empate'],['A',p.pA,o.pA,'Gana '+sp.as]].forEach(([c,pp,mp,lbl])=>{
     const edge=pp-mp; if(edge>=0.06&&pp>=0.34&&(!best||edge>best.edge)) best={c,edge,pp,mp,lbl,odd:(m.oddsBest&&m.oddsBest[c])||+(1/Math.max(0.02,mp)).toFixed(2)}; });
-  if(tr&&tr.alert&&(!best||tr.favSide===best.c)) return {yes:false,trap:true,tr,why:'Posible trampa de confianza'};
+  if(tr&&tr.alert&&(!best||tr.favSide===best.c)){
+    const cv=contrarianValue(t,m,tr);
+    if(cv.clase==='A') return {yes:true,contra:true,tr,cv,c:cv.c,edge:cv.ev,pp:cv.p,lbl:cv.label,odd:cv.odd,risky:cv.p<0.35,why:cv.label+' · cuota '+cv.odd.toFixed(2)+' · valor +'+Math.round(cv.ev*100)+'%'};
+    if(cv.clase==='B') return {yes:false,watch:true,trap:true,tr,cv,why:'Trampa: '+cv.label+' podría pagar, aún dudoso'};
+    return {yes:false,trap:true,tr,cv,why:'Posible trampa · el otro lado tampoco paga'};
+  }
   if(best) return Object.assign({yes:true,risky:best.pp<0.45,why:best.lbl+' · cuota '+best.odd.toFixed(2)},best);
   return {yes:false,why:'Sin valor: la cuota paga justo'};
 }
 function betPill(d){
-  if(d.yes) return '<div class="bet bet-yes"><span class="bw">APOSTAR</span><span class="bd">'+d.why+(d.risky?'<br><span style="color:var(--orange)">riesgo alto</span>':'')+'</span></div>';
+  if(d.watch) return '<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">VIGILAR</span><span class="bd" style="color:var(--text)">'+d.why+'</span></div>';
+  if(d.yes) return '<div class="bet bet-yes"><span class="bw">'+(d.contra?'APOSTAR ↺':'APOSTAR')+'</span><span class="bd">'+d.why+(d.risky?'<br><span style="color:var(--orange)">riesgo alto</span>':'')+'</span></div>';
   if(d.trap) return '<div class="bet bet-trap"><span class="bw">NO APOSTAR</span><span class="bd">'+d.why+'</span></div>';
   return '<div class="bet bet-no"><span class="bw">NO APOSTAR</span><span class="bd">'+d.why+'</span></div>';
 }
@@ -1440,6 +1533,7 @@ async function syncActive(){
     else { extra=' · 🔑 conecta API-Football para cuotas (sube el acierto)'; }
     showToast(`✅ ${TORNEOS[ACTIVE].corto}: ${jugados} jugados${extra}`);
     refreshAll();
+    setTimeout(trampaAvisar,4500);   // 🔔 aviso de trampas tras sincronizar
   }catch(e){
     document.getElementById('syncStatus').textContent='⚠';
     showToast('⚠ Sin conexión a ESPN ('+((e&&e.message)||'?')+') — toca 🔄 para reintentar',false);
@@ -3157,7 +3251,7 @@ function showGoldenAlert(op){
   b.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#e3b24d,#f0cd6a);color:#1a1200;font-weight:800;padding:13px 18px;border-radius:16px;box-shadow:0 8px 30px rgba(227,178,77,.5);font-size:14px;cursor:pointer;max-width:92vw;text-align:center;line-height:1.4;';
   const sp=shortPair(op.m.h,op.m.a);
   b.innerHTML='🚨 Oportunidad de oro · '+sp.hs+' vs '+sp.as+'<br><span style="font-weight:600">'+op.label+' · EV +'+(op.ev*100).toFixed(0)+'% — tocar para ver</span>';
-  b.onclick=()=>{ b.remove(); const tabs=document.querySelectorAll('.tab'); showTab(tabs[3],'valor'); };
+  b.onclick=()=>{ b.remove(); const tabs=document.querySelectorAll('.tab'); showTab(tabs[3],'safe'); };
   document.body.appendChild(b);
   setTimeout(()=>{ if(b&&b.remove) b.remove(); }, 15000);
 }
@@ -3349,6 +3443,7 @@ async function boot(){
     document.getElementById('statusDot').className='sdot ok';
     document.getElementById('overlay').classList.add('gone');
     refreshAll();
+    setTimeout(trampaAvisar,1500);   // 🔔 aviso al abrir
     setTimeout(()=>syncActive(),800);
   }catch(e){
     document.getElementById('stepMsg').innerText='❌ Error: '+e.message;
@@ -3358,7 +3453,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.26 · 10 oct 2026";
+const APP_VERSION="v5.27 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
