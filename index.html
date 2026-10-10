@@ -289,6 +289,79 @@ body{
 .ba-no{background:var(--red);color:#1a0406;}
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
+
+/* ===================== 🍃 ZEN v5.26 =====================
+   Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
+:root{
+  --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
+  --border:#282c31; --border2:#30353b;
+  --text:#e7e5e0; --muted:#9a9c9f; --dim:#6d7177;
+  --accent:#9cb8a8; --accent-soft:rgba(156,184,168,.12);
+  --gold:#cdb88a; --gold-soft:rgba(205,184,138,.10);
+  --green:#97c4a2; --green-soft:rgba(151,196,162,.13);
+  --red:#d39a94; --red-soft:rgba(211,154,148,.12);
+  --orange:#d2ad8a; --yellow:#d6c38f;
+  --shadow:none; --r:18px;
+}
+body{background:var(--bg)!important;box-shadow:none!important;font-size:16px;line-height:1.5;}
+.topbar{background:rgba(22,24,27,.92)!important;border-bottom-color:transparent!important;}
+.logo em{color:var(--accent)!important;}
+.tabs{background:var(--bg)!important;border-bottom-color:var(--border)!important;}
+.tab{font-weight:500!important;color:var(--dim)!important;}
+.tab.active{color:var(--text)!important;border-bottom-color:var(--accent)!important;}
+.tab .ti{filter:grayscale(1) opacity(.75)!important;font-size:20px!important;}
+.tab.active .ti{filter:grayscale(.2)!important;}
+.card,.mcard,.mcard-post,.gold-card,.champ-wrap,.mkt-panel,.result-real{background:var(--card)!important;box-shadow:none!important;border:1px solid var(--border)!important;}
+.card,.mcard{border-radius:18px!important;padding:18px 18px!important;margin-bottom:14px!important;}
+.mcard{border-left-width:1px!important;border-left-color:var(--border)!important;}
+.champ-wrap{background:var(--card)!important;}
+.day-sep{background:var(--bg)!important;border:0!important;box-shadow:none!important;}
+.day-sep .dw{color:var(--text)!important;font-weight:600!important;}
+.day-sep .dd{color:var(--muted)!important;font-weight:500!important;}
+.day-sep .dtoday{background:var(--accent-soft)!important;color:var(--accent)!important;border:0!important;}
+.day-sep .dcount{display:none!important;}
+.stitle{font-weight:600!important;color:var(--muted)!important;font-size:13px!important;text-transform:uppercase;letter-spacing:.08em;}
+.mhead{margin-bottom:8px!important;}
+.mteams{margin-bottom:4px!important;}
+.mteams .tm{font-size:16.5px!important;font-weight:600!important;}
+.mteams .vs{background:transparent!important;border:0!important;color:var(--dim)!important;font-weight:500!important;}
+.prob,.prob.prob-top{background:var(--bg2)!important;border-color:transparent!important;box-shadow:none!important;}
+.prob .pv{color:var(--text)!important;font-weight:600!important;font-size:21px!important;}
+.prob.prob-top .pv{color:var(--accent)!important;}
+.verdict,.verdict.v-pre,.verdict.v-ok,.verdict.v-no{background:var(--bg2)!important;border:0!important;color:var(--text)!important;font-weight:500!important;}
+.result-real{background:var(--bg2)!important;border:0!important;}
+.mchip{background:var(--bg2)!important;border-color:var(--border)!important;}
+.future-card{background:var(--card)!important;}
+.sync-btn{background:transparent!important;border-color:var(--border)!important;}
+/* veredicto APOSTAR / NO APOSTAR */
+.bet{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-radius:14px;margin-top:14px;}
+.bet .bw{font-size:15px;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
+.bet .bd{font-size:13.5px;text-align:right;line-height:1.35;}
+.bet-yes{background:var(--green-soft);color:var(--green);}
+.bet-yes .bd{color:var(--text);}
+.bet-no{background:var(--bg2);color:var(--dim);}
+.bet-no .bd{color:var(--muted);}
+.bet-trap{background:var(--red-soft);color:var(--red);}
+.bet-trap .bd{color:var(--text);}
+.pbar{display:flex;height:5px;border-radius:99px;overflow:hidden;gap:3px;margin-top:14px;}
+.pbar i{display:block;height:100%;border-radius:99px;}
+.pbar .ph{background:var(--accent);} .pbar .pd{background:var(--dim);} .pbar .pa{background:var(--orange);}
+.plbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:7px;}
+.plbl b{color:var(--text);font-weight:600;}
+details.more{margin-top:12px;}
+details.more>summary{list-style:none;cursor:pointer;font-size:12.5px;color:var(--dim);padding:4px 0;}
+details.more>summary::-webkit-details-marker{display:none;}
+details.more>summary::before{content:'＋ ';}
+details.more[open]>summary::before{content:'－ ';}
+.zline{font-size:12px;color:var(--dim);text-align:center;margin:18px 0 8px;}
+.mtime{background:transparent!important;border:0!important;padding:0!important;font-size:15px!important;font-weight:600!important;color:var(--text)!important;box-shadow:none!important;}
+.mtime.fin{color:var(--dim)!important;}
+.mstat{font-weight:500!important;color:var(--dim)!important;letter-spacing:.04em!important;}
+#verStamp{font-size:11px!important;white-space:nowrap;opacity:.5!important;color:var(--muted)!important;}
+.ba{background:var(--bg2)!important;border:0!important;box-shadow:none!important;}
+.ba-verdict,.ba-verdict.ba-ok,.ba-verdict.ba-no{background:transparent!important;border:0!important;box-shadow:none!important;font-weight:600!important;}
+.ba-verdict.ba-ok{color:var(--green)!important;} .ba-verdict.ba-no{color:var(--red)!important;}
+.rscore{font-weight:600!important;}
 </style>
 </head>
 <body>
@@ -297,13 +370,13 @@ body{
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.24 · 27 sep 2026 · 🔒 Segura del Día</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.26 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.24 · 27 sep 2026</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.26</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -561,12 +634,50 @@ function _temp(p,T){
   const f=x=>Math.pow(Math.max(1e-6,x),1/T);
   let pH=f(p.pH),pD=f(p.pD),pA=f(p.pA); const s=(pH+pD+pA)||1; return {pH:pH/s,pD:pD/s,pA:pA/s};
 }
-function anomaliaProb(m,rH,rA,hfa,tune){
+// --- Modelo de goles (Dixon-Coles con decaimiento temporal + xG) ---
+// Estado incremental: se alimenta partido a partido en el walk-forward (sin mirar el futuro).
+// Goles "efectivos" = 60% marcador real + 40% xG (si existe): amortigua resultados de suerte.
+// Decaimiento 0.97 por partido jugado del equipo: lo reciente pesa más (memoria ≈ 30 partidos).
+function _gsNew(){ return {sf:{},sc:{},gp:{},sumH:0,sumA:0,ng:0}; }
+function _gsAdd(G,m){
+  if(!G||m.sh==null||m.sa==null) return;
+  const xg=m.xg&&m.xg.h!=null&&m.xg.a!=null;
+  const gh=xg?0.6*m.sh+0.4*m.xg.h:m.sh, ga=xg?0.6*m.sa+0.4*m.xg.a:m.sa;
+  const D=0.97;
+  for(const [t,f,c] of [[m.h,gh,ga],[m.a,ga,gh]]){
+    G.sf[t]=(G.sf[t]||0)*D+f; G.sc[t]=(G.sc[t]||0)*D+c; G.gp[t]=(G.gp[t]||0)*D+1;
+  }
+  const DL=0.995; G.sumH=G.sumH*DL+gh; G.sumA=G.sumA*DL+ga; G.ng=G.ng*DL+1;
+}
+const _DC_FACT=[1,1,2,6,24,120,720,5040,40320,362880];
+function _gsProb(G,h,a){
+  if(!G||(G.gp[h]||0)<3||(G.gp[a]||0)<3||G.ng<20) return null;
+  const avgH=G.sumH/G.ng, avgA=G.sumA/G.ng, lg=((avgH+avgA)/2)||1.2;
+  const K=5, sh=(rate,n)=>(n*rate+K*lg)/(n+K);
+  const gh=G.gp[h], ga=G.gp[a];
+  const attH=sh(G.sf[h]/gh,gh)/lg, defH=sh(G.sc[h]/gh,gh)/lg, attA=sh(G.sf[a]/ga,ga)/lg, defA=sh(G.sc[a]/ga,ga)/lg;
+  const lh=Math.max(0.15,attH*defA*avgH), la=Math.max(0.15,attA*defH*avgA);
+  const pois=(k,l)=>Math.exp(-l)*Math.pow(l,k)/_DC_FACT[k], rho=-0.08;
+  const tau=(x,y)=>x===0&&y===0?1-lh*la*rho:x===0&&y===1?1+lh*rho:x===1&&y===0?1+la*rho:x===1&&y===1?1-rho:1;
+  let pH=0,pD=0,pA=0;
+  for(let x=0;x<=8;x++)for(let y=0;y<=8;y++){ const p=pois(x,lh)*pois(y,la)*tau(x,y); if(x>y)pH+=p;else if(x<y)pA+=p;else pD+=p; }
+  const s=(pH+pD+pA)||1; return {pH:pH/s,pD:pD/s,pA:pA/s,lh,la};
+}
+// Estructura de Anomalía en ligas nuevas: Dixon-Coles (goles+xG) + ELO de la liga, a partes iguales.
+// (Antes era la "regla WC" con escala /40: medido en 776 partidos BetPlay y 830 LaLiga reales,
+//  daba Brier 0.78/0.71 — peor que el azar 0.667 — por sobreconfianza.)
+function _anomStruct(m,rH,rA,hfa,G,dr){
+  const el=eloProb(rH,rA,dr!=null?dr:0.27,hfa);
+  const dc=_gsProb(G,m.h,m.a);
+  if(!dc) return el;
+  return {pH:(el.pH+dc.pH)/2,pD:(el.pD+dc.pD)/2,pA:(el.pA+dc.pA)/2};
+}
+function anomaliaProb(m,rH,rA,hfa,tune,G,dr){
   const full=_anomWC(m.h,m.a);
   if(full) return full;
-  const meta=_anomMeta(rH,rA,hfa);
+  const meta=_anomStruct(m,rH,rA,hfa,G,dr);
   const mk=mercadoProb(m);
-  const w=(tune&&tune.wMkt!=null)?tune.wMkt:0.7;   // 0.7 por defecto; aprendido si hay tune
+  const w=(tune&&tune.wMkt!=null)?tune.wMkt:0.6;   // 0.6 por defecto (el mercado suele calibrar mejor); aprendido si hay tune
   let p=_blend(mk,meta,w);
   if(tune&&tune.T&&tune.T!==1) p=_temp(p,tune.T);  // auto-calibración
   return p;
@@ -576,11 +687,11 @@ function tuneAnom(comp){
   const S=comp.filter(c=>c.mk && !c.wc);
   if(S.length<10) return null;
   const brier=(w,T)=>S.reduce((s,c)=>s+brierOf(_temp(_blend(c.mk,c.meta,w),T),c.actual),0)/S.length;
-  let best={wMkt:0.7,T:1,brier:brier(0.7,1)};
-  for(const w of [0.3,0.45,0.6,0.7,0.85,1.0]) for(const T of [0.7,0.85,1.0,1.15,1.3,1.5]){
+  let best={wMkt:0.6,T:1,brier:brier(0.6,1)};
+  for(const w of [0,0.15,0.3,0.45,0.6,0.7,0.85,1.0]) for(const T of [0.7,0.85,1.0,1.15,1.3,1.5]){
     const b=brier(w,T); if(b<best.brier) best={wMkt:w,T,brier:b};
   }
-  const brierBase=brier(0.7,1);
+  const brierBase=brier(0.6,1);
   // Autodiagnóstico de calibración (¿sobre/subconfiada?)
   let sumConf=0,hit=0; const bins=Array.from({length:5},()=>({c:0,a:0,n:0}));
   S.forEach(c=>{
@@ -595,6 +706,185 @@ function tuneAnom(comp){
   return {wMkt:best.wMkt,T:+best.T.toFixed(2),brierTuned:+best.brier.toFixed(4),brierBase:+brierBase.toFixed(4),avgConf:+avgConf.toFixed(3),acc:+acc.toFixed(3),ece:+ece.toFixed(3),over:avgConf>acc+0.02,under:avgConf<acc-0.02,n:S.length};
 }
 
+// ==================== 🌀 ANOMALÍA · DETECTOR DE FALSAS APUESTAS SEGURAS ====================
+// Patrón de referencia: Atlético Nacional vs Deportes Tolima (temporada 2026).
+// Detecta "trampas de confianza": la secuencia previa (forma, rachas, historial directo)
+// + cuotas + narrativa apuntan TODAS al mismo favorito y lo hacen parecer casi seguro,
+// pero la estimación independiente del motor (ELO, ELO v2 y estructura WC, SIN mercado)
+// le da bastante menos. NUNCA afirma amaño ni que alguien "preparó" nada: solo mide
+// la distancia entre la confianza colectiva y el riesgo real, y se abstiene si no hay ventaja.
+// Regla fundamental: no salta solo porque un favorito juegue contra uno inferior; exige
+// (a) narrativa previa fuerte y (b) discrepancia medible confianza↔probabilidad real.
+const TRAMPA_MSG='Posible trampa de confianza. La secuencia de resultados anteriores puede estar generando una percepción de seguridad superior a la respaldada por la evidencia. No tratar esta selección como apuesta segura.';
+// Perfil del caso de referencia (plantilla). Si los partidos Nacional–Tolima 2026 están en
+// tus datos, se recalcula desde ellos (ver _trampaRef).
+const TRAMPA_REF_BASE={N:0.72,racha:0.75,h2h:0.75,crowd:0.68,gap:0.12,fuente:'plantilla'};
+function _trPrev(t,team,beforeISO,k){
+  const st=loadState(t); const key=_teamKey(team); const lim=beforeISO?_asDate(beforeISO):null;
+  return st.matches.filter(x=>x.played&&x.sh!=null&&x.sa!=null&&x.date&&(_teamKey(x.h)===key||_teamKey(x.a)===key)&&(!lim||_asDate(x.date)<lim))
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,k||5)
+    .map(x=>{ const home=_teamKey(x.h)===key; const gf=home?x.sh:x.sa, ga=home?x.sa:x.sh; return {gf,ga,pts:gf>ga?3:gf===ga?1:0,rival:home?x.a:x.h}; });
+}
+// Paso 1 + 3: reconstruir la narrativa previa (qué vio el público antes del partido)
+function _trNarrativa(t,m,favSide){
+  const fav=favSide==='H'?m.h:m.a, dog=favSide==='H'?m.a:m.h;
+  const fp=_trPrev(t,fav,m.date,5), dp=_trPrev(t,dog,m.date,5);
+  if(fp.length<3) return {N:0,ok:false,parts:[],racha:0,h2h:0,fav,dog};
+  const ratio=a=>a.length?a.reduce((s,x)=>s+x.pts,0)/(3*a.length):0.5;
+  let streak=0; for(const x of fp){ if(x.pts===3) streak++; else break; }
+  let dogLoss=0; for(const x of dp){ if(x.pts===0) dogLoss++; else break; }
+  const gd=fp.reduce((s,x)=>s+(x.gf-x.ga),0)/fp.length;
+  const big=fp.slice(0,3).some(x=>x.gf-x.ga>=3);
+  // historial directo antes de esta fecha
+  const st=loadState(t), fk=_teamKey(fav), dk=_teamKey(dog), lim=m.date?_asDate(m.date):null;
+  const meets=st.matches.filter(x=>x.played&&x.sh!=null&&x.date&&(!lim||_asDate(x.date)<lim)&&((_teamKey(x.h)===fk&&_teamKey(x.a)===dk)||(_teamKey(x.h)===dk&&_teamKey(x.a)===fk)))
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6);
+  let fw=0; meets.forEach(x=>{ const fh=_teamKey(x.h)===fk; if((fh?x.sh:x.sa)>(fh?x.sa:x.sh)) fw++; });
+  const h2h=meets.length>=2?fw/meets.length:0;
+  const comp={forma:ratio(fp), racha:Math.min(1,streak/4), rival:dp.length>=2?1-ratio(dp):0.5, h2h, gol:big?1:Math.max(0,Math.min(1,gd/2))};
+  const N=0.30*comp.forma+0.20*comp.racha+0.20*comp.rival+0.20*comp.h2h+0.10*comp.gol;
+  const parts=[];
+  parts.push(fav+': '+fp.reduce((s,x)=>s+x.pts,0)+'/'+(3*fp.length)+' pts en sus últimos '+fp.length+(streak>=2?(' · racha de '+streak+' victorias'):''));
+  if(dp.length>=2) parts.push(dog+': '+dp.reduce((s,x)=>s+x.pts,0)+'/'+(3*dp.length)+' pts'+(dogLoss>=2?(' · '+dogLoss+' derrotas seguidas'):''));
+  if(meets.length>=2) parts.push('Historial directo: '+fav+' ganó '+fw+' de '+meets.length);
+  if(big) parts.push(fav+' viene de una goleada reciente');
+  return {N,ok:true,parts,comp,racha:comp.racha,h2h,streak,meets:meets.length,fav,dog};
+}
+// Paso 4: estimación INDEPENDIENTE (sin mercado, sin forma reciente) + incertidumbre
+function _trIndep(t,m,p,favSide){
+  const wf=getWF(t), cfg=TORNEOS[t];
+  const rH=wf.elo[m.h]??_pedElo(m.h), rA=wf.elo[m.a]??_pedElo(m.a);
+  const alt=_altBonus(m.h,m.a), hfa=(wf.hfa??55)+alt;
+  const list=[];
+  if(p.preds&&p.preds.elo) list.push(p.preds.elo);
+  if(p.preds&&p.preds.glicko) list.push(p.preds.glicko);
+  { const dc=_gsProb(wf.goals,m.h,m.a); if(dc) list.push(dc); }   // goles+xG, sin mercado
+  let pH=0,pD=0,pA=0; list.forEach(x=>{pH+=x.pH;pD+=x.pD;pA+=x.pA;}); const n=list.length;
+  let q={pH:pH/n,pD:pD/n,pA:pA/n};
+  q=_injAdjust(m,q);
+  const fp=x=>favSide==='H'?x.pH:x.pA;
+  const vals=list.map(fp);
+  return {p:q, win:fp(q), draw:q.pD, upset:favSide==='H'?q.pA:q.pH, spread:Math.max(...vals)-Math.min(...vals)};
+}
+function _trLoad(t){ try{ return JSON.parse(localStorage.getItem('fiq2_trampas_'+t)||'{}')||{}; }catch(e){ return {}; } }
+function _trSave(t,db){ try{ const ids=Object.keys(db.recs||{}); if(ids.length>300){ ids.sort((a,b)=>(db.recs[a].date||'').localeCompare(db.recs[b].date||'')).slice(0,ids.length-300).forEach(k=>delete db.recs[k]); } localStorage.setItem('fiq2_trampas_'+t,JSON.stringify(db)); }catch(e){} }
+// Paso 6: aprender del historial de alertas por CALIBRACIÓN (no por un solo resultado)
+function trampaAprendizaje(t){
+  const db=_trLoad(t); const recs=db.recs||{}; const st=loadState(t);
+  const byId={}; st.matches.forEach(x=>{ byId[x.id]=x; });
+  const grp={alert:[],ctrl:[]};
+  for(const id in recs){ const r=recs[id], x=byId[id];
+    if(!x||!x.played||x.sh==null) continue;
+    const fs=r.favSide==='H'?x.sh:x.sa, os=r.favSide==='H'?x.sa:x.sh;
+    const won=fs>os?1:0;
+    (r.alert?grp.alert:grp.ctrl).push({won, crowd:r.crowd, indep:r.indep});
+  }
+  const agg=a=>{ if(!a.length) return null; const n=a.length;
+    const s=k=>a.reduce((z,x)=>z+x[k],0)/n;
+    const bC=a.reduce((z,x)=>z+Math.pow(x.crowd-x.won,2),0)/n, bI=a.reduce((z,x)=>z+Math.pow(x.indep-x.won,2),0)/n;
+    return {n, winRate:s('won'), crowd:s('crowd'), indep:s('indep'), overconf:s('crowd')-s('won'), brierCrowd:bC, brierIndep:bI}; };
+  const A=agg(grp.alert), C=agg(grp.ctrl);
+  // Umbral adaptativo: con ≥8 alertas evaluadas, si la estimación independiente NO fue
+  // mejor calibrada que la confianza del mercado en esas alertas, exigir más discrepancia.
+  let thrGap=0.07, nota='Umbral base (aún pocas alertas evaluadas).';
+  if(A&&A.n>=8){
+    if(A.brierIndep<A.brierCrowd && A.overconf>0){ thrGap=0.06; nota='Las alertas vienen anticipando bien la sobreconfianza → umbral algo más sensible.'; }
+    else { thrGap=0.10; nota='Las alertas no han superado al mercado en calibración → se exige más discrepancia para alertar.'; }
+  }
+  return {A,C,thrGap,nota,pend:Object.keys(recs).length-(A?A.n:0)-(C?C.n:0)};
+}
+// Caso de referencia: si existen los Nacional–Tolima 2026 en los datos, se reconstruye su perfil
+function _trampaRef(t){
+  const st=loadState(t); const wf=getWF(t);
+  const games=st.matches.filter(x=>x.played&&x.sh!=null&&x.date&&String(x.date).slice(0,4)==='2026'&&
+    ((_teamKey(x.h)==='nacional'&&_teamKey(x.a)==='tolima')||(_teamKey(x.h)==='tolima'&&_teamKey(x.a)==='nacional')))
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(!games.length) return TRAMPA_REF_BASE;
+  const rows=games.map(g=>{
+    const row=(wf.log||[]).find(r=>r.id===g.id);
+    const favSide=(g.odds&&g.odds.pH!=null)?(g.odds.pH>=g.odds.pA?'H':'A'):(row&&row.consP?(row.consP.pH>=row.consP.pA?'H':'A'):(_teamKey(g.h)==='nacional'?'H':'A'));
+    const nr=_trNarrativa(t,g,favSide);
+    const crowd=(g.odds&&g.odds.pH!=null)?(favSide==='H'?g.odds.pH:g.odds.pA):null;
+    const indep=row&&row.consP?(favSide==='H'?row.consP.pH:row.consP.pA):null;
+    const favWon=(favSide==='H'?g.sh>g.sa:g.sa>g.sh);
+    return {g,nr,crowd,indep,favWon};
+  }).filter(x=>x.nr.ok);
+  if(!rows.length) return TRAMPA_REF_BASE;
+  const pick=rows.find(x=>!x.favWon)||rows[0];   // el que rompió la expectativa, si lo hubo
+  return {N:pick.nr.N, racha:pick.nr.racha, h2h:pick.nr.h2h,
+    crowd:pick.crowd!=null?pick.crowd:TRAMPA_REF_BASE.crowd,
+    gap:(pick.crowd!=null&&pick.indep!=null)?Math.max(0,pick.crowd-pick.indep):TRAMPA_REF_BASE.gap,
+    fuente:'datos', partido:pick.g.h+' '+pick.g.sh+'-'+pick.g.sa+' '+pick.g.a};
+}
+// Pasos 1-5 sobre un partido futuro. p = predictMatch(t,m)
+function trampaConfianza(t,m,p,learn){
+  if(!m||!p) return null;
+  const hasOdds=!!(m.odds&&m.odds.pH!=null);
+  // ¿hacia dónde mira el público? el favorito del mercado (o del consenso si no hay cuotas)
+  const favSide=hasOdds?(m.odds.pH>=m.odds.pA?'H':'A'):(p.pH>=p.pA?'H':'A');
+  const nr=_trNarrativa(t,m,favSide);
+  // Paso 2: confianza colectiva = prob. implícita de la cuota (o la forma reciente si no hay cuotas)
+  let crowd=null, src='', move=0;
+  if(hasOdds){ crowd=favSide==='H'?m.odds.pH:m.odds.pA; src='cuota';
+    if(m.odds.first&&m.odds.first.pH!=null) move=crowd-(favSide==='H'?m.odds.first.pH:m.odds.first.pA); }
+  else if(p.preds&&p.preds.mom){ crowd=favSide==='H'?p.preds.mom.pH:p.preds.mom.pA; src='narrativa'; }
+  if(crowd==null||!nr.ok) return {alert:false,favSide,nr,reason:'sin datos suficientes'};
+  const ind=_trIndep(t,m,p,favSide);
+  const gap=crowd-ind.win;
+  const statsAgree=(favSide==='H'?ind.p.pH>=ind.p.pA:ind.p.pA>=ind.p.pH);
+  const L=learn||trampaAprendizaje(t);
+  const narrFuerte=nr.N>=0.55;
+  const pareceSegura=crowd>=0.55;
+  const discrep=gap>=L.thrGap;
+  const prep=narrFuerte&&(move>=0.02||gap>=L.thrGap);   // la secuencia empujó la confianza hacia un lado
+  const alert=pareceSegura&&narrFuerte&&discrep;
+  const nivel=!alert?null:(src!=='cuota'?'vigilancia':(gap>=L.thrGap+0.05||move>=0.025||!statsAgree)?'alta':'media');
+  // parecido con el caso de referencia
+  const R=(L&&L.ref)||_trampaRef(t);
+  const sim=1-([['N',nr.N],['racha',nr.racha],['h2h',nr.h2h],['crowd',crowd],['gap',Math.max(0,gap)]].reduce((s,[k,v])=>s+Math.min(1,Math.abs(v-R[k])/0.5),0)/5);
+  const sp=shortPair(m.h,m.a); const favShort=favSide==='H'?sp.hs:sp.as;
+  const escenarios=[];
+  if(ind.draw>=0.24) escenarios.push('Empate ('+Math.round(ind.draw*100)+'%)');
+  if(ind.upset>=0.18) escenarios.push('Gana '+(favSide==='H'?sp.as:sp.hs)+' ('+Math.round(ind.upset*100)+'%)');
+  if(ind.spread>=0.12) escenarios.push('Los motores discrepan entre sí ('+Math.round(ind.spread*100)+' pts): incertidumbre alta');
+  return {alert,nivel,favSide,favShort,nr,crowd,src,move,indep:ind.win,draw:ind.draw,upset:ind.upset,spread:ind.spread,gap,statsAgree,prep,sim,ref:R,escenarios,thrGap:L.thrGap};
+}
+// Registra la lectura PRE-partido (alertas y controles) para evaluarla después
+function trampaRegistrar(t,m,tr){
+  if(!tr||tr.crowd==null||tr.crowd<0.55||!m.date||m.played) return;
+  if(_asDate(m.date)<=new Date()) return;   // solo lecturas tomadas ANTES del partido
+  const db=_trLoad(t); db.recs=db.recs||{};
+  db.recs[m.id]={h:m.h,a:m.a,date:m.date,favSide:tr.favSide,alert:!!tr.alert,nivel:tr.nivel,crowd:+tr.crowd.toFixed(3),indep:+tr.indep.toFixed(3),gap:+tr.gap.toFixed(3),N:+tr.nr.N.toFixed(3),sim:+tr.sim.toFixed(2),src:tr.src,at:new Date().toISOString()};
+  _trSave(t,db);
+}
+function renderTrampaCard(tr,m){
+  let h='<div class="card">';
+  h+='<div style="font-size:13px;color:var(--muted);text-transform:capitalize">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
+  h+='<div style="font-size:17px;font-weight:600;margin-top:6px">'+m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+m.a+'</div>';
+  h+='<div class="bet bet-trap"><span class="bw">NO APOSTAR</span><span class="bd">'+tr.favShort+' parece seguro<br><span style="color:var(--muted)">cuota '+Math.round(tr.crowd*100)+'% · real ≈'+Math.round(tr.indep*100)+'%</span></span></div>';
+  h+='<div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5">'+TRAMPA_MSG+'</div>';
+  h+='<details class="more"><summary>Por qué</summary><div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px">';
+  tr.nr.parts.forEach(x=>{ h+='<div>· '+x+'</div>'; });
+  if(tr.move>=0.02) h+='<div>· La cuota se acortó '+Math.round(tr.move*100)+' pts</div>';
+  h+='<div>· Sobrevaloración: '+Math.round(tr.gap*100)+' pts · parecido al caso Nacional–Tolima: '+Math.round(tr.sim*100)+'%</div>';
+  if(tr.escenarios.length) h+='<div>· Ignorado: '+tr.escenarios.join(' · ')+'</div>';
+  h+='<div style="color:var(--dim);margin-top:6px">Patrón de riesgo, no acusación de amaño.</div></div></details>';
+  h+='</div>';
+  return h;
+}
+function renderTrampaAprendizaje(t){
+  const L=trampaAprendizaje(t); const R=_trampaRef(t);
+  if(!L.A&&!L.C) return '';
+  const pc=x=>Math.round(x*100)+'%';
+  let h='<details class="more" style="margin:0 4px 14px"><summary>Lo que ha aprendido el detector</summary><div style="font-size:13px;line-height:1.6;margin-top:6px">';
+  h+='<div style="color:var(--muted);font-size:12px;margin-bottom:6px">Se evalúa la <b>calibración</b> de cada lectura pre-partido (no si un partido suelto salió o no). Referencia: '+(R.fuente==='datos'?('Nacional–Tolima 2026 desde tus datos ('+R.partido+')'):'perfil plantilla Nacional–Tolima 2026 (aún no está en tus datos)')+'.</div>';
+  if(L.A) h+='<div class="mkt-row"><span>Con alerta ('+L.A.n+')</span><span class="mkt-v" style="font-weight:400">cuota decía '+pc(L.A.crowd)+' · motor '+pc(L.A.indep)+' · real '+pc(L.A.winRate)+'</span></div>';
+  if(L.C) h+='<div class="mkt-row"><span>Sin alerta ('+L.C.n+')</span><span class="mkt-v" style="font-weight:400">cuota decía '+pc(L.C.crowd)+' · motor '+pc(L.C.indep)+' · real '+pc(L.C.winRate)+'</span></div>';
+  if(L.A&&L.A.n>=3) h+='<div style="margin-top:4px">'+(L.A.brierIndep<L.A.brierCrowd?'✅ En las alertas, el motor estuvo <b>mejor calibrado</b> que la confianza del mercado.':'⚠️ En las alertas, el mercado estuvo igual o mejor calibrado que el motor.')+'</div>';
+  h+='<div style="color:var(--dim);font-size:12px;margin-top:4px">'+L.nota+' Umbral actual de discrepancia: '+Math.round(L.thrGap*100)+' pts.'+(L.pend>0?(' Pendientes de jugarse: '+L.pend+'.'):'')+'</div></div></details>';
+  return h;
+}
+
 // Anomalías DOCUMENTADAS del Mundial 2026 (motivación del experimento — verificadas en prensa/FIFA)
 const ANOMALIAS_WC=[
   'Final: Argentina terminó los 90&#39; SIN UN SOLO REMATE — primera vez en la historia de las finales de un Mundial. Intentos 15-0 para España; xG argentino 0.2 en 120&#39;.',
@@ -606,7 +896,7 @@ const ANOMALIAS_WC=[
 
 const MOTORES=['elo','mom','anomalia','glicko'];
 const MOTOR_LBL={elo:'⚡ ELO',mom:'🔥 Momentum',anomalia:'🌀 Anomalía',glicko:'🧬 ELO v2'};
-const MOTOR_SHORT={elo:'⚡',mom:'🔥',anomalia:'🌀'};
+const MOTOR_SHORT={elo:'⚡',mom:'🔥',anomalia:'🌀',glicko:'🧬'};
 // Sugerencia de apuesta a partir de probabilidades 1X2
 // ==================== 🟢 PLAN SEGURO · MERCADOS DE ALTA CONFIANZA ====================
 // Mercado estrella: "favorito NO pierde" (doble oportunidad). Histórico ~80% en BetPlay.
@@ -635,53 +925,41 @@ function _safePick(m,p){
 function getPlanBudget(){ try{return +(localStorage.getItem('fiq2_planbudget')||0)||0;}catch(e){return 0;} }
 function setPlanBudget(v){ try{localStorage.setItem('fiq2_planbudget',String(Math.max(0,parseInt(String(v).replace(/[^0-9]/g,''))||0)));}catch(e){} renderHoy(); }
 function _fmtCOP(n){ return '$'+Math.round(n).toLocaleString('es-CO'); }
+// 🍃 Decisión única por partido: APOSTAR sí / no (valor real y sin trampa de confianza)
+function betDecision(t,m,p){
+  const o=m.odds; const sp=shortPair(m.h,m.a);
+  if(!p) return {yes:false,why:'Sin pronóstico'};
+  if(!o||o.pH==null) return {yes:false,why:'Aún sin cuotas'};
+  let tr=null; try{ tr=trampaConfianza(t,m,p); }catch(e){}
+  let best=null;
+  [['H',p.pH,o.pH,'Gana '+sp.hs],['D',p.pD,o.pD,'Empate'],['A',p.pA,o.pA,'Gana '+sp.as]].forEach(([c,pp,mp,lbl])=>{
+    const edge=pp-mp; if(edge>=0.06&&pp>=0.34&&(!best||edge>best.edge)) best={c,edge,pp,mp,lbl,odd:(m.oddsBest&&m.oddsBest[c])||+(1/Math.max(0.02,mp)).toFixed(2)}; });
+  if(tr&&tr.alert&&(!best||tr.favSide===best.c)) return {yes:false,trap:true,tr,why:'Posible trampa de confianza'};
+  if(best) return Object.assign({yes:true,risky:best.pp<0.45,why:best.lbl+' · cuota '+best.odd.toFixed(2)},best);
+  return {yes:false,why:'Sin valor: la cuota paga justo'};
+}
+function betPill(d){
+  if(d.yes) return '<div class="bet bet-yes"><span class="bw">APOSTAR</span><span class="bd">'+d.why+(d.risky?'<br><span style="color:var(--orange)">riesgo alto</span>':'')+'</span></div>';
+  if(d.trap) return '<div class="bet bet-trap"><span class="bw">NO APOSTAR</span><span class="bd">'+d.why+'</span></div>';
+  return '<div class="bet bet-no"><span class="bw">NO APOSTAR</span><span class="bd">'+d.why+'</span></div>';
+}
 function renderPlanCard(win){
   const pend=win.filter(m=>!m.played&&!m.postponed&&m.date);
-  const picks=[];
-  for(const m of pend){ try{ const p=predictMatch(ACTIVE,m); picks.push({m,p,date:m.date}); }catch(e){} }
-  const budget=getPlanBudget();
-  let h='<div class="card" style="border-color:rgba(90,169,240,.45);background:linear-gradient(180deg,rgba(90,169,240,.07),transparent)">';
-  h+='<div style="font-weight:800;font-size:17px;color:var(--accent)">🔮 Pronóstico + Valor de la jornada</div>';
-  h+='<div style="font-size:12.5px;color:var(--muted);margin:6px 0 10px;line-height:1.5"><b style="color:var(--orange)">La verdad:</b> apostar lo obvio no deja ganancia (la casa ya lo tiene en el precio). La única apuesta con sentido es cuando <b>nuestra probabilidad le gana a la del mercado</b> = <b style="color:var(--green)">🟢 VALOR</b>. Con jerarquía y clima nuevos, el modelo caza mejor esos huecos. Si no hay valor, lo honesto es <b>no apostar</b>.</div>';
-  if(!picks.length){ h+='<div style="font-size:14px;color:var(--muted)">Sin partidos próximos en la ventana. Toca 🔄.</div></div>'; return h; }
+  if(!pend.length) return '';
   const val=[];
-  picks.forEach(x=>{ const p=x.p,o=x.m.odds; x.bb=betSuggest(p); x.conf=Math.max(p.pH,p.pD,p.pA);
-    if(o&&o.pH!=null){ const outs=[['H',p.pH,o.pH,'Gana '+x.m.h],['D',p.pD,o.pD,'Empate'],['A',p.pA,o.pA,'Gana '+x.m.a]];
-      let best=null; outs.forEach(o2=>{ const c=o2[0],pp=o2[1],mp=o2[2],lbl=o2[3]; const edge=pp-mp; if(edge>=0.06&&pp>=0.34&&(!best||edge>best.edge)) best={c,edge,pp,mp,lbl,odd:(x.m.oddsBest&&x.m.oddsBest[c])||+(1/Math.max(0.02,mp)).toFixed(2)}; });
-      if(best){ x.value=best; val.push(x); } } });
-  if(budget&&val.length){ const wts=val.map(x=>x.value.edge); const sw=wts.reduce((a,b)=>a+b,0)||1; let stakes=val.map((x,i)=>budget*wts[i]/sw); stakes=stakes.map(s=>Math.min(s,budget*0.35)); const used=stakes.reduce((a,b)=>a+b,0)||1; val.forEach((x,i)=>x.stake=stakes[i]*budget/used); }
-  h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:14px;color:var(--muted);white-space:nowrap">💰 Presupuesto:</span><input inputmode="numeric" value="'+(budget||'')+'" placeholder="ej. 100000" onchange="setPlanBudget(this.value)" style="flex:1;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;color:var(--text);padding:9px 11px;font-size:16px;font-variant-numeric:tabular-nums"></div>';
-  if(val.length){ h+='<div style="font-size:13px;color:var(--green);font-weight:700;margin-bottom:8px">🟢 '+val.length+' apuesta(s) con VALOR esta jornada</div>'; }
-  else { h+='<div style="font-size:13px;color:var(--muted);margin-bottom:8px">⚪ Esta jornada <b>no hay valor claro</b> (el mercado paga justo o menos). Lo honesto: no apostar. Abajo van solo los pronósticos.</div>'; }
-  const show=picks.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  let lastDay='';
-  show.forEach(x=>{
-    const day=_colDay(x.date);
-    if(day!==lastDay){ lastDay=day; const dd=_asDate(x.date);
-      const dw=dd.toLocaleDateString('es-CO',{weekday:'long',timeZone:'America/Bogota'});
-      const dmd=dd.toLocaleDateString('es-CO',{day:'numeric',month:'short',timeZone:'America/Bogota'}).replace('.','');
-      h+='<div style="font-size:13px;font-weight:800;color:var(--accent);text-transform:capitalize;margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border2)">📅 '+dw+' '+dmd+'</div>'; }
-    const conf=Math.round(x.conf*100); const hasVal=!!x.value;
-    h+='<div style="background:var(--bg2);border:1px solid var(--border2);border-left:3px solid '+(hasVal?'var(--green)':'var(--dim)')+';border-radius:12px;padding:11px 13px;margin-bottom:10px">';
-    h+='<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:700">'+x.m.h+' vs '+x.m.a+'</span><span style="font-size:12px;color:var(--muted);white-space:nowrap">🕐 '+_fmtHrCol(x.date)+'</span></div>';
-    { const pp=x.p; const sp=shortPair(x.m.h,x.m.a); const pH=Math.round(pp.pH*100),pD=Math.round(pp.pD*100),pA=Math.round(pp.pA*100); const top=Math.max(pH,pD,pA); const lectura= top>=55?'favorito claro':top>=45?'ligero favorito':'partido parejo';
-      const b=(v,cls)=>'<b style="color:'+cls+'">'+v+'%</b>'; const ch=(v)=>v===top;
-      h+='<div style="font-size:13.5px;margin-top:6px;color:var(--muted)">🔮 '+(ch(pH)?b(pH,'#8ec7ff'):pH+'%')+' '+sp.hs+' · '+(ch(pD)?b(pD,'var(--gold)'):pD+'%')+' empate · '+(ch(pA)?b(pA,'var(--orange)'):pA+'%')+' '+sp.as+' <span style="color:var(--dim)">('+lectura+')</span></div>'; }
-    if(hasVal){ const v=x.value;
-      { const risky=v.pp<0.45; const ev=(v.pp*v.odd).toFixed(2);
-        h+='<div style="font-size:14px;margin-top:6px;color:var(--green);font-weight:700">🟢 VALOR: <b>'+v.lbl+'</b> · cuota ≈'+v.odd.toFixed(2)+(budget?(' · pon <b>'+_fmtCOP(x.stake||0)+'</b>'):'')+'</div>';
-        h+='<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.45">Gana '+Math.round(v.pp*100)+'% de las veces, pero la cuota paga como si fuera '+Math.round(v.mp*100)+'% → rentable a la larga (retorno esperado '+ev+'× lo apostado).'+(risky?' <b style="color:var(--orange)">⚠️ Arriesgada: la pierdes más de la mitad de las veces; solo gana repitiéndola mucho.</b>':'')+'</div>'; }
-    } else if(x.m.odds&&x.m.odds.pH!=null){
-      h+='<div style="font-size:13px;margin-top:4px;color:var(--dim)">⚪ Sin valor — el mercado lo paga justo o menos. No apostar.</div>';
-    } else {
-      h+='<div style="font-size:13px;margin-top:4px;color:var(--dim)">(sin cuotas para medir valor — sincroniza con tu clave API-Football)</div>';
-    }
-    h+='</div>';
-  });
-  h+='<div style="font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5">Apuesta solo las 🟢, montos pequeños, como entretenimiento — nunca como ingreso. El “valor” es una ventaja estadística, no una garantía; a veces perderás. Ni el mejor modelo le gana a la casa de forma consistente.</div>';
+  for(const m of pend){ try{ const p=predictMatch(ACTIVE,m); const d=betDecision(ACTIVE,m,p); if(d.yes) val.push({m,d}); }catch(e){} }
+  const budget=getPlanBudget();
+  if(budget&&val.length){ const sw=val.reduce((a,x)=>a+x.d.edge,0)||1; let st=val.map(x=>Math.min(budget*x.d.edge/sw,budget*0.35)); const used=st.reduce((a,b)=>a+b,0)||1; val.forEach((x,i)=>x.stake=st[i]*budget/used); }
+  let h='<div class="card">';
+  h+='<div style="font-size:13px;color:var(--muted)">Esta jornada</div>';
+  h+='<div style="font-size:22px;font-weight:600;margin:2px 0 4px;color:'+(val.length?'var(--green)':'var(--text)')+'">'+(val.length?(val.length+' apuesta'+(val.length>1?'s':'')+' con valor'):'No apostar')+'</div>';
+  if(!val.length) h+='<div style="font-size:13.5px;color:var(--muted)">Ningún partido paga más de lo que debería.</div>';
+  val.forEach(x=>{ h+='<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--border);font-size:14.5px"><span>'+x.d.lbl+' <span style="color:var(--dim)">· '+shortPair(x.m.h,x.m.a).hs+' vs '+shortPair(x.m.h,x.m.a).as+'</span></span><span style="white-space:nowrap;color:var(--muted)">@'+x.d.odd.toFixed(2)+(budget?(' · <b style="color:var(--text)">'+_fmtCOP(x.stake||0)+'</b>'):'')+'</span></div>'; });
+  h+='<details class="more"><summary>Presupuesto</summary><input inputmode="numeric" value="'+(budget||'')+'" placeholder="ej. 100000" onchange="setPlanBudget(this.value)" style="width:100%;margin-top:8px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;color:var(--text);padding:10px 12px;font-size:16px"></details>';
   h+='</div>';
   return h;
-}function brierOf(p,actual){ // 0=perfecto, 2=peor
+}
+function brierOf(p,actual){ // 0=perfecto, 2=peor
   return Math.pow(p.pH-(actual==='H'?1:0),2)+Math.pow(p.pD-(actual==='D'?1:0),2)+Math.pow(p.pA-(actual==='A'?1:0),2);
 }
 
@@ -792,6 +1070,7 @@ function walkForward(t){
   st.matches.forEach(m=>{ [m.h,m.a].forEach(nm=>{ if(nm&&elo[nm]==null){ const r=_pedElo(nm); elo[nm]=r; glk[nm]=_g2init(r); } }); });   // 🏛️ siembra por jerarquía
   const g2upd=(h,a,sh,sa,hAdjElo)=>{ const H=glk[h]||(glk[h]=_g2init()), A=glk[a]||(glk[a]=_g2init()); const mov=1+0.3*Math.log(1+Math.abs(sh-sa)); const sc=sh>sa?1:sh===sa?0.5:0; const hAdj=hAdjElo/G2_SC; glk[h]=_g2update(H,A.mu,A.phi,sc,hAdj,mov); glk[a]=_g2update(A,H.mu+hAdj,H.phi,1-sc,0,mov); };
   const anom={favW:0,favN:0,draws:0,n:0};
+  const G=_gsNew();   // modelo de goles incremental (Dixon-Coles)
   // Aprendizaje de parámetros de la liga (localía y empates), estimados sobre la marcha
   let hw=0,aw=0,dr=0,ntot=0;
   const learnHFA=()=>{ if(ntot<12) return 55; const r=(hw+0.5*dr)/Math.max(1,(aw+0.5*dr)); return Math.max(0,Math.min(150,Math.round(400*Math.log10(Math.max(0.2,r))))); };
@@ -805,6 +1084,7 @@ function walkForward(t){
     hfa=learnHFA(); drawRate=learnDraw();
     if(m.seed){
       eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa+_altBonus(m.h,m.a),gp,m.xg);
+      _gsAdd(G,m);
       g2upd(m.h,m.a,m.sh,m.sa,hfa+_altBonus(m.h,m.a));
       (form[m.h]=form[m.h]||[]).push(m.sh>m.sa?3:m.sh===m.sa?1:0);
       (form[m.a]=form[m.a]||[]).push(m.sa>m.sh?3:m.sh===m.sa?1:0);
@@ -818,14 +1098,14 @@ function walkForward(t){
     const preds={
       elo: eloProb(rH,rA,drawRate,hfa+alt),
       mom: momProb(f5(m.h),f5(m.a)),
-      anomalia: anomaliaProb(m,rH,rA,hfa+alt),
+      anomalia: anomaliaProb(m,rH,rA,hfa+alt,null,G,drawRate),
       glicko: glickoProb(glk[m.h]||_g2init(), glk[m.a]||_g2init(), hfa+alt, drawRate)
     };
     const actual=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
-    anomComp.push({mk:mercadoProb(m), meta:_anomMeta(rH,rA,hfa+alt), wc:!!_anomWC(m.h,m.a), actual});
+    anomComp.push({mk:mercadoProb(m), meta:_anomStruct(m,rH,rA,hfa+alt,G,drawRate), wc:!!_anomWC(m.h,m.a), actual});
     const row={id:m.id,h:m.h,a:m.a,sh:m.sh,sa:m.sa,date:m.date,res:{},picks:{}};
     // Dictamen del consenso con los pesos APRENDIDOS HASTA AQUÍ (honesto, sin mirar el futuro)
-    const rw=_calcWeights(hits,tot,scored-1);
+    const rw=_calcWeights(hits,tot,scored-1,brier);
     let cH=0,cD=0,cA=0,cws=0;
     for(const k of MOTORES){ if(!preds[k])continue; const wk=rw[k]||0; cH+=preds[k].pH*wk;cD+=preds[k].pD*wk;cA+=preds[k].pA*wk;cws+=wk; }
     if(cws<=0){ const e=preds.elo; cH=e.pH;cD=e.pD;cA=e.pA;cws=1; }
@@ -850,12 +1130,13 @@ function walkForward(t){
     else anom.draws++;
     anom.n++;
     eloUpdate(elo,m.h,m.a,m.sh,m.sa,hfa+alt,gp,m.xg);
+    _gsAdd(G,m);
     g2upd(m.h,m.a,m.sh,m.sa,hfa+alt);
     (form[m.h]=form[m.h]||[]).push(m.sh>m.sa?3:m.sh===m.sa?1:0);
     (form[m.a]=form[m.a]||[]).push(m.sa>m.sh?3:m.sh===m.sa?1:0);
     accResult(m.sh,m.sa);
   }
-  const w=_calcWeights(hits,tot,scored);
+  const w=_calcWeights(hits,tot,scored,brier);
   const anomTuned=tuneAnom(anomComp);
   const lab=_runLab(played,hfa,drawRate,_loadSeedElo(t));
   // CALIBRACIÓN: temperatura global que minimiza el Brier del consenso (temperature scaling honesto)
@@ -866,13 +1147,18 @@ function walkForward(t){
     const conf=Math.min(1, log.length/45);           // con pocos partidos, no calibrar agresivo
     consT=+(1+(consT-1)*conf).toFixed(2);
   }
-  return {elo,glk,form,gp,anom,hits,tot,brier,mkt,weights:w,hfa,drawRate,anomTuned,consT,consBrier,log,lab,playedCount:scored,seedCount:played.length-scored};
+  return {elo,glk,goals:G,form,gp,anom,hits,tot,brier,mkt,weights:w,hfa,drawRate,anomTuned,consT,consBrier,log,lab,playedCount:scored,seedCount:played.length-scored};
 }
 // Pesos del consenso: reaccionan desde 5 partidos, con encogimiento hacia el
 // reparto igual al principio (evita saltos bruscos con pocos datos).
-function _calcWeights(hits,tot,scored){
-  const base=0.40, floor=0.02; const raw={}; let sum=0; let active=0;
-  for(const k of MOTORES){ const n=tot[k]; if(n>0)active++; raw[k]=n>=5?Math.max(floor,(hits[k]/n)-base):0; sum+=raw[k]; }
+function _calcWeights(hits,tot,scored,brier){
+  // Peso = HABILIDAD DE PROBABILIDAD (Brier vs azar 0.667), no % de aciertos:
+  // un motor que acierta el ganador pero con % mal calibrados resta, no suma.
+  // (Antes: aciertos−40%. Con datos reales, Anomalía peor que el azar recibía ~30% del peso.)
+  const UNIF=2/3, floor=0.002; const raw={}; let sum=0; let active=0;
+  for(const k of MOTORES){ const n=tot[k]; if(n>0)active++;
+    const skill=(brier&&n)?(UNIF-brier[k]/n):((hits[k]/Math.max(1,n))-0.40)*0.25;
+    raw[k]=n>=5?Math.pow(Math.max(floor,skill),3):0; sum+=raw[k]; }   // ^3: concentra peso en los mejor calibrados (probado: ^1/^2/^3/^4)
   const conf=Math.min(1,(scored||0)/25);
   const eq=active>0?1/active:0;
   const w={};
@@ -985,7 +1271,7 @@ function predictMatch(t,m){
   const preds={
     elo: eloProb(rH,rA,drawRate,hfa+alt),
     mom: momProb(f5(m.h),f5(m.a)),
-    anomalia: anomaliaProb(m,rH,rA,hfa+alt,wf.anomTuned),
+    anomalia: anomaliaProb(m,rH,rA,hfa+alt,wf.anomTuned,wf.goals,drawRate),
     glicko: (function(){ let gH=(wf.glk&&wf.glk[m.h])||_g2init(), gA=(wf.glk&&wf.glk[m.a])||_g2init(); if(m.coach){ gH=_glkInflate(gH,_coachSevEff(m.coach.h)); gA=_glkInflate(gA,_coachSevEff(m.coach.a)); } return glickoProb(gH,gA,hfa+alt,drawRate); })()
   };
   // consenso: pesos walk-forward, renormalizados entre motores CON datos
@@ -2222,8 +2508,7 @@ function renderHoy(){
       }
       // Cada motor: qué equipo eligió, con nombre distinguible
       if(row&&row.picks){
-        h+='<div style="font-size:12px;color:var(--dim);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.04em">Motor · a quién le apostó</div>';
-        h+='<div class="motor-line">';
+        h+='<details class="more"><summary>Motores</summary><div class="motor-line" style="margin-top:6px">';
         for(const k of MOTORES){
           const pk=row.picks[k];
           if(pk==null){ h+=`<span class="mchip mchip-abs">${MOTOR_SHORT[k]} —</span>`; continue; }
@@ -2231,17 +2516,17 @@ function renderHoy(){
           h+=`<span class="mchip ${row.res[k]?'mchip-ok':'mchip-no'}">${MOTOR_SHORT[k]} ${short} ${row.res[k]?'✅':'❌'}</span>`;
         }
         if(row.mkt!=null) h+=`<span class="mchip ${row.mkt?'mchip-ok':'mchip-no'}">🏛️ Mercado ${row.mkt?'✅':'❌'}</span>`;
-        h+='</div>';
+        h+='</div></details>';
       }
     } else {
       const p=predictMatch(ACTIVE,m);
       const dictP=argMax3(p);
       const conf=Math.round(Math.max(p.pH,p.pD,p.pA)*100);
-      h+=`<div class="probs">
-        <div class="prob prob-h ${dictP==='H'?'prob-top':''}"><div class="pv">${Math.round(p.pH*100)}%</div><div class="pl">${hShort}</div></div>
-        <div class="prob prob-d ${dictP==='D'?'prob-top':''}"><div class="pv">${Math.round(p.pD*100)}%</div><div class="pl">Emp</div></div>
-        <div class="prob prob-a ${dictP==='A'?'prob-top':''}"><div class="pv">${Math.round(p.pA*100)}%</div><div class="pl">${aShort}</div></div>
-      </div>`;
+      { const P=x=>Math.round(x*100), B=(v,k)=>dictP===k?'<b>'+v+'</b>':v;
+        h+='<div class="pbar"><i class="ph" style="width:'+P(p.pH)+'%"></i><i class="pd" style="width:'+P(p.pD)+'%"></i><i class="pa" style="width:'+P(p.pA)+'%"></i></div>';
+        h+='<div class="plbl"><span>'+B(hShort+' '+P(p.pH)+'%','H')+'</span><span>'+B('Empate '+P(p.pD)+'%','D')+'</span><span>'+B(aShort+' '+P(p.pA)+'%','A')+'</span></div>'; }
+      h+=betPill(betDecision(ACTIVE,m,p));
+      h+='<details class="more"><summary>Ver análisis</summary>';
       const bb=betSuggest(p);
       h+=`<div class="verdict v-pre"><span>🔮 Dictamen: <b>${pickLabel(dictP,hShort,aShort)}</b></span><span class="v-code">${bb.code} · ${conf}%</span></div>`;
       { const facts=[];
@@ -2305,7 +2590,8 @@ function renderHoy(){
       } else {
         h+=`<div style="font-size:12px;color:var(--muted);margin-top:8px">Sin cuotas de la casa aún — las señales de mercado aparecen cuando ESPN publique las cuotas (normalmente 1-2 días antes).</div>`;
       }
-      if(p.calibrando) h+='<div class="calib">⚠️ Calibrando: pocos partidos en este torneo. La confianza sube a medida que aprende.</div>';
+      if(p.calibrando) h+='<div class="calib">Calibrando: aún pocos partidos.</div>';
+      h+='</details>';
     }
     h+='</div>';
   }
@@ -2424,7 +2710,7 @@ function renderForenseHTML(FM){
     h+='</details>';
   }
   // bugs documentados
-  h+='<div class="card" style="font-size:12px;color:var(--muted);line-height:1.5"><b>🐞 Bugs conocidos (documentados, no escondidos):</b><br>• <b>Bug 1:</b> en BetPlay, 🌀 Anomalía = 70% la cuota del mercado (no hay ratings colombianos en ANOM_MODEL). Es el mercado encogido, no un motor de anomalías.<br>• <b>Bug 2:</b> la alerta dorada exige que Anomalía le gane a la casa en Brier — casi imposible por el Bug 1. Queda estructuralmente bloqueada.</div>';
+  h+='<div class="card" style="font-size:12px;color:var(--muted);line-height:1.5"><b>🐞 Bugs conocidos (documentados, no escondidos):</b><br>• <b>Bug 1 (corregido v5.25):</b> en ligas nuevas, 🌀 Anomalía ya no es "el mercado encogido": su estructura es Dixon-Coles (goles+xG, con decaimiento) + ELO, y la mezcla con la cuota se aprende sola (0–100%). Medido en 776 partidos reales de BetPlay y 830 de LaLiga: Brier 0.78→0.62 y 0.71→0.59.<br>• <b>Bug 2:</b> la alerta dorada exige que Anomalía le gane a la casa en Brier. Ahora es posible, pero sigue siendo exigente (como debe ser).</div>';
   h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin:4px 0 10px">explica el 100% del pasado · <span style="color:var(--dim)">retroajustado</span> · no es un pronóstico</div>';
   return h;
 }
@@ -2730,9 +3016,13 @@ function safestOfDay(t){
   const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h&&m.a&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&_asDate(m.date)>=d0&&_asDate(m.date)<=to);
   if(!up.length) return {ready:false, reason:'No hay partidos próximos en los siguientes 8 días. Toca 🔄 para sincronizar.'};
   const gm=_goalsModel(t);
-  const cands=[];
+  const cands=[]; const trampas=[];
+  const TL=trampaAprendizaje(t); TL.ref=_trampaRef(t);
   for(const m of up){
     let p; try{ p=predictMatch(t,m); }catch(e){ continue; }
+    // 🌀 Detector de falsas apuestas seguras (antes de recomendar nada)
+    let tr=null; try{ tr=trampaConfianza(t,m,p,TL); trampaRegistrar(t,m,tr); }catch(e){}
+    if(tr&&tr.alert) trampas.push({m,tr});
     const sp=shortPair(m.h,m.a);
     const favIsH=p.pH>=p.pA, favSide=favIsH?'H':'A', favShort=favIsH?sp.hs:sp.as;
     // acuerdo de motores (elo, glicko, anomalia) sobre el favorito
@@ -2759,7 +3049,7 @@ function safestOfDay(t){
     if(gm.ready){ const e=gm.exp(m.h,m.a); const prob=_over15Prob(e.lh,e.la);
       opts.push({market:'over15', label:'Más de 1.5 goles', prob, cuota:null, implied:null, needsFav:false}); }
     for(const o of opts){
-      if(o.needsFav){ if(!enginesAgree) continue; if(mktAgree===false) continue; if(injAgainstFav) continue; }
+      if(o.needsFav){ if(!enginesAgree) continue; if(mktAgree===false) continue; if(injAgainstFav) continue; if(tr&&tr.alert) continue; }
       const confirmations=[];
       if(o.needsFav){ confirmations.push('Nuestros motores coinciden en el favorito ('+agree+'/'+engTot+')'); if(mktAgree) confirmations.push('El mercado (BetPlay) también lo ve favorito'); confirmations.push('El favorito no tiene baja de figura'); }
       else { confirmations.push('Ambos equipos suelen sumar 2+ goles entre los dos, por su promedio'); }
@@ -2768,52 +3058,45 @@ function safestOfDay(t){
       cands.push({m, sp, favShort, market:o.market, label:o.label, prob:o.prob, cuota:o.cuota, implied:o.implied, conf:o.prob, confirmations, edge, ev, isGold});
     }
   }
-  if(!cands.length) return {ready:true, best:null, reason:'Hoy ninguna jugada pasa los filtros de seguridad: en los partidos próximos los motores y el mercado no coinciden con claridad, o hay bajas de figuras. Lo honesto es no forzar una apuesta.'};
+  trampas.sort((a,b)=>b.tr.gap-a.tr.gap);
+  if(!cands.length) return {ready:true, best:null, trampas, reason:'Hoy ninguna jugada pasa los filtros de seguridad: en los partidos próximos los motores y el mercado no coinciden con claridad, hay bajas de figuras'+(trampas.length?', o el favorito es una posible trampa de confianza':'')+'. Lo honesto es no forzar una apuesta.'};
   const byConf=cands.slice().sort((a,b)=>b.conf-a.conf);
   const best=byConf[0];
   best.tier = best.conf>=0.78?'muy':best.conf>=0.70?'firme':'baja';
   const goldSorted=cands.slice().sort((a,b)=>(b.isGold-a.isGold)||(b.conf-a.conf));
   const gold=goldSorted.find(c=>c.isGold)||null;
-  return {ready:true, best, gold, all:byConf};
+  return {ready:true, best, gold, all:byConf, trampas};
 }
 function renderSafe(){
   const pg=document.getElementById('page-safe'); if(!pg) return;
   const t=ACTIVE;
-  let h='<div class="stitle">🔒 La Segura del Día</div>';
-  h+='<div class="card" style="font-size:12.5px;color:var(--muted);line-height:1.5"><b style="color:var(--text)">Qué es:</b> de todos los partidos próximos, la <b>ÚNICA</b> jugada con mayor probabilidad de acertar, confirmada por nuestros motores, por el mercado y por las lesiones. <b style="color:var(--orange)">Ojo:</b> "seguro" al 100% no existe en el fútbol — hasta el favorito más claro pierde a veces (recuerda Llaneros 2-0 Nacional). Aquí "segura" = la más firme, con su probabilidad real y honesta.</div>';
+  let h='<div class="stitle">La más firme</div>';
   const r=safestOfDay(t);
-  if(!r.ready){ h+='<div class="card future-card"><div class="future-icon">⏳</div><div class="future-note">'+(r.reason||'Sin datos')+'</div></div>'; pg.innerHTML=h; return; }
-  if(!r.best){ h+='<div class="card future-card"><div class="future-icon">🤷</div><div class="future-note">'+(r.reason||'Hoy no hay ninguna suficientemente firme.')+'</div></div>'; pg.innerHTML=h; return; }
-  const x=r.best; const conf=Math.round(x.conf*100), lose=100-conf;
-  const tierTxt=x.tier==='muy'?'🟢 Muy firme':x.tier==='firme'?'🟡 Firme':'⚪ Poco firme — hoy no hay nada realmente seguro';
-  const tierCol=x.tier==='muy'?'var(--green)':x.tier==='firme'?'var(--gold)':'var(--dim)';
-  const bg=x.tier==='muy'?'rgba(74,222,128,.08)':x.tier==='firme'?'rgba(240,205,106,.08)':'transparent';
-  const mktLabel=x.market==='over15'?'Más de 1.5 goles — que el partido tenga 2 goles o más (de cualquiera)':x.market==='no_pierde'?('"'+x.label+'" — ganas si '+x.favShort+' gana O empata'):x.label;
-  h+='<div class="card" style="border:1px solid '+tierCol+';background:linear-gradient(180deg,'+bg+',transparent)">';
-  h+='<div style="font-size:12px;color:'+tierCol+';font-weight:800;letter-spacing:.4px">'+tierTxt+'</div>';
-  h+='<div style="font-size:19px;font-weight:800;margin-top:6px">'+x.m.h+' vs '+x.m.a+'</div>';
-  h+='<div style="font-size:12.5px;color:var(--muted);margin-top:2px;text-transform:capitalize">📅 '+_fmtDayCol(x.m.date)+' · 🕐 '+_fmtHrCol(x.m.date)+'</div>';
-  h+='<div style="margin-top:12px;padding:13px;background:var(--bg2);border-radius:12px">';
-  h+='<div style="font-size:12px;color:var(--muted)">La apuesta</div>';
-  h+='<div style="font-size:19px;font-weight:800;color:var(--text);margin:3px 0 6px;line-height:1.3">'+mktLabel+'</div>';
-  h+='<div style="font-size:16px;color:'+tierCol+';font-weight:800">Acierta ≈ '+conf+'% de las veces'+(x.cuota?(' <span style="color:var(--muted);font-weight:600">· cuota ≈'+x.cuota.toFixed(2)+'</span>'):'')+'</div>';
-  h+='<div style="font-size:12.5px;color:var(--orange);margin-top:5px">⚠️ Aun así falla '+lose+' de cada 100 veces. No es garantía.</div>';
+  const foot='<div class="zline">Ninguna apuesta es 100% segura · juega solo lo que puedas perder</div>';
+  if(!r.ready){ h+='<div class="card" style="color:var(--muted);font-size:14.5px">'+(r.reason||'Sin datos')+'</div>'; pg.innerHTML=h+foot; return; }
+  const trHtml=(r.trampas&&r.trampas.length)?('<div class="stitle">Falsas apuestas seguras</div>'+r.trampas.map(z=>renderTrampaCard(z.tr,z.m)).join('')):'';
+  const trLearn=renderTrampaAprendizaje(t);
+  if(!r.best){ h+='<div class="card"><div style="font-size:22px;font-weight:600">Hoy no hay segura</div><div style="font-size:13.5px;color:var(--muted);margin-top:4px">Ninguna jugada pasa los filtros. Mejor no forzar.</div></div>'+trHtml+trLearn; pg.innerHTML=h+foot; return; }
+  const x=r.best; const conf=Math.round(x.conf*100);
+  const firm=x.tier==='muy'||x.tier==='firme';
+  const tierTxt=x.tier==='muy'?'Muy firme':x.tier==='firme'?'Firme':'Poco firme';
+  h+='<div class="card">';
+  h+='<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+' · '+_fmtHrCol(x.m.date)+'</span><span style="color:'+(firm?'var(--green)':'var(--dim)')+'">'+tierTxt+'</span></div>';
+  h+='<div style="font-size:17px;font-weight:600;margin-top:8px">'+x.m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+x.m.a+'</div>';
+  h+='<div class="bet '+(firm?'bet-yes':'bet-no')+'"><span class="bw">'+(firm?'APOSTAR':'DUDOSA')+'</span><span class="bd">'+x.label+'<br><span style="color:var(--muted)">acierta ≈'+conf+'%'+(x.cuota?(' · cuota '+x.cuota.toFixed(2)):'')+'</span></span></div>';
+  if(x.isGold) h+='<div style="font-size:13px;color:var(--gold);margin-top:10px">🥇 Además bien pagada: retorno esperado '+(x.ev>0?'+':'')+Math.round(x.ev*100)+'%</div>';
+  h+='<details class="more"><summary>Por qué</summary>';
+  x.confirmations.forEach(c=>{ h+='<div style="font-size:13.5px;color:var(--muted);margin:5px 0">· '+c+'</div>'; });
+  h+='<div style="font-size:13px;color:var(--dim);margin-top:6px">Aun así falla '+(100-conf)+' de cada 100.</div></details>';
   h+='</div>';
-  if(x.isGold){ h+='<div style="margin-top:11px;padding:11px 13px;background:linear-gradient(135deg,rgba(227,178,77,.2),rgba(240,205,106,.1));border:1px solid var(--gold);border-radius:12px;font-size:13px;line-height:1.5"><b style="color:var(--gold)">🥇 ¡ORO!</b> Además está <b>bien pagada</b>: el mercado la trata como '+Math.round(x.implied*100)+'% pero nosotros la vemos '+conf+'%. Retorno esperado <b>'+(x.ev>0?'+':'')+Math.round(x.ev*100)+'%</b> a la larga. Es el cruce raro de segura + rentable — el verdadero oro.</div>'; }
-  h+='<div style="margin-top:13px"><div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:5px">✔ Por qué pasa el filtro de seguridad</div>';
-  x.confirmations.forEach(c=>{ h+='<div style="font-size:13px;color:var(--text);margin:4px 0">✅ '+c+'</div>'; });
-  h+='</div></div>';
-  if(r.gold && r.gold!==x && !x.isGold){ const g=r.gold, gc=Math.round(g.conf*100);
-    h+='<div class="card" style="border:1px solid var(--gold)"><div style="font-size:12px;color:var(--gold);font-weight:800">🥇 Y además: una oportunidad de ORO</div>';
-    h+='<div style="font-size:16px;font-weight:700;margin-top:4px">'+g.m.h+' vs '+g.m.a+'</div>';
-    h+='<div style="font-size:13px;color:var(--muted);margin-top:3px;line-height:1.5"><b>'+g.label+'</b> · acierta ≈'+gc+'% · cuota ≈'+(g.cuota?g.cuota.toFixed(2):'?')+' · retorno esperado <b style="color:var(--gold)">'+(g.ev>0?'+':'')+Math.round(g.ev*100)+'%</b><br>Menos segura que la de arriba, pero paga más de lo que debería.</div></div>'; }
-  const seenM={}; if(x)seenM[x.m.id]=1; if(r.gold&&r.gold!==x)seenM[r.gold.m.id]=1;
+  if(r.gold && r.gold!==x && !x.isGold){ const g=r.gold;
+    h+='<div class="card"><div style="font-size:13px;color:var(--gold)">🥇 Oportunidad de oro</div><div style="font-size:15.5px;font-weight:600;margin-top:4px">'+g.label+' <span style="color:var(--dim);font-weight:400">· '+g.sp.hs+' vs '+g.sp.as+'</span></div><div style="font-size:13px;color:var(--muted);margin-top:2px">acierta ≈'+Math.round(g.conf*100)+'% · cuota '+(g.cuota?g.cuota.toFixed(2):'?')+' · retorno '+(g.ev>0?'+':'')+Math.round(g.ev*100)+'%</div></div>'; }
+  const seenM={}; seenM[x.m.id]=1; if(r.gold&&r.gold!==x)seenM[r.gold.m.id]=1;
   const others=r.all.filter(c=>{ if(c===x||c.conf<0.68||seenM[c.m.id])return false; seenM[c.m.id]=1; return true; }).slice(0,3);
-  if(others.length){ h+='<div class="card"><div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">Otras firmes (por si quieres comparar)</div>';
-    others.forEach((o,i)=>{ h+='<div style="font-size:13px;color:var(--text);padding:'+(i?'7px':'0')+' 0 7px;'+(i?'border-top:1px solid var(--border2)':'')+'">'+o.sp.hs+' vs '+o.sp.as+' — <b>'+o.label+'</b> · '+Math.round(o.conf*100)+'%'+(o.cuota?(' · cuota ≈'+o.cuota.toFixed(2)):'')+(o.isGold?' <span style="color:var(--gold)">🥇</span>':'')+'</div>'; });
-    h+='</div>'; }
-  h+='<div class="card" style="font-size:12px;color:var(--dim);line-height:1.55">Juega solo lo que puedas permitirte perder — nunca dinero de tus gastos o ingresos. Esto es entretenimiento con análisis, no una fuente de dinero ni asesoría financiera. Ninguna apuesta es 100% segura.</div>';
-  pg.innerHTML=h;
+  if(others.length){ h+='<details class="more" style="margin:0 4px 14px"><summary>Otras firmes ('+others.length+')</summary>';
+    others.forEach(o=>{ h+='<div style="font-size:14px;padding:8px 0;border-top:1px solid var(--border)">'+o.label+' <span style="color:var(--dim)">· '+o.sp.hs+' vs '+o.sp.as+' · '+Math.round(o.conf*100)+'%</span></div>'; });
+    h+='</details>'; }
+  pg.innerHTML=h+trHtml+trLearn+foot;
 }
 // ==================== 🚨 OPORTUNIDAD DE ORO ====================
 // Alerta SOLO si: (a) Anomalía consolidada (≥20 evaluados y le gana a la casa en Brier),
@@ -2836,7 +3119,7 @@ function goldenOps(t){
   for(const m of up){
     const rH=wf.elo[m.h]??1500, rA=wf.elo[m.a]??1500, hfa=wf.hfa??55, dr=wf.drawRate??cfg.baseDraw;
     const f5=team=>{const arr=(wf.form[team]||[]).slice(-5);return {pts:arr.reduce((s,x)=>s+x,0),n:arr.length};};
-    const an=anomaliaProb(m,rH,rA,hfa);
+    const an=anomaliaProb(m,rH,rA,hfa,wf.anomTuned,wf.goals,dr);
     const el=eloProb(rH,rA,dr,hfa); const mo=momProb(f5(m.h),f5(m.a));
     const anPick=argMax3(an);
     let oH=el.pH,oD=el.pD,oA=el.pA,c=1; if(mo){oH+=mo.pH;oD+=mo.pD;oA+=mo.pA;c++;}
@@ -2847,6 +3130,8 @@ function goldenOps(t){
     if(!cuota) continue;
     const anP=anPick==='H'?an.pH:anPick==='A'?an.pA:an.pD;
     const ev=anP*cuota-1;
+    let trG=null; try{ trG=trampaConfianza(t,m,predictMatch(t,m)); }catch(e){}
+    if(trG&&trG.alert&&trG.favSide===anPick) continue;   // 🌀 trampa de confianza: no es oro
     if(anP>=0.45 && ev>=0.08){
       const sp=shortPair(m.h,m.a);
       const label=anPick==='H'?'Gana '+sp.hs:anPick==='A'?'Gana '+sp.as:'Empate';
@@ -3073,7 +3358,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.24 · 27 sep 2026";
+const APP_VERSION="v5.26 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
