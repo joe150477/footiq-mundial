@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.27 =====================
+/* ===================== 🍃 ZEN v5.28 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.27 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.28 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.27</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.28</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -861,13 +861,15 @@ function _cuotaExec(m,qFair){
   const mg=(m.odds&&m.odds.margin!=null)?m.odds.margin:0.07;
   return +(1/Math.max(0.02,qFair*(1+mg))).toFixed(2);
 }
-function contrarianValue(t,m,tr){
+function contrarianValue(t,m,tr,ig){
   if(!tr||!tr.pInd||!m.odds||m.odds.pH==null) return {clase:'E',txt:'Mercado no evaluable'};
   const P=tr.pInd, Q=m.odds, fav=tr.favSide, und=fav==='H'?'A':'H';
   const sp=shortPair(m.h,m.a); const undShort=und==='H'?sp.hs:sp.as;
   const pk=k=>k==='H'?P.pH:k==='A'?P.pA:P.pD, qk=k=>k==='H'?Q.pH:k==='A'?Q.pA:Q.pD;
   const best=k=>(m.oddsBest&&m.oddsBest[k])||null;
-  const u=Math.max(0.03,(tr.spread||0)/2);   // incertidumbre del modelo
+  ig=ig||integridadSenales(m,tr,t);
+  // Sospecha ⇒ más incertidumbre (+25% por señal, tope ×2): exige más margen, no elige ganador.
+  const u=Math.max(0.03,(tr.spread||0)/2)*Math.min(2,1+0.25*(ig.n||0));
   const opts=[
     {c:'D', label:'Empate', p:pk('D'), odd:best('D')||_cuotaExec(m,qk('D')), u},
     {c:und, label:'Gana '+undShort, p:pk(und), odd:best(und)||_cuotaExec(m,qk(und)), u},
@@ -879,26 +881,41 @@ function contrarianValue(t,m,tr){
   opts.forEach(o=>{ const q=qOf(o); o.pModel=o.p; o.extrema=Math.abs(o.p-q)>0.15; o.p=0.5*o.p+0.5*q;
     o.u=o.u*0.5;   // al mezclar 50/50, el error del modelo pesa la mitad
     o.ev=o.p*o.odd-1; o.evCons=Math.max(0,o.p-o.u)*o.odd-1;
-    o.clase=(o.ev>=0.04&&o.evCons>0&&!o.extrema)?'A':(o.ev>=0.02)?'B':(o.ev>-0.02)?'C':'D'; });
+    o.clase=(o.ev>=0.04&&o.evCons>0&&!o.extrema)?'A':(o.ev>=0.02)?'B':(o.ev>-0.02)?'C':'D';
+    // Dinero informado: si va hacia OTRO resultado distinto del que cubre esta opción, baja a "B"
+    if(ig.dirInformada&&o.clase==='A'){ const cubre=o.c.length===2?['D',o.c[1]]:[o.c]; if(!cubre.includes(ig.dirInformada)){ o.clase='B'; o.contraDinero=true; } else o.conDinero=true; } });
   const rk={A:0,B:1,C:2,D:3}; opts.sort((a,b)=>(rk[a.clase]-rk[b.clase])||(a.clase==='A'?(b.p-a.p):(b.evCons-a.evCons)));   // entre las rentables, la de mayor acierto (menos varianza)
   const top=opts[0];
   const NOM={A:'Valor positivo robusto',B:'Valor positivo incierto',C:'Sin ventaja identificada',D:'Valor negativo',E:'Mercado no evaluable'};
-  return Object.assign({},top,{txt:NOM[top.clase],opts});
+  return Object.assign({},top,{txt:NOM[top.clase],opts,ig});
 }
 // ==================== 🛡️ INTEGRIDAD (módulo independiente) ====================
 // Solo señales de MERCADO observables. Nunca afirma amaño ni da un % de manipulación:
 // sin evidencia documental (fallos, sanciones, investigaciones) el máximo nivel es "Posible".
-function integridadSenales(m,tr){
-  const s=[]; const o=m.odds;
+// Anomalía DEPORTIVA: partidos recientes del equipo cuyo resultado era muy improbable
+// según el pronóstico previo (walk-forward). Una sola sorpresa es fútbol; varias seguidas, señal.
+function _trImprobables(t,team){
+  const wf=getWF(t); const key=_teamKey(team);
+  const rows=(wf.log||[]).filter(r=>r.consP&&(_teamKey(r.h)===key||_teamKey(r.a)===key)).slice(-6);
+  let n=0; rows.forEach(r=>{ const a=r.sh>r.sa?'H':r.sh<r.sa?'A':'D'; const pa=a==='H'?r.consP.pH:a==='A'?r.consP.pA:r.consP.pD; if(pa<0.15) n++; });
+  return {n,de:rows.length};
+}
+function integridadSenales(m,tr,t){
+  t=t||ACTIVE;
+  const s=[]; const o=m.odds; let dir=null;
   if(o&&o.pH!=null&&o.first&&o.first.pH!=null){
     const mv={H:o.pH-o.first.pH,D:o.pD-o.first.pD,A:o.pA-o.first.pA};
-    const big=Object.entries(mv).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0];
+    const big=Object.entries(mv).sort((a,b)=>b[1]-a[1])[0];   // lado al que entra dinero
     const noticia=!!(m.inj&&((m.inj.keyHome||[]).length||(m.inj.keyAway||[]).length));
-    if(Math.abs(big[1])>=0.08&&!noticia) s.push('Movimiento fuerte de cuota ('+Math.round(Math.abs(big[1])*100)+' pts) sin noticia deportiva conocida');
-    if(tr&&tr.favSide){ const und=tr.favSide==='H'?'A':'H'; if(mv[und]>=0.03||mv.D>=0.03) s.push('Entra dinero CONTRA la narrativa popular'); }
+    if(big[1]>=0.08&&!noticia){ s.push({tipo:'mercado',txt:'Movimiento fuerte de cuota ('+Math.round(big[1]*100)+' pts hacia '+(big[0]==='D'?'el empate':big[0]==='H'?m.h:m.a)+') sin noticia deportiva conocida'}); dir=big[0]; }
+    if(tr&&tr.favSide){ const und=tr.favSide==='H'?'A':'H'; const k=mv[und]>=mv.D?und:'D'; if(mv[k]>=0.03){ s.push({tipo:'mercado',txt:'Entra dinero CONTRA la narrativa popular (hacia '+(k==='D'?'el empate':k==='H'?m.h:m.a)+')'}); dir=dir||k; } }
   }
-  if(o&&o.pH!=null&&m.oddsBest){ for(const k of ['H','D','A']){ const ob=m.oddsBest[k]; const q=k==='H'?o.pH:k==='A'?o.pA:o.pD; if(ob&&q&&(1/ob)<q-0.06){ s.push('Diferencia grande entre casas de apuestas'); break; } } }
-  return {senales:s, nivel:s.length?'Posible (señal de mercado, no prueba)':'Sin evidencia suficiente', nota:'Probabilidad de manipulación no estimable con rigor con estos datos.'};
+  if(o&&o.pH!=null&&m.oddsBest){ for(const k of ['H','D','A']){ const ob=m.oddsBest[k]; const q=k==='H'?o.pH:k==='A'?o.pA:o.pD; if(ob&&q&&(1/ob)<q-0.06){ s.push({tipo:'mercado',txt:'Diferencia grande entre casas de apuestas'}); break; } } }
+  for(const team of [m.h,m.a]){ try{ const im=_trImprobables(t,team); if(im.n>=2) s.push({tipo:'deportiva',txt:team+': '+im.n+' de sus últimos '+im.de+' resultados eran muy improbables (<15%)'}); }catch(e){} }
+  const tipos=new Set(s.map(x=>x.tipo));
+  const nivel=!s.length?'Sin evidencia suficiente':(s.length>=2&&(tipos.size>=2||s.length>=3))?'Posible (señales de mercado y/o deportivas, no prueba)':'Señal aislada';
+  return {senales:s.map(x=>x.txt), n:s.length, dirInformada:dir, nivel, sospecha:s.length>=2,
+    nota:'Probabilidad de manipulación no estimable con rigor con estos datos. Una anomalía no revela quién ganará.'};
 }
 // Registra la lectura PRE-partido (alertas y controles) para evaluarla después
 function trampaRegistrar(t,m,tr){
@@ -911,7 +928,7 @@ function trampaRegistrar(t,m,tr){
   _trSave(t,db);
 }
 function renderTrampaCard(tr,m){
-  const cv=contrarianValue(ACTIVE,m,tr); const ig=integridadSenales(m,tr);
+  const ig=integridadSenales(m,tr,ACTIVE); const cv=contrarianValue(ACTIVE,m,tr,ig);
   let h='<div class="card">';
   h+='<div style="font-size:13px;color:var(--muted);text-transform:capitalize">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
   h+='<div style="font-size:17px;font-weight:600;margin-top:6px">'+m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+m.a+'</div>';
@@ -928,7 +945,9 @@ function renderTrampaCard(tr,m){
     cv.opts.forEach(o=>{ h+='<div>· '+o.label+': '+Math.round(o.p*100)+'% × '+o.odd.toFixed(2)+' → '+(o.ev>=0?'+':'')+Math.round(o.ev*100)+'% <span style="color:var(--dim)">(con error: '+(o.evCons>=0?'+':'')+Math.round(o.evCons*100)+'%)</span></div>'; }); }
   h+='<div style="margin-top:6px;color:var(--text)">🛡️ Integridad: '+ig.nivel+'</div>';
   ig.senales.forEach(x=>{ h+='<div>· '+x+'</div>'; });
-  h+='<div style="color:var(--dim)">'+ig.nota+' Una señal de mercado no prueba amaño.</div>';
+  if(cv.contraDinero) h+='<div>· El dinero informado va hacia otro resultado: por eso no pasa de VIGILAR</div>';
+  if(ig.n) h+='<div>· Con '+ig.n+' señal(es) el motor exige más margen de error antes de apostar</div>';
+  h+='<div style="color:var(--dim)">'+ig.nota+'</div>';
   h+='</div></details></div>';
   return h;
 }
@@ -941,8 +960,9 @@ function trampaAvisar(){
     let hit=null;
     for(const m of st.matches){
       if(m.played||m.seed||!m.date) continue; const d=_asDate(m.date); if(!(d>now&&d<=to)) continue;
-      const p=predictMatch(t,m); const tr=trampaConfianza(t,m,p,L); if(!tr||!tr.alert) continue;
-      const cv=contrarianValue(t,m,tr); const k='fiq2_aviso_'+m.id+'_'+cv.clase;
+      const p=predictMatch(t,m); const tr=trampaConfianza(t,m,p,L); if(!tr||!tr.pInd) continue;
+      const ig=integridadSenales(m,tr,t); if(!tr.alert&&!ig.sospecha) continue;
+      const cv=contrarianValue(t,m,tr,ig); if(!tr.alert&&cv.clase!=='A'&&cv.clase!=='B') continue; const k='fiq2_aviso_'+m.id+'_'+cv.clase;
       try{ if(localStorage.getItem(k)) continue; }catch(e){}
       if(!hit||(cv.clase==='A'&&hit.cv.clase!=='A')) hit={m,tr,cv,k};
     }
@@ -952,7 +972,7 @@ function trampaAvisar(){
     const b=document.createElement('div'); b.id='trampaBanner';
     b.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:99999;background:var(--card2);color:var(--text);border:1px solid var(--border2);padding:13px 18px;border-radius:16px;font-size:14px;line-height:1.45;max-width:92vw;width:380px;cursor:pointer';
     const sp=shortPair(hit.m.h,hit.m.a);
-    b.innerHTML='<span style="color:var(--gold)">⚠️ Posible trampa</span> · '+sp.hs+' vs '+sp.as+'<br>'+(hit.cv.clase==='A'?('<b style="color:var(--green)">Apostar ↺ '+hit.cv.label+'</b> @'+hit.cv.odd.toFixed(2)):hit.cv.clase==='B'?('Vigilar: '+hit.cv.label):'No apostar al favorito')+' <span style="color:var(--dim)">· tocar para ver</span>';
+    b.innerHTML='<span style="color:var(--gold)">⚠️ '+(hit.tr.alert?'Posible trampa':'Señales raras de mercado')+'</span> · '+sp.hs+' vs '+sp.as+'<br>'+(hit.cv.clase==='A'?('<b style="color:var(--green)">Apostar ↺ '+hit.cv.label+'</b> @'+hit.cv.odd.toFixed(2)):hit.cv.clase==='B'?('Vigilar: '+hit.cv.label):'No apostar al favorito')+' <span style="color:var(--dim)">· tocar para ver</span>';
     b.onclick=()=>{ b.remove(); showTab(document.querySelectorAll('.tab')[3],'safe'); };
     document.body.appendChild(b); setTimeout(()=>{ if(b&&b.remove) b.remove(); },20000);
   }catch(e){ console.warn('trampaAvisar',e); }
@@ -1018,16 +1038,22 @@ function betDecision(t,m,p){
   if(!p) return {yes:false,why:'Sin pronóstico'};
   if(!o||o.pH==null) return {yes:false,why:'Aún sin cuotas'};
   let tr=null; try{ tr=trampaConfianza(t,m,p); }catch(e){}
+  let ig=null; try{ ig=integridadSenales(m,tr,t); }catch(e){}
   let best=null;
   [['H',p.pH,o.pH,'Gana '+sp.hs],['D',p.pD,o.pD,'Empate'],['A',p.pA,o.pA,'Gana '+sp.as]].forEach(([c,pp,mp,lbl])=>{
     const edge=pp-mp; if(edge>=0.06&&pp>=0.34&&(!best||edge>best.edge)) best={c,edge,pp,mp,lbl,odd:(m.oddsBest&&m.oddsBest[c])||+(1/Math.max(0.02,mp)).toFixed(2)}; });
   if(tr&&tr.alert&&(!best||tr.favSide===best.c)){
-    const cv=contrarianValue(t,m,tr);
+    const cv=contrarianValue(t,m,tr,ig);
     if(cv.clase==='A') return {yes:true,contra:true,tr,cv,c:cv.c,edge:cv.ev,pp:cv.p,lbl:cv.label,odd:cv.odd,risky:cv.p<0.35,why:cv.label+' · cuota '+cv.odd.toFixed(2)+' · valor +'+Math.round(cv.ev*100)+'%'};
     if(cv.clase==='B') return {yes:false,watch:true,trap:true,tr,cv,why:'Trampa: '+cv.label+' podría pagar, aún dudoso'};
     return {yes:false,trap:true,tr,cv,why:'Posible trampa · el otro lado tampoco paga'};
   }
-  if(best) return Object.assign({yes:true,risky:best.pp<0.45,why:best.lbl+' · cuota '+best.odd.toFixed(2)},best);
+  // Sin trampa pero con sospecha (≥2 señales): también se evalúa el lado infravalorado
+  if(!best&&ig&&ig.sospecha&&tr&&tr.pInd){ const cv=contrarianValue(t,m,tr,ig);
+    if(cv.clase==='A') return {yes:true,contra:true,tr,cv,ig,c:cv.c,edge:cv.ev,pp:cv.p,lbl:cv.label,odd:cv.odd,risky:cv.p<0.35,why:cv.label+' · cuota '+cv.odd.toFixed(2)+' · valor +'+Math.round(cv.ev*100)+'%'};
+    if(cv.clase==='B') return {yes:false,watch:true,ig,cv,why:'Señales raras: '+cv.label+' podría pagar, aún dudoso'}; }
+  if(best&&ig&&ig.dirInformada&&ig.dirInformada!==best.c) return {yes:false,watch:true,ig,why:best.lbl+' tiene valor, pero el dinero informado va hacia otro lado'};
+  if(best) return Object.assign({yes:true,risky:best.pp<0.45,ig,why:best.lbl+' · cuota '+best.odd.toFixed(2)},best);
   return {yes:false,why:'Sin valor: la cuota paga justo'};
 }
 function betPill(d){
@@ -2619,8 +2645,9 @@ function renderHoy(){
       { const P=x=>Math.round(x*100), B=(v,k)=>dictP===k?'<b>'+v+'</b>':v;
         h+='<div class="pbar"><i class="ph" style="width:'+P(p.pH)+'%"></i><i class="pd" style="width:'+P(p.pD)+'%"></i><i class="pa" style="width:'+P(p.pA)+'%"></i></div>';
         h+='<div class="plbl"><span>'+B(hShort+' '+P(p.pH)+'%','H')+'</span><span>'+B('Empate '+P(p.pD)+'%','D')+'</span><span>'+B(aShort+' '+P(p.pA)+'%','A')+'</span></div>'; }
-      h+=betPill(betDecision(ACTIVE,m,p));
-      h+='<details class="more"><summary>Ver análisis</summary>';
+      const _bd=betDecision(ACTIVE,m,p); h+=betPill(_bd);
+      h+='<details class="more"><summary>Ver análisis'+((_bd.ig&&_bd.ig.n)?' · 🛡️ '+_bd.ig.n+' señal'+(_bd.ig.n>1?'es':''):'')+'</summary>';
+      if(_bd.ig&&_bd.ig.n){ h+='<div style="font-size:13px;color:var(--muted);line-height:1.55;margin:6px 0 10px"><div style="color:var(--text)">🛡️ Integridad: '+_bd.ig.nivel+'</div>'; _bd.ig.senales.forEach(x=>h+='<div>· '+x+'</div>'); h+='<div style="color:var(--dim)">'+_bd.ig.nota+'</div></div>'; }
       const bb=betSuggest(p);
       h+=`<div class="verdict v-pre"><span>🔮 Dictamen: <b>${pickLabel(dictP,hShort,aShort)}</b></span><span class="v-code">${bb.code} · ${conf}%</span></div>`;
       { const facts=[];
@@ -3453,7 +3480,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.27 · 10 oct 2026";
+const APP_VERSION="v5.28 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
