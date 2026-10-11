@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.30 =====================
+/* ===================== 🍃 ZEN v5.31 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.30 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.31 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.30</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.31</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -729,13 +729,22 @@ function _trPrev(t,team,beforeISO,k){
 // 🏟️ Índice de FAMA percibida (0–1): jerarquía histórica del club + campeón vigente + localía.
 // Mide lo que el PÚBLICO cree, no lo que vale el equipo hoy (eso lo miden ELO / Dixon-Coles).
 const MITOS={ junior:{campeon:true, txt:'campeón vigente (Apertura 2026-I) y fama de «se mete de último y gana»'} };
+// Cuánto ha SOBREVALORADO la casa a este equipo en sus partidos con cuotas (prob. implícita de ganar − lo que ganó)
+function _teamMarketBias(t,team){
+  const key=_teamKey(team); const st=loadState(t); let s=0,n=0;
+  st.matches.forEach(m=>{ if(!m.played||m.sh==null||!m.odds||m.odds.pH==null) return; const hm=_teamKey(m.h)===key, am=_teamKey(m.a)===key; if(!hm&&!am) return;
+    const q=hm?m.odds.pH:m.odds.pA; const won=hm?(m.sh>m.sa?1:0):(m.sa>m.sh?1:0); s+=q-won; n++; });
+  return {bias:n?s/n:0,n};
+}
 function _trFama(t,team,isHome){
   const k=_teamKey(team); const ped=PEDIGREE[k]; const txt=[];
   let F=ped!=null?Math.max(0,Math.min(1,(ped-1480)/175)):0;
   if(ped!=null&&ped>=1550) txt.push(team+' es club grande (hinchada masiva)');
   const mi=MITOS[k]; if(mi){ if(mi.campeon) F+=0.25; txt.push(mi.txt); }
   if(isHome&&F>0.3){ F+=0.1; txt.push('juega en casa («soberanía»)'); }
-  return {F:Math.min(1,F),txt};
+  // 🧠 Mito APRENDIDO: si la casa lo ha inflado una y otra vez, el público le sigue creyendo de más
+  try{ const b=_teamMarketBias(t,team); if(b.n>=4&&Math.abs(b.bias)>=0.05){ F+=Math.max(-0.3,Math.min(0.3,b.bias*2)); txt.push(b.bias>0?('la casa lo ha sobrevalorado '+Math.round(b.bias*100)+' pts en sus últimos '+b.n+' partidos con cuota'):('la casa lo ha subvalorado '+Math.round(-b.bias*100)+' pts')); } }catch(e){}
+  return {F:Math.max(0,Math.min(1,F)),txt};
 }
 function _hypeGet(t,m){ try{ const o=JSON.parse(localStorage.getItem('fiq2_hype_'+t)||'{}'); return o[m.id]||null; }catch(e){ return null; } }
 function _hypeSet(t,m,v){ try{ const o=JSON.parse(localStorage.getItem('fiq2_hype_'+t)||'{}'); o[m.id]=v; localStorage.setItem('fiq2_hype_'+t,JSON.stringify(o)); }catch(e){} }
@@ -991,10 +1000,11 @@ function renderTrampaCard(tr,m){
   let h='<div class="card">';
   h+='<div style="font-size:13px;color:var(--muted);text-transform:capitalize">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
   h+='<div style="font-size:17px;font-weight:600;margin-top:6px">'+m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+m.a+'</div>';
-  h+='<div style="font-size:13.5px;color:var(--muted);margin-top:6px">'+tr.favShort+' parece seguro: cuota '+Math.round(tr.crowd*100)+'% · real ≈'+Math.round(tr.indep*100)+'%</div>';
+  h+='<div style="font-size:13.5px;color:var(--muted);margin-top:6px">'+tr.favShort+' parece seguro: '+(tr.src==='cuota'?'cuota':'su fama/forma sugiere')+' '+Math.round(tr.crowd*100)+'% · real ≈'+Math.round(tr.indep*100)+'%</div>';
   if(cv.clase==='A') h+='<div class="bet bet-yes"><span class="bw">APOSTAR ↺</span><span class="bd">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">valor +'+Math.round(cv.ev*100)+'% · acierta ≈'+Math.round(cv.p*100)+'%</span></span></div>';
   else if(cv.clase==='B') h+='<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">VIGILAR</span><span class="bd" style="color:var(--text)">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">valor dudoso: no alcanza con margen de error</span></span></div>';
-  else h+='<div class="bet bet-trap"><span class="bw">NO APOSTAR</span><span class="bd">Ni al favorito ni en contra<br><span style="color:var(--muted)">'+(cv.clase==='E'?'faltan cuotas':'el otro lado tampoco paga')+'</span></span></div>';
+  else if(cv.clase==='E'){ const cm=cuotaMinima(tr); h+='<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">VIGILAR</span><span class="bd" style="color:var(--text)">'+(cm?((cm.c==='D'?'Empate':'Empate o '+(tr.favSide==='H'?shortPair(m.h,m.a).as:shortPair(m.h,m.a).hs))+' si paga ≥ '+cm.min.toFixed(2)):'Esperando cuotas')+'<br><span style="color:var(--muted)">aún no hay cuotas publicadas</span></span></div>'; }
+  else h+='<div class="bet bet-trap"><span class="bw">NO APOSTAR</span><span class="bd">Ni al favorito ni en contra<br><span style="color:var(--muted)">el otro lado tampoco paga</span></span></div>';
   h+='<div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5">'+TRAMPA_MSG+'</div>';
   h+='<details class="more"><summary>Por qué</summary><div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px">';
   tr.nr.parts.forEach(x=>{ h+='<div>· '+x+'</div>'; });
@@ -1093,11 +1103,22 @@ function getPlanBudget(){ try{return +(localStorage.getItem('fiq2_planbudget')||
 function setPlanBudget(v){ try{localStorage.setItem('fiq2_planbudget',String(Math.max(0,parseInt(String(v).replace(/[^0-9]/g,''))||0)));}catch(e){} renderHoy(); }
 function _fmtCOP(n){ return '$'+Math.round(n).toLocaleString('es-CO'); }
 // 🍃 Decisión única por partido: APOSTAR sí / no (valor real y sin trampa de confianza)
+// Cuota mínima para que la apuesta contraria tenga valor, cuando aún no hay cuotas publicadas
+function cuotaMinima(tr){
+  if(!tr||!tr.pInd) return null; const P=tr.pInd, und=tr.favSide==='H'?'A':'H';
+  const u=Math.max(0.03,(tr.spread||0)/2);
+  const sp=null; const o=[{label:'Empate',c:'D',p:P.pD},{label:'Empate o no favorito',c:'X'+und,p:P.pD+(und==='H'?P.pH:P.pA)}];
+  o.forEach(x=>{ x.pc=Math.max(0.05,x.p-u); x.min=+(1.04/x.pc).toFixed(2); });
+  return o[0].pc>=0.22?o[0]:o[1];   // empate si es razonablemente probable; si no, la doble oportunidad
+}
 function betDecision(t,m,p){
   const o=m.odds; const sp=shortPair(m.h,m.a);
   if(!p) return {yes:false,why:'Sin pronóstico'};
-  if(!o||o.pH==null) return {yes:false,why:'Aún sin cuotas'};
   let tr=null; try{ tr=trampaConfianza(t,m,p); }catch(e){}
+  if(!o||o.pH==null){
+    if(tr&&tr.alert){ const cm=cuotaMinima(tr); if(cm) return {yes:false,watch:true,trap:true,tr,why:'Trampa: apuesta '+(cm.c==='D'?'al empate':'empate o '+(tr.favSide==='H'?shortPair(m.h,m.a).as:shortPair(m.h,m.a).hs))+' si paga ≥ '+cm.min.toFixed(2)}; }
+    return {yes:false,why:'Aún sin cuotas'};
+  }
   let ig=null; try{ ig=integridadSenales(m,tr,t); }catch(e){}
   let best=null;
   [['H',p.pH,o.pH,'Gana '+sp.hs],['D',p.pD,o.pD,'Empate'],['A',p.pA,o.pA,'Gana '+sp.as]].forEach(([c,pp,mp,lbl])=>{
@@ -3192,24 +3213,8 @@ function _over15Prob(lh,la){
   const p00=e0h*e0a, p10=lh*e0h*e0a, p01=e0h*la*e0a;
   return Math.max(0,Math.min(1,1-(p00+p10+p01)));
 }
-function safestOfDay(t){
-  const cfg=TORNEOS[t];
-  if(!cfg||cfg.estado!=='activo') return {ready:false, reason:'Este torneo no está en juego en este momento. Cambia al torneo activo arriba.'};
-  const wf=getWF(t);
-  if((wf.playedCount||0)<8) return {ready:false, reason:'El modelo todavía se está calibrando (necesita ~8 partidos jugados y lleva '+(wf.playedCount||0)+'). Sus porcentajes aún son ruidosos: sería deshonesto llamar "segura" a nada ahora.'};
-  const st=loadState(t); const now=new Date();
-  const d0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  const to=new Date(d0); to.setDate(to.getDate()+8);
-  const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h&&m.a&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&_asDate(m.date)>=d0&&_asDate(m.date)<=to);
-  if(!up.length) return {ready:false, reason:'No hay partidos próximos en los siguientes 8 días. Toca 🔄 para sincronizar.'};
-  const gm=_goalsModel(t);
-  const cands=[]; const trampas=[];
-  const TL=trampaAprendizaje(t); TL.ref=_trampaRef(t);
-  for(const m of up){
-    let p; try{ p=predictMatch(t,m); }catch(e){ continue; }
-    // 🌀 Detector de falsas apuestas seguras (antes de recomendar nada)
-    let tr=null; try{ tr=trampaConfianza(t,m,p,TL); trampaRegistrar(t,m,tr); }catch(e){}
-    if(tr&&tr.alert) trampas.push({m,tr});
+function _safeCands(t,m,p,gm,tr){
+  const cands=[];
     const sp=shortPair(m.h,m.a);
     const favIsH=p.pH>=p.pA, favSide=favIsH?'H':'A', favShort=favIsH?sp.hs:sp.as;
     // acuerdo de motores (elo, glicko, anomalia) sobre el favorito
@@ -3242,8 +3247,29 @@ function safestOfDay(t){
       else { confirmations.push('Ambos equipos suelen sumar 2+ goles entre los dos, por su promedio'); }
       let edge=null, ev=null, isGold=false;
       if(o.cuota&&o.implied!=null){ edge=o.prob-o.implied; ev=o.prob*o.cuota-1; if(edge>=0.05 && o.cuota>=1.5 && o.prob>=0.6) isGold=true; }
-      cands.push({m, sp, favShort, market:o.market, label:o.label, prob:o.prob, cuota:o.cuota, implied:o.implied, conf:o.prob, confirmations, edge, ev, isGold});
+      cands.push({m, sp, favShort, favSide, market:o.market, label:o.label, prob:o.prob, cuota:o.cuota, implied:o.implied, conf:o.prob, confirmations, edge, ev, isGold});
     }
+    return cands;
+}
+function safestOfDay(t){
+  const cfg=TORNEOS[t];
+  if(!cfg||cfg.estado!=='activo') return {ready:false, reason:'Este torneo no está en juego en este momento. Cambia al torneo activo arriba.'};
+  const wf=getWF(t);
+  if((wf.playedCount||0)<8) return {ready:false, reason:'El modelo todavía se está calibrando (necesita ~8 partidos jugados y lleva '+(wf.playedCount||0)+'). Sus porcentajes aún son ruidosos: sería deshonesto llamar "segura" a nada ahora.'};
+  const st=loadState(t); const now=new Date();
+  const d0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const to=new Date(d0); to.setDate(to.getDate()+8);
+  const up=st.matches.filter(m=>!m.played&&!m.seed&&m.h&&m.a&&m.h!=='TBD'&&m.a!=='TBD'&&m.date&&_asDate(m.date)>=d0&&_asDate(m.date)<=to);
+  if(!up.length) return {ready:false, reason:'No hay partidos próximos en los siguientes 8 días. Toca 🔄 para sincronizar.'};
+  const gm=_goalsModel(t);
+  const cands=[]; const trampas=[];
+  const TL=trampaAprendizaje(t); TL.ref=_trampaRef(t);
+  for(const m of up){
+    let p; try{ p=predictMatch(t,m); }catch(e){ continue; }
+    // 🌀 Detector de falsas apuestas seguras (antes de recomendar nada)
+    let tr=null; try{ tr=trampaConfianza(t,m,p,TL); trampaRegistrar(t,m,tr); }catch(e){}
+    if(tr&&tr.alert) trampas.push({m,tr});
+    _safeCands(t,m,p,gm,tr).forEach(c=>cands.push(c));
   }
   trampas.sort((a,b)=>b.tr.gap-a.tr.gap);
   if(!cands.length) return {ready:true, best:null, trampas, reason:'Hoy ninguna jugada pasa los filtros de seguridad: en los partidos próximos los motores y el mercado no coinciden con claridad, hay bajas de figuras'+(trampas.length?', o el favorito es una posible trampa de confianza':'')+'. Lo honesto es no forzar una apuesta.'};
@@ -3254,10 +3280,84 @@ function safestOfDay(t){
   const gold=goldSorted.find(c=>c.isGold)||null;
   return {ready:true, best, gold, all:byConf, trampas};
 }
+// ==================== 📒 HISTORIAL DE LA SEGURA (acertó / erró) ====================
+// Cada jugada se CONGELA antes del partido. Las de días anteriores a esta versión se
+// reconstruyen quitando el resultado (walk-forward): mismo método, sin mirar el futuro.
+function _shLoad(t){ try{ return JSON.parse(localStorage.getItem('fiq2_segura_'+t)||'{}')||{}; }catch(e){ return {}; } }
+function _shSave(t,db){ try{ localStorage.setItem('fiq2_segura_'+t,JSON.stringify(db)); }catch(e){} }
+function _shDay(iso){ return _colDay(iso); }
+function seguraRegistrar(t,c,kind,src){
+  if(!c||!c.m||!c.m.date) return; const db=_shLoad(t); db.days=db.days||{};
+  const day=_shDay(c.m.date)+'|'+kind; if(db.days[day]&&db.days[day].src==='vivo') return;   // congelada
+  if(src==='vivo'&&_asDate(c.m.date)<=new Date()) return;
+  db.days[day]={id:c.m.id,date:c.m.date,h:c.m.h,a:c.m.a,label:c.label,market:c.market,favSide:c.favSide||null,code:c.code||null,prob:+(+c.prob).toFixed(3),cuota:c.cuota||null,kind,src};
+  _shSave(t,db);
+}
+function _shHit(r,m){
+  const act=m.sh>m.sa?'H':m.sh<m.sa?'A':'D';
+  if(r.market==='over15') return (m.sh+m.sa)>=2;
+  if(r.market==='no_pierde') return act===r.favSide||act==='D';
+  if(r.market==='directo') return act===r.favSide;
+  if(r.market==='contra'){ const c=r.code; return c===act||(c.length===2&&(act==='D'||act===c[1])); }
+  return null;
+}
+// Reconstruye la Segura de los días pasados (una vez por partido; queda guardada)
+function seguraReconstruir(t,dias){
+  const st=loadState(t); const db=_shLoad(t); db.days=db.days||{}; db.done=db.done||{};
+  const lim=new Date(); lim.setDate(lim.getDate()-(dias||35));
+  const played=st.matches.filter(m=>m.played&&!m.seed&&m.sh!=null&&m.date&&_asDate(m.date)>=lim&&!db.done[m.id]);
+  if(!played.length) return 0;
+  const byDay={}; played.forEach(m=>{ (byDay[_shDay(m.date)]=byDay[_shDay(m.date)]||[]).push(m); });
+  let n=0;
+  for(const day in byDay){
+    let best=null, bestT=null;
+    for(const m of byDay[day]){
+      const bak={sh:m.sh,sa:m.sa,played:m.played}; m.played=false; m.sh=null; m.sa=null; invalidateWF(t);
+      try{ const p=predictMatch(t,m); const gm=_goalsModel(t); let tr=null; try{ tr=trampaConfianza(t,m,p); }catch(e){}
+        _safeCands(t,m,p,gm,tr).forEach(c=>{ if(c.conf>=0.68&&(!best||c.conf>best.conf)) best=c; });
+        if(tr&&tr.alert){ const d=betDecision(t,m,p); if(d.yes&&d.contra&&(!bestT||d.cv.ev>bestT.ev)) bestT={m,label:'↺ '+d.lbl,market:'contra',code:d.c,prob:d.pp,cuota:d.odd,ev:d.cv.ev}; }
+      }catch(e){}
+      Object.assign(m,bak); db.done[m.id]=1;
+    }
+    if(best&&!db.days[day+'|segura']) db.days[day+'|segura']={id:best.m.id,date:best.m.date,h:best.m.h,a:best.m.a,label:best.label,market:best.market,favSide:best.favSide,prob:+best.prob.toFixed(3),cuota:best.cuota||null,kind:'segura',src:'reconstruida'};
+    if(bestT&&!db.days[day+'|trampa']) db.days[day+'|trampa']={id:bestT.m.id,date:bestT.m.date,h:bestT.m.h,a:bestT.m.a,label:bestT.label,market:'contra',code:bestT.code,prob:+bestT.prob.toFixed(3),cuota:bestT.cuota,kind:'trampa',src:'reconstruida'};
+    n++;
+  }
+  invalidateWF(t); _shSave(t,db); return n;
+}
+function seguraHistorial(t){
+  const db=_shLoad(t); const st=loadState(t); const byId={}; st.matches.forEach(m=>byId[m.id]=m);
+  const rows=[];
+  for(const k in (db.days||{})){ const r=db.days[k]; const m=byId[r.id]; if(!m||!m.played||m.sh==null) continue; const ok=_shHit(r,m); if(ok==null) continue; rows.push({r,m,ok}); }
+  rows.sort((a,b)=>(b.r.date||'').localeCompare(a.r.date||''));
+  const S=rows.filter(x=>x.r.kind==='segura'), T=rows.filter(x=>x.r.kind==='trampa');
+  const pl=T.reduce((s,x)=>s+(x.ok?((x.r.cuota||1)-1):-1),0);
+  return {S,T,okS:S.filter(x=>x.ok).length,okT:T.filter(x=>x.ok).length,plT:pl};
+}
+function renderSeguraHistorial(t){
+  let H; try{ seguraReconstruir(t,35); H=seguraHistorial(t); }catch(e){ return ''; }
+  if(!H.S.length&&!H.T.length) return '';
+  const pc=H.S.length?Math.round(H.okS/H.S.length*100):0;
+  let h='<div class="card">';
+  if(H.S.length){
+    h+='<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13px;color:var(--muted)">Historial de la Segura</span><span style="font-size:13px;color:var(--muted)">'+H.S.length+' jugadas</span></div>';
+    h+='<div style="font-size:26px;font-weight:600;margin:2px 0 8px">Acertó '+H.okS+' de '+H.S.length+' <span style="color:'+(pc>=70?'var(--green)':pc>=55?'var(--gold)':'var(--red)')+'">· '+pc+'%</span></div>';
+    h+='<div class="pbar" style="margin-top:0"><i class="ph" style="width:'+pc+'%;background:var(--green)"></i><i class="pa" style="width:'+(100-pc)+'%;background:var(--red);opacity:.6"></i></div>';
+  }
+  if(H.T.length) h+='<div style="font-size:13.5px;color:var(--muted);margin-top:10px">Apuestas contrarias ↺ (trampas): acertó <b style="color:var(--text)">'+H.okT+' de '+H.T.length+'</b> · neto <b style="color:'+(H.plT>=0?'var(--green)':'var(--red)')+'">'+(H.plT>=0?'+':'')+H.plT.toFixed(2)+'</b> unidades</div>';
+  const all=H.S.concat(H.T).sort((a,b)=>(b.r.date||'').localeCompare(a.r.date||''));
+  h+='<details class="more"><summary>Partido por partido</summary><div style="margin-top:6px">';
+  all.slice(0,20).forEach(x=>{ const sp=shortPair(x.m.h,x.m.a);
+    h+='<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px"><span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
+  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.31 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
+  h+='</div>';
+  return h;
+}
 function renderSafe(){
   const pg=document.getElementById('page-safe'); if(!pg) return;
   const t=ACTIVE;
-  let h='<div class="stitle">La más firme</div>';
+  const hist=renderSeguraHistorial(t);
+  let h=hist+'<div class="stitle">La más firme</div>';
   const r=safestOfDay(t);
   const foot='<div class="zline">Ninguna apuesta es 100% segura · juega solo lo que puedas perder</div>';
   if(!r.ready){ h+='<div class="card" style="color:var(--muted);font-size:14.5px">'+(r.reason||'Sin datos')+'</div>'; pg.innerHTML=h+foot; return; }
@@ -3265,6 +3365,7 @@ function renderSafe(){
   const trLearn=renderTrampaAprendizaje(t);
   if(!r.best){ h+='<div class="card"><div style="font-size:22px;font-weight:600">Hoy no hay segura</div><div style="font-size:13.5px;color:var(--muted);margin-top:4px">Ninguna jugada pasa los filtros. Mejor no forzar.</div></div>'+trHtml+trLearn; pg.innerHTML=h+foot; return; }
   const x=r.best; const conf=Math.round(x.conf*100);
+  try{ seguraRegistrar(t,x,'segura','vivo'); }catch(e){}
   const firm=x.tier==='muy'||x.tier==='firme';
   const tierTxt=x.tier==='muy'?'Muy firme':x.tier==='firme'?'Firme':'Poco firme';
   h+='<div class="card">';
@@ -3546,7 +3647,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.30 · 10 oct 2026";
+const APP_VERSION="v5.31 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
