@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.29 =====================
+/* ===================== 🍃 ZEN v5.30 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.29 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.30 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.29</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.30</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -726,6 +726,56 @@ function _trPrev(t,team,beforeISO,k){
     .map(x=>{ const home=_teamKey(x.h)===key; const gf=home?x.sh:x.sa, ga=home?x.sa:x.sh; return {gf,ga,pts:gf>ga?3:gf===ga?1:0,rival:home?x.a:x.h}; });
 }
 // Paso 1 + 3: reconstruir la narrativa previa (qué vio el público antes del partido)
+// 🏟️ Índice de FAMA percibida (0–1): jerarquía histórica del club + campeón vigente + localía.
+// Mide lo que el PÚBLICO cree, no lo que vale el equipo hoy (eso lo miden ELO / Dixon-Coles).
+const MITOS={ junior:{campeon:true, txt:'campeón vigente (Apertura 2026-I) y fama de «se mete de último y gana»'} };
+function _trFama(t,team,isHome){
+  const k=_teamKey(team); const ped=PEDIGREE[k]; const txt=[];
+  let F=ped!=null?Math.max(0,Math.min(1,(ped-1480)/175)):0;
+  if(ped!=null&&ped>=1550) txt.push(team+' es club grande (hinchada masiva)');
+  const mi=MITOS[k]; if(mi){ if(mi.campeon) F+=0.25; txt.push(mi.txt); }
+  if(isHome&&F>0.3){ F+=0.1; txt.push('juega en casa («soberanía»)'); }
+  return {F:Math.min(1,F),txt};
+}
+function _hypeGet(t,m){ try{ const o=JSON.parse(localStorage.getItem('fiq2_hype_'+t)||'{}'); return o[m.id]||null; }catch(e){ return null; } }
+function _hypeSet(t,m,v){ try{ const o=JSON.parse(localStorage.getItem('fiq2_hype_'+t)||'{}'); o[m.id]=v; localStorage.setItem('fiq2_hype_'+t,JSON.stringify(o)); }catch(e){} }
+// 📣 Termómetro de redes y noticias con Gemini + Búsqueda de Google (solo partidos sospechosos, ahorra cuota)
+async function hypeLeer(t,m,favSide){
+  const key=getAiKey(); if(!key) throw new Error('sin clave de Gemini');
+  const fav=favSide==='H'?m.h:m.a, dog=favSide==='H'?m.a:m.h;
+  const prompt='Busca en noticias, redes sociales y declaraciones de jugadores/técnicos de los últimos 7 días sobre el partido '+m.h+' vs '+m.a+' (Liga BetPlay Colombia, '+String(m.date).slice(0,10)+'). '+
+    'Mide cuánta CONFIANZA EXCESIVA hay en que gana '+fav+' (frases tipo «es fija», «no puede perder», mística, mito, localía, hinchada, «siempre se mete»). '+
+    'NO predigas el resultado. Responde SOLO un JSON: {"hype":0-100,"frases":["máx 3 frases cortas textuales o parafraseadas"],"riesgos":["factores que el público ignora sobre '+fav+' o a favor de '+dog+'"]}';
+  const url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+encodeURIComponent(key);
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],tools:[{google_search:{}}],generationConfig:{temperature:0.2}})});
+  if(r.status===429) throw new Error('cuota de Gemini agotada');
+  if(!r.ok) throw new Error('HTTP '+r.status+(r.status===400||r.status===403?' (clave de Gemini inválida)':''));
+  _aiUsageInc();
+  const d=await r.json(); const txt=(((d.candidates||[])[0]||{}).content||{}).parts?.map(p=>p.text||'').join('')||'';
+  const js=txt.match(/\{[\s\S]*\}/); if(!js) throw new Error('respuesta sin datos');
+  const o=JSON.parse(js[0]); const v={favSide,hype:Math.max(0,Math.min(100,Math.round(+o.hype||0))),frases:(o.frases||[]).slice(0,3).map(String),riesgos:(o.riesgos||[]).slice(0,3).map(String),at:new Date().toISOString()};
+  _hypeSet(t,m,v); return v;
+}
+// Lee automáticamente (máx. 3 por día) los partidos de los próximos 3 días donde la cuota ya supera al modelo
+let _hypeBusy=false;
+async function hypeAuto(t){
+  if(_hypeBusy||!getAiKey()) return; _hypeBusy=true;
+  try{
+    const today=new Date().toISOString().slice(0,10); let u={}; try{u=JSON.parse(localStorage.getItem('fiq2_hypeday')||'{}');}catch(e){}
+    if(u.day!==today) u={day:today,n:0};
+    const st=loadState(t), now=new Date(), to=new Date(now); to.setDate(to.getDate()+3);
+    let changed=false;
+    for(const m of st.matches){
+      if(u.n>=3) break;
+      if(m.played||m.seed||!m.date||!m.odds||m.odds.pH==null) continue; const d=_asDate(m.date); if(!(d>now&&d<=to)) continue;
+      if(_hypeGet(t,m)) continue;
+      const p=predictMatch(t,m); const tr=trampaConfianza(t,m,p); if(!tr||!tr.pInd||tr.crowd<0.5||tr.gap<0.05) continue;
+      try{ await hypeLeer(t,m,tr.favSide); u.n++; changed=true; }catch(e){ console.warn('hype',e.message); if(/clave|cuota/.test(e.message)) break; }
+    }
+    try{localStorage.setItem('fiq2_hypeday',JSON.stringify(u));}catch(e){}
+    if(changed){ refreshAll(); setTimeout(trampaAvisar,800); }
+  }finally{ _hypeBusy=false; }
+}
 function _trNarrativa(t,m,favSide){
   const fav=favSide==='H'?m.h:m.a, dog=favSide==='H'?m.a:m.h;
   const fp=_trPrev(t,fav,m.date,5), dp=_trPrev(t,dog,m.date,5);
@@ -742,13 +792,22 @@ function _trNarrativa(t,m,favSide){
   let fw=0; meets.forEach(x=>{ const fh=_teamKey(x.h)===fk; if((fh?x.sh:x.sa)>(fh?x.sa:x.sh)) fw++; });
   const h2h=meets.length>=2?fw/meets.length:0;
   const comp={forma:ratio(fp), racha:Math.min(1,streak/4), rival:dp.length>=2?1-ratio(dp):0.5, h2h, gol:big?1:Math.max(0,Math.min(1,gd/2))};
-  const N=0.30*comp.forma+0.20*comp.racha+0.20*comp.rival+0.20*comp.h2h+0.10*comp.gol;
+  const Nform=0.30*comp.forma+0.20*comp.racha+0.20*comp.rival+0.20*comp.h2h+0.10*comp.gol;
+  // 🏟️ FAMA y MITO: el público no solo mira la racha; también apuesta por el escudo.
+  const fa=_trFama(t,fav,favSide==='H'), fd=_trFama(t,dog,favSide!=='H');
+  const Nfama=Math.max(0,Math.min(1,fa.F-0.5*fd.F));
+  // 📣 Termómetro de redes/noticias (IA opcional, si ya se leyó para este partido)
+  const hy=_hypeGet(t,m); const Nredes=hy&&hy.favSide===favSide?Math.max(0,Math.min(1,(hy.hype-30)/50)):0;
+  const N=Math.max(Nform,Nfama,Nredes);
+  comp.fama=Nfama; comp.redes=Nredes; comp.formaN=Nform;
   const parts=[];
   parts.push(fav+': '+fp.reduce((s,x)=>s+x.pts,0)+'/'+(3*fp.length)+' pts en sus últimos '+fp.length+(streak>=2?(' · racha de '+streak+' victorias'):''));
   if(dp.length>=2) parts.push(dog+': '+dp.reduce((s,x)=>s+x.pts,0)+'/'+(3*dp.length)+' pts'+(dogLoss>=2?(' · '+dogLoss+' derrotas seguidas'):''));
   if(meets.length>=2) parts.push('Historial directo: '+fav+' ganó '+fw+' de '+meets.length);
   if(big) parts.push(fav+' viene de una goleada reciente');
-  return {N,ok:true,parts,comp,racha:comp.racha,h2h,streak,meets:meets.length,fav,dog};
+  if(Nfama>=0.4) parts.push('Fama: '+fa.txt.join(' · ')+(fd.F<0.3?(' — frente a '+dog+', club de menor cartel'):''));
+  if(hy&&hy.favSide===favSide) parts.push('Redes y noticias (IA): hype '+hy.hype+'/100'+(hy.frases&&hy.frases.length?(' — «'+hy.frases[0]+'»'):''));
+  return {N,Nform,Nfama,Nredes,ok:true,parts,comp,racha:comp.racha,h2h,streak,meets:meets.length,fav,dog};
 }
 // Paso 4: estimación INDEPENDIENTE (sin mercado, sin forma reciente) + incertidumbre
 function _trIndep(t,m,p,favSide){
@@ -940,6 +999,7 @@ function renderTrampaCard(tr,m){
   h+='<details class="more"><summary>Por qué</summary><div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px">';
   tr.nr.parts.forEach(x=>{ h+='<div>· '+x+'</div>'; });
   if(tr.move>=0.02) h+='<div>· La cuota del favorito se acortó '+Math.round(tr.move*100)+' pts</div>';
+  { const hy=_hypeGet(ACTIVE,m); if(hy&&hy.riesgos&&hy.riesgos.length) h+='<div>· Lo que el público ignora (IA): '+hy.riesgos.join(' · ')+'</div>'; }
   h+='<div>· Sobrevaloración: '+Math.round(tr.gap*100)+' pts · parecido al caso Nacional–Tolima: '+Math.round(tr.sim*100)+'%</div>';
   if(cv.opts){ h+='<div style="margin-top:6px;color:var(--text)">Lado contrario (valor = prob × cuota − 1):</div>';
     cv.opts.forEach(o=>{ h+='<div>· '+o.label+': '+Math.round(o.p*100)+'% × '+o.odd.toFixed(2)+' → '+(o.ev>=0?'+':'')+Math.round(o.ev*100)+'% <span style="color:var(--dim)">(con error: '+(o.evCons>=0?'+':'')+Math.round(o.evCons*100)+'%)</span></div>'; }); }
@@ -1560,6 +1620,7 @@ async function syncActive(){
     showToast(`✅ ${TORNEOS[ACTIVE].corto}: ${jugados} jugados${extra}`);
     refreshAll();
     setTimeout(trampaAvisar,4500);   // 🔔 aviso de trampas tras sincronizar
+    setTimeout(()=>hypeAuto(ACTIVE),6000);   // 📣 termómetro de redes (si hay clave Gemini)
   }catch(e){
     document.getElementById('syncStatus').textContent='⚠';
     showToast('⚠ Sin conexión a ESPN ('+((e&&e.message)||'?')+') — toca 🔄 para reintentar',false);
@@ -3485,7 +3546,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.29 · 10 oct 2026";
+const APP_VERSION="v5.30 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
