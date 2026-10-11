@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.28 =====================
+/* ===================== 🍃 ZEN v5.29 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.28 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.29 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.28</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.29</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -399,8 +399,10 @@ details.more[open]>summary::before{content:'－ ';}
       <button class="mbtn mbtn-primary" onclick="saveApiKey()">Guardar</button>
       <button class="mbtn" onclick="testAPIFootball()">Probar conexión</button>
     </div>
+    <div id="apiMsg" class="modal-msg" style="margin-top:10px;line-height:1.5"></div>
     <div id="footiqoStatus" style="font-size:13px;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--green-soft);color:var(--green);line-height:1.5"></div>
     <button class="mbtn" style="width:100%;margin-top:10px" onclick="runBackfill()">📥 Aprender del pasado · API-Football</button>
+    <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.4">El plan gratis casi nunca trae cuotas viejas: es normal que diga que no encontró. El resultado aparece arriba, bajo «Probar conexión».</div>
     <button class="mbtn" style="width:100%;margin-top:10px" onclick="testEspnProxies()">🔌 Probar conexión ESPN (diagnóstico)</button>
     <div id="espnDiag" style="font-size:12px;margin-top:10px;line-height:1.7;font-variant-numeric:tabular-nums"></div>
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border2)">
@@ -410,8 +412,6 @@ details.more[open]>summary::before{content:'－ ';}
       <div class="modal-btns"><button class="mbtn mbtn-primary" onclick="saveAiKeyUI()">Guardar clave IA</button></div>
       <div id="aiKeyMsg" style="font-size:13px;margin-top:8px;color:var(--muted)"></div>
     </div>
-    <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.4">Este botón usa API-Football (el plan gratis casi nunca trae cuotas viejas — es normal que diga que no encontró). No afecta las cuotas del CSV, que ya cargan solas.</div>
-    <div id="apiMsg" class="modal-msg"></div>
     <div class="modal-btns" style="margin-top:14px">
       <button class="mbtn" onclick="closeSettings()">Cerrar</button>
     </div>
@@ -1580,7 +1580,7 @@ function openSettings(){
   const m=document.getElementById('settingsModal'); if(!m)return; m.style.display='flex';
   document.getElementById('apiKeyInput').value=getApiKey();
   { const ai=document.getElementById('aiKeyInput'); if(ai) ai.value=getAiKey(); }
-  apiMsg(getApiKey()?'Clave guardada. Toca “Probar conexión”.':'', 'muted');
+  { const k=getApiKey(); const el=document.getElementById('apiMsg'); if(el){ el.innerHTML=k?('🔑 Hay una clave guardada (termina en <b>…'+k.slice(-4)+'</b>). Toca «Probar conexión».'):'🔑 No hay clave de API-Football guardada en este dispositivo.'; el.style.color='var(--muted)'; } }
   // Estado de las cuotas del CSV (footiqo) — para que veas que SÍ cargaron
   try{
     const el=document.getElementById('footiqoStatus'); if(el){
@@ -1593,14 +1593,17 @@ function openSettings(){
   }catch(e){}
 }
 function closeSettings(){ const m=document.getElementById('settingsModal'); if(m)m.style.display='none'; }
-function apiMsg(t,cls){ const el=document.getElementById('apiMsg'); if(!el)return; el.innerHTML=t; el.style.color=cls==='ok'?'var(--green)':cls==='err'?'var(--red)':cls==='warn'?'var(--orange)':'var(--muted)'; }
+function apiMsg(t,cls){ const el=document.getElementById('apiMsg'); if(!el)return; el.innerHTML=t; if(t){ try{ el.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} } el.style.color=cls==='ok'?'var(--green)':cls==='err'?'var(--red)':cls==='warn'?'var(--orange)':'var(--muted)'; }
 function saveApiKey(){ const k=(document.getElementById('apiKeyInput').value||'').trim(); try{localStorage.setItem('fiq2_apifb',k);}catch(e){} apiMsg(k?'✅ Clave guardada solo en este dispositivo.':'Clave borrada.', k?'ok':'warn'); }
-function saveAiKeyUI(){ const k=(document.getElementById('aiKeyInput').value||'').trim(); saveAiKey(k); const el=document.getElementById('aiKeyMsg'); if(el){el.textContent=k?'✅ Clave IA guardada solo en este dispositivo.':'Clave IA borrada.'; el.style.color=k?'var(--green)':'var(--orange)';} }
+function saveAiKeyUI(){ const k=(document.getElementById('aiKeyInput').value||'').trim(); saveAiKey(k);
+  if(k&&!/^AIza/.test(k)){ const el=document.getElementById('aiKeyMsg'); if(el){ el.innerHTML='⚠️ Guardada, pero <b>no parece una clave de Gemini</b> (suelen empezar por «AIza»). Créala en aistudio.google.com/app/apikey → «Create API key».'; el.style.color='var(--orange)'; } return; } const el=document.getElementById('aiKeyMsg'); if(el){el.textContent=k?'✅ Clave IA guardada solo en este dispositivo.':'Clave IA borrada.'; el.style.color=k?'var(--green)':'var(--orange)';} }
 async function apiFB(path){
   const key=getApiKey(); if(!key) throw new Error('sin clave');
   const r=await fetch(APIFB_BASE+path,{headers:{'x-apisports-key':key}});
   if(!r.ok) throw new Error('HTTP '+r.status);
-  return await r.json();
+  const j=await r.json();
+  if(j&&j.errors&&!Array.isArray(j.errors)&&Object.keys(j.errors).length){ const v=Object.values(j.errors)[0]; throw new Error(/key|token/i.test(String(v))?'clave inválida':/limit|request/i.test(String(v))?'se acabó tu límite diario (100 consultas)':String(v)); }
+  return j;
 }
 async function _diagFetch(u,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms||9000); try{ const r=await fetch(u,{signal:c.signal}); clearTimeout(id); const txt=await r.text(); let n=null; try{ let j=JSON.parse(txt); if(j&&typeof j.contents==='string')j=JSON.parse(j.contents); n=(j&&j.events)?j.events.length:null; }catch(e){} return {ok:r.ok,status:r.status,n,len:txt.length}; }catch(e){ clearTimeout(id); return {err:e.name==='AbortError'?'timeout':e.message}; } }
 async function testEspnProxies(){
@@ -1660,7 +1663,9 @@ async function testAPIFootball(){
     }catch(e){ msg+='<br>(No pude leer cuotas aún: '+e.message+')'; }
     apiMsg(msg+'<br><br>Perfecto — al tocar 🔄 la app ya usará estos datos en 🌀 Anomalía.','ok');
   }catch(e){
-    apiMsg('❌ No conectó: '+e.message+'.<br>Suele ser clave inválida o <b>CORS</b> (el navegador bloquea la llamada directa). Si es CORS, dime y lo resuelvo con un puente.','err');
+    const net=/load failed|failed to fetch|networkerror|network/i.test(e.message||'');
+    apiMsg(net?'❌ No conectó. API-Football <b>rechazó la clave</b> (inválida, vencida o mal copiada) o no hay internet.<br>Entra a <b>dashboard.api-football.com</b>, copia la clave de nuevo, pégala y toca Guardar → Probar conexión.'
+      :('❌ No conectó: '+e.message+(/HTTP 4\d\d/.test(e.message)?' — la clave no es válida o se acabó tu cuota del día.':'')),'err');
   }
 }
 function _norm(s){ return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
@@ -3480,7 +3485,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.28 · 10 oct 2026";
+const APP_VERSION="v5.29 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
