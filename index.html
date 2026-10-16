@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.37 =====================
+/* ===================== 🍃 ZEN v5.38 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.37 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.38 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.37</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.38</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1675,7 +1675,7 @@ function openSettings(){
 }
 function closeSettings(){ const m=document.getElementById('settingsModal'); if(m)m.style.display='none'; }
 function apiMsg(t,cls){ const el=document.getElementById('apiMsg'); if(!el)return; el.innerHTML=t; if(t){ try{ el.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} } el.style.color=cls==='ok'?'var(--green)':cls==='err'?'var(--red)':cls==='warn'?'var(--orange)':'var(--muted)'; }
-function saveApiKey(){ const k=(document.getElementById('apiKeyInput').value||'').trim(); try{localStorage.setItem('fiq2_apifb',k);}catch(e){} apiMsg(k?'✅ Clave guardada solo en este dispositivo.':'Clave borrada.', k?'ok':'warn'); }
+function saveApiKey(){ try{localStorage.removeItem('fiq2_apiplan');}catch(e){} const k=(document.getElementById('apiKeyInput').value||'').trim(); try{localStorage.setItem('fiq2_apifb',k);}catch(e){} apiMsg(k?'✅ Clave guardada solo en este dispositivo.':'Clave borrada.', k?'ok':'warn'); }
 async function saveAiKeyUI(){
   const k=(document.getElementById('aiKeyInput').value||'').trim(); saveAiKey(k);
   const el=document.getElementById('aiKeyMsg'); if(!el) return;
@@ -1691,12 +1691,17 @@ async function saveAiKeyUI(){
   }
   el.scrollIntoView({behavior:'smooth',block:'center'});
 }
+// El plan gratis de API-Football solo permite temporadas 2022-2024: se recuerda y no se vuelve a preguntar
+function _apiPlanBlocked(k,season){ try{ return localStorage.getItem('fiq2_apiplan')===_hashStr(k)+':'+season; }catch(e){ return false; } }
+function _apiPlanBlock(k,season){ try{ localStorage.setItem('fiq2_apiplan',_hashStr(k)+':'+season); }catch(e){} }
 async function apiFB(path){
   const key=getApiKey(); if(!key) throw new Error('sin clave');
+  const sm=path.match(/season=(\d{4})/);
+  if(sm&&_apiPlanBlocked(key,sm[1])) throw new Error('tu plan gratis de API-Football no incluye la temporada '+sm[1]);
   const r=await fetch(APIFB_BASE+path,{headers:{'x-apisports-key':key}});
   if(!r.ok) throw new Error('HTTP '+r.status);
   const j=await r.json();
-  if(j&&j.errors&&!Array.isArray(j.errors)&&Object.keys(j.errors).length){ const v=Object.values(j.errors)[0]; throw new Error(/key|token/i.test(String(v))?'clave inválida':/limit|request/i.test(String(v))?'se acabó tu límite diario (100 consultas)':String(v)); }
+  if(j&&j.errors&&!Array.isArray(j.errors)&&Object.keys(j.errors).length){ const v=Object.values(j.errors)[0]; if(sm&&/do not have access|plan/i.test(String(v))) _apiPlanBlock(key,sm[1]); throw new Error(/key|token/i.test(String(v))?'clave inválida':/limit|request/i.test(String(v))?'se acabó tu límite diario (100 consultas)':String(v)); }
   return j;
 }
 async function _diagFetch(u,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms||9000); try{ const r=await fetch(u,{signal:c.signal}); clearTimeout(id); const txt=await r.text(); let n=null; try{ let j=JSON.parse(txt); if(j&&typeof j.contents==='string')j=JSON.parse(j.contents); n=(j&&j.events)?j.events.length:null; }catch(e){} return {ok:r.ok,status:r.status,n,len:txt.length}; }catch(e){ clearTimeout(id); return {err:e.name==='AbortError'?'timeout':e.message}; } }
@@ -1738,11 +1743,11 @@ async function testEspnProxies(){
 async function testAPIFootball(){
   const key=(document.getElementById('apiKeyInput').value||'').trim();
   if(!key){ apiMsg('Pega tu clave primero.','warn'); return; }
-  try{ localStorage.setItem('fiq2_apifb',key); }catch(e){}
+  try{ localStorage.setItem('fiq2_apifb',key); localStorage.removeItem('fiq2_apiplan'); }catch(e){}
   apiMsg('Probando conexión…','muted');
   try{
     const d=await apiFB('/status');
-    const rq=d && d.response && d.response.requests;
+    let blocked=false; const rq=d && d.response && d.response.requests;
     const sub=d && d.response && d.response.subscription;
     const acc=d && d.response && d.response.account;
     if(!rq){ apiMsg('⚠ Respondió, pero sin datos de cuenta. Revisa que la clave sea correcta.','warn'); return; }
@@ -1754,8 +1759,9 @@ async function testAPIFootball(){
         const n=(od&&od.response&&od.response.length)||0;
         msg+='<br>Cuotas '+cfg.corto+': '+(n>0?('<b style="color:var(--green)">'+n+' con cuotas</b> ✔'):'<b style="color:var(--orange)">0 ahora</b> (aparecen cerca del partido)')+'.';
       }
-    }catch(e){ msg+='<br>(No pude leer cuotas aún: '+e.message+')'; }
-    apiMsg(msg+'<br><br>Perfecto — al tocar 🔄 la app ya usará estos datos en 🌀 Anomalía.','ok');
+    }catch(e){ msg+='<br>(No pude leer cuotas aún: '+e.message+')'; if(/do not have access|plan gratis|Free plans/i.test(e.message)) blocked=true; }
+    if(blocked) apiMsg(msg.replace(/<br>\(No pude leer[^)]*\)\.?\)?/,'')+'<br><br>⚠️ <b>Tu plan gratis no incluye la temporada actual (2026)</b>: API-Football <b>no aportará</b> cuotas, lesiones ni alineaciones de este año. La clave está bien; es un límite del plan.<br>La app sigue usando las cuotas de <b>ESPN (DraftKings)</b> y los 120 partidos con cuotas que ya tienes. Un plan de pago de API-Football lo desbloquearía, pero no es necesario.','warn');
+    else apiMsg(msg+'<br><br>Perfecto — al tocar 🔄 la app ya usará estos datos en 🌀 Anomalía.','ok');
   }catch(e){
     const net=/load failed|failed to fetch|networkerror|network/i.test(e.message||'');
     apiMsg(net?'❌ No conectó. API-Football <b>rechazó la clave</b> (inválida, vencida o mal copiada) o no hay internet.<br>Entra a <b>dashboard.api-football.com</b>, copia la clave de nuevo, pégala y toca Guardar → Probar conexión.'
@@ -2546,9 +2552,11 @@ async function runBackfill(){
     if(r.filled>0){
       apiMsg('✅ Rellené <b>'+r.filled+'</b> partidos pasados con cuotas ('+r.days+' fechas).'+(r.remaining?(' Quedan '+r.remaining+' fechas — vuelve a tocar mañana (límite diario de la API).'):'')+'<br><b>Anomalía ya está aprendiendo del pasado.</b>','ok');
       refreshAll();
+    } else if(_apiPlanBlocked(getApiKey(),String(TORNEOS[ACTIVE].apiSeason))){
+      apiMsg('ℹ️ Tu <b>plan gratis</b> de API-Football no incluye la temporada '+TORNEOS[ACTIVE].apiSeason+', así que no hay cuotas que aprender de ahí. La clave está bien. La app sigue usando las cuotas de ESPN (DraftKings).','warn');
     } else if(r.days>0&&r.errs>=r.days){
       const le=String(r.lastErr||'');
-      apiMsg('❌ API-Football <b>respondió con error</b> en todas las consultas: «'+le+'».<br>'+(/clave|HTTP 40[13]|failed to fetch|load failed|network/i.test(le)?'La clave no es válida o venció (o no hay internet): cópiala de nuevo en <b>dashboard.api-football.com</b>, pégala arriba, toca Guardar y luego Probar conexión.':/l[ií]mite/i.test(le)?'Ya usaste las 100 consultas de hoy; vuelve a intentar mañana.':'Toca Probar conexión para ver el estado de tu cuenta.'),'err');
+      apiMsg('❌ API-Football <b>respondió con error</b> en todas las consultas: «'+le+'».<br>'+(/plan gratis|do not have access|Free plans/i.test(le)?'Tu <b>plan gratis</b> de API-Football no incluye la temporada 2026, por eso no hay cuotas que aprender de ahí. La clave está bien. La app sigue con las cuotas de ESPN.':/clave|HTTP 40[13]|failed to fetch|load failed|network/i.test(le)?'La clave no es válida o venció (o no hay internet): cópiala de nuevo en <b>dashboard.api-football.com</b>, pégala arriba, toca Guardar y luego Probar conexión.':/l[ií]mite/i.test(le)?'Ya usaste las 100 consultas de hoy; vuelve a intentar mañana.':'Toca Probar conexión para ver el estado de tu cuenta.'),'err');
     } else {
       apiMsg('ℹ️ No encontré cuotas históricas para esas fechas en tu plan (revisé '+r.days+' fechas). Es lo normal en el plan gratis: suele guardar solo lo reciente. Anomalía seguirá aprendiendo de aquí en adelante.','warn');
     }
@@ -3432,7 +3440,7 @@ function renderSeguraHistorial(t){
   h+='<details class="more"><summary>Partido por partido</summary><div style="margin-top:6px">';
   all.slice(0,20).forEach(x=>{ const sp=shortPair(x.m.h,x.m.a);
     h+='<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px"><span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
-  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.37 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
+  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.38 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
   h+='</div>';
   return h;
 }
@@ -3730,7 +3738,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.37 · 10 oct 2026";
+const APP_VERSION="v5.38 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
