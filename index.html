@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.35 =====================
+/* ===================== 🍃 ZEN v5.37 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.35 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.37 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.35</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.37</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1691,6 +1691,14 @@ async function saveAiKeyUI(){
   }
   el.scrollIntoView({behavior:'smooth',block:'center'});
 }
+async function apiFB(path){
+  const key=getApiKey(); if(!key) throw new Error('sin clave');
+  const r=await fetch(APIFB_BASE+path,{headers:{'x-apisports-key':key}});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const j=await r.json();
+  if(j&&j.errors&&!Array.isArray(j.errors)&&Object.keys(j.errors).length){ const v=Object.values(j.errors)[0]; throw new Error(/key|token/i.test(String(v))?'clave inválida':/limit|request/i.test(String(v))?'se acabó tu límite diario (100 consultas)':String(v)); }
+  return j;
+}
 async function _diagFetch(u,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms||9000); try{ const r=await fetch(u,{signal:c.signal}); clearTimeout(id); const txt=await r.text(); let n=null; try{ let j=JSON.parse(txt); if(j&&typeof j.contents==='string')j=JSON.parse(j.contents); n=(j&&j.events)?j.events.length:null; }catch(e){} return {ok:r.ok,status:r.status,n,len:txt.length}; }catch(e){ clearTimeout(id); return {err:e.name==='AbortError'?'timeout':e.message}; } }
 async function testEspnProxies(){
   const box=document.getElementById('espnDiag'); if(box) box.innerHTML='🔌 Buscando el formato que ESPN acepta directo…';
@@ -2301,12 +2309,13 @@ function applyHistoricOdds(t){
 }
 
 // Trae fixtures+odds de UN día y las aplica a los partidos que coincidan (jugados o no)
+let _apiErrs={n:0,last:''};   // errores de API-Football durante un relleno (antes se descartaban en silencio)
 async function _applyDayOdds(cfg, day, idx){
   let filled=0, fxMap={};
   try{
     const fx=await apiFB('/fixtures?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
     for(const r of ((fx&&fx.response)||[])){ const id=r&&r.fixture&&r.fixture.id, tm=r&&r.teams; if(id&&tm&&tm.home&&tm.away){ fxMap[id]={h:tm.home.name,a:tm.away.name}; const mm=idx[_norm(tm.home.name)+'|'+_norm(tm.away.name)]; if(mm){ mm.fxid=id; mm.hid=tm.home.id; mm.aid=tm.away.id; const rf=r.fixture&&r.fixture.referee; if(rf) mm.referee=String(rf).split(',')[0].trim(); } } }
-  }catch(e){}
+  }catch(e){ _apiErrs.n++; _apiErrs.last=e.message; }
   try{
     const od=await apiFB('/odds?league='+cfg.apiLeague+'&season='+cfg.apiSeason+'&date='+day);
     for(const row of ((od&&od.response)||[])){
@@ -2349,7 +2358,7 @@ async function _applyDayOdds(cfg, day, idx){
       if(cOU>0) m.ou25={over:+(oOv/cOU).toFixed(3),under:+(oUn/cOU).toFixed(3),books:cOU};
       if(cB>0)  m.btts={yes:+(bYy/cB).toFixed(3),no:+(bNn/cB).toFixed(3),books:cB};
     }
-  }catch(e){}
+  }catch(e){ _apiErrs.n++; _apiErrs.last=e.message; }
   return filled;
 }
 // ===== JUGADORES CLAVE (goleadores) para pesar lesiones por importancia =====
@@ -2523,10 +2532,10 @@ async function backfillOdds(t, cap){
   const idx={}; st.matches.forEach(m=>{ idx[_norm(m.h)+'|'+_norm(m.a)]=m; });
   const need=[...new Set(st.matches.filter(m=>m.played&&!m.seed&&m.date&&!(m.odds&&(m.odds.src==='apifb'||m.odds.src==='apifb-hist'))).map(m=>m.date.slice(0,10)))].sort();
   const days=need.slice(0,cap||30);
-  let filled=0;
+  let filled=0; _apiErrs={n:0,last:''};
   for(const day of days){ filled+=await _applyDayOdds(cfg, day, idx); }
   saveState(t);
-  return {days:days.length, filled, remaining:Math.max(0,need.length-days.length)};
+  return {days:days.length, filled, remaining:Math.max(0,need.length-days.length), errs:_apiErrs.n, lastErr:_apiErrs.last};
 }
 async function runBackfill(){
   if(!getApiKey()){ apiMsg('Primero pega tu clave y toca “Probar conexión”.','warn'); return; }
@@ -2537,6 +2546,9 @@ async function runBackfill(){
     if(r.filled>0){
       apiMsg('✅ Rellené <b>'+r.filled+'</b> partidos pasados con cuotas ('+r.days+' fechas).'+(r.remaining?(' Quedan '+r.remaining+' fechas — vuelve a tocar mañana (límite diario de la API).'):'')+'<br><b>Anomalía ya está aprendiendo del pasado.</b>','ok');
       refreshAll();
+    } else if(r.days>0&&r.errs>=r.days){
+      const le=String(r.lastErr||'');
+      apiMsg('❌ API-Football <b>respondió con error</b> en todas las consultas: «'+le+'».<br>'+(/clave|HTTP 40[13]|failed to fetch|load failed|network/i.test(le)?'La clave no es válida o venció (o no hay internet): cópiala de nuevo en <b>dashboard.api-football.com</b>, pégala arriba, toca Guardar y luego Probar conexión.':/l[ií]mite/i.test(le)?'Ya usaste las 100 consultas de hoy; vuelve a intentar mañana.':'Toca Probar conexión para ver el estado de tu cuenta.'),'err');
     } else {
       apiMsg('ℹ️ No encontré cuotas históricas para esas fechas en tu plan (revisé '+r.days+' fechas). Es lo normal en el plan gratis: suele guardar solo lo reciente. Anomalía seguirá aprendiendo de aquí en adelante.','warn');
     }
@@ -3420,7 +3432,7 @@ function renderSeguraHistorial(t){
   h+='<details class="more"><summary>Partido por partido</summary><div style="margin-top:6px">';
   all.slice(0,20).forEach(x=>{ const sp=shortPair(x.m.h,x.m.a);
     h+='<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px"><span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
-  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.35 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
+  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.37 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
   h+='</div>';
   return h;
 }
@@ -3718,7 +3730,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.35 · 10 oct 2026";
+const APP_VERSION="v5.37 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
