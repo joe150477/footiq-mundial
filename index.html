@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.32 =====================
+/* ===================== 🍃 ZEN v5.35 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.32 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.35 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.32</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.35</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -755,9 +755,9 @@ async function hypeLeer(t,m,favSide){
   const prompt='Busca en noticias, redes sociales y declaraciones de jugadores/técnicos de los últimos 7 días sobre el partido '+m.h+' vs '+m.a+' (Liga BetPlay Colombia, '+String(m.date).slice(0,10)+'). '+
     'Mide cuánta CONFIANZA EXCESIVA hay en que gana '+fav+' (frases tipo «es fija», «no puede perder», mística, mito, localía, hinchada, «siempre se mete»). '+
     'NO predigas el resultado. Responde SOLO un JSON: {"hype":0-100,"frases":["máx 3 frases cortas textuales o parafraseadas"],"riesgos":["factores que el público ignora sobre '+fav+' o a favor de '+dog+'"]}';
-  let res; const base={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.2}};
-  try{ res=await _gemGenerate(key,Object.assign({tools:[{google_search:{}}]},base)); }
-  catch(e){ if(e.status===400){ res=await _gemGenerate(key,base); } else throw e; }   // sin búsqueda web si tu plan no la incluye
+  let res; const base={contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.2}};
+  try{ res=await _gemGenerate(key,Object.assign({tools:[_gemVertex(key)?{googleSearch:{}}:{google_search:{}}]},base)); }
+  catch(e){ if(e.status===400||e.status===403){ res=await _gemGenerate(key,base); } else throw e; }   // sin búsqueda web si tu plan no la incluye
   _aiUsageInc();
   const d=res.data; const txt=(((d.candidates||[])[0]||{}).content||{}).parts?.map(p=>p.text||'').join('')||'';
   const js=txt.match(/\{[\s\S]*\}/); if(!js) throw new Error('respuesta sin datos');
@@ -1681,12 +1681,13 @@ async function saveAiKeyUI(){
   const el=document.getElementById('aiKeyMsg'); if(!el) return;
   if(!k){ el.textContent='Clave IA borrada.'; el.style.color='var(--muted)'; return; }
   el.textContent='Guardada. Verificando con Google…'; el.style.color='var(--muted)';
+  const tr=t=>'<details class="more" style="margin-top:6px"><summary>Detalle técnico</summary><div style="font-size:11.5px;color:var(--dim);line-height:1.5;margin-top:4px">'+t.map(x=>'· '+x).join('<br>')+'</div></details>';
   try{
-    const list=await geminiModels(k,true);
-    if(list.length){ el.innerHTML='✅ Clave válida. Usará el modelo <b>'+list[0]+'</b>.'; el.style.color='var(--green)'; }
-    else { el.innerHTML='⚠️ La clave es válida, pero Google no mostró modelos Flash para ella. Puede que tu plan no incluya Gemini.'; el.style.color='var(--orange)'; }
+    const r=await _gemGenerate(k,{contents:[{role:'user',parts:[{text:'Responde solo con la palabra: ok'}]}],generationConfig:{maxOutputTokens:16,temperature:0}});
+    el.innerHTML='✅ Funciona. Servicio <b>'+r.provider+'</b> · modelo <b>'+r.model+'</b>.'+tr(r.trace); el.style.color='var(--green)';
   }catch(e){
-    el.innerHTML='❌ Google rechazó la clave: '+e.message+'.<br>Créala de nuevo en aistudio.google.com/app/apikey («Create API key») y pégala completa.'; el.style.color='var(--red)';
+    el.innerHTML='❌ '+e.message+(e.trace?tr(e.trace):''); el.style.color='var(--red)';
+    const d=el.querySelector('details'); if(d) d.open=true;
   }
   el.scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -2139,46 +2140,79 @@ function _hashStr(s){ let h=0; for(let i=0;i<s.length;i++){h=((h<<5)-h+s.charCod
 function _aiCacheGet(t,h){ try{const r=localStorage.getItem('fiq2_aicache_'+t); if(r){const o=JSON.parse(r); if(o.h===h)return o.data;}}catch(e){} return null; }
 function _aiCacheSet(t,h,data){ try{localStorage.setItem('fiq2_aicache_'+t,JSON.stringify({h,data,ts:Date.now()}));}catch(e){} }
 
-// Google retira modelos cada pocos meses (gemini-2.0-flash murió el 1-jun-2026 → HTTP 404).
-// Por eso NO se fija un nombre: se le pregunta a Google qué modelos Flash tiene esta clave.
+// Dos tipos de clave de Google:
+//  • AIza… → API Gemini de AI Studio  (generativelanguage.googleapis.com)
+//  • AQ.…  → clave NUEVA de AI Studio (auth key). Se prueba en AI Studio primero; Vertex solo como respaldo.
+// Google retira modelos cada pocos meses (gemini-2.0-flash murió el 1-jun-2026 → 404),
+// así que NO se fija un nombre: se lista (AI Studio) o se prueba en orden (Vertex).
 const GEM_BASE='https://generativelanguage.googleapis.com/v1beta';
-const GEM_FALLBACK=['gemini-3.6-flash','gemini-3.5-flash','gemini-flash-latest','gemini-2.5-flash'];
+const VTX_BASE='https://aiplatform.googleapis.com/v1/publishers/google/models/';
+const GEM_FALLBACK=['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash','gemini-flash-latest','gemini-2.5-flash'];
+const VTX_MODELS=['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3.5-flash','gemini-3.1-flash','gemini-3-flash','gemini-2.5-flash','gemini-flash-latest'];
+function _gemVertex(key){ return /^AQ\./.test(String(key||'')); }
+// Lee el error REAL de Google y lo traduce; deja visible el texto original
+async function _gemErr(r){
+  let msg='HTTP '+r.status, reason='', st='';
+  try{ const j=await r.json(); const e=(j&&j.error)||{}; msg=e.message||msg; st=e.status||''; const d=(e.details||[]).find(x=>x&&x.reason); reason=d?d.reason:''; }catch(_){}
+  let hint='';
+  if(/leaked/i.test(msg)) hint='Google marcó esta clave como filtrada (publicada). Crea una nueva y bórrala de donde la pegaste.';
+  else if(/referer|referrer/i.test(msg)) hint='La clave tiene restricción de sitio web (referrer). En Google Cloud → Credenciales → tu clave → quita la restricción de «Sitios web».';
+  else if(/SERVICE_DISABLED|has not been used|not been enabled|is disabled/i.test(msg+reason)) hint='La API no está activada en el proyecto de esa clave. Actívala en Google Cloud (Vertex AI API o Generative Language API).';
+  else if(/API key not valid|API_KEY_INVALID/i.test(msg+reason)) hint='Google no reconoce esta clave: copia otra vez la clave completa (sin espacios).';
+  else if(reason==='API_KEY_SERVICE_BLOCKED'||reason==='ACCESS_TOKEN_TYPE_UNSUPPORTED') hint='Esta clave no tiene permiso para este servicio de Google (restricción de API de la clave).';
+  else if(r.status===403) hint='Permiso denegado para esta clave.';
+  const err=new Error((hint?hint+' ':'')+'[Google: '+msg+(reason?' · '+reason:'')+' · HTTP '+r.status+']'); err.status=r.status; err.reason=reason; err.raw=msg; return err;
+}
 async function _gemReq(key,path,opts){
-  // clave por cabecera (formato nuevo); si Google la rechaza, reintenta por parámetro (formato clásico)
+  // AI Studio: clave por cabecera (formato nuevo); si falla por clave, reintenta por parámetro (clásico)
   const o=Object.assign({},opts||{}); o.headers=Object.assign({'x-goog-api-key':key},o.headers||{});
   let r=await fetch(GEM_BASE+path,o);
   if(r.status===401||r.status===403||r.status===400){ const sep=path.indexOf('?')>=0?'&':'?'; const o2=Object.assign({},opts||{}); r=await fetch(GEM_BASE+path+sep+'key='+encodeURIComponent(key),o2); }
   return r;
 }
 function _gemVer(n){ const m=String(n).match(/gemini-(\d+(?:\.\d+)?)/); return m?parseFloat(m[1]):0; }
-async function geminiModels(key,force){
+// Lista de modelos (AI Studio). Si la clave no puede listar (p. ej. 403 en claves nuevas «AQ.»), NO es fatal.
+async function geminiModels(key,force,trace){
   if(!force){ try{ const c=JSON.parse(localStorage.getItem('fiq2_gemmodels')||'null'); if(c&&c.k===_hashStr(key)&&Date.now()-c.ts<864e5&&c.list&&c.list.length) return c.list; }catch(e){} }
-  const r=await _gemReq(key,'/models?pageSize=200');
-  if(!r.ok){ const err=new Error(r.status===400||r.status===401||r.status===403?'clave no válida o sin permiso (HTTP '+r.status+')':'HTTP '+r.status); err.status=r.status; throw err; }
-  const d=await r.json();
-  const list=(d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>String(m.name).replace(/^models\//,''))
-    .filter(n=>/^gemini-[\d.]+-flash(-\d+)?$|^gemini-flash-latest$/.test(n)&&!/lite|image|tts|live|audio|thinking|exp/.test(n))
-    .sort((a,b)=>(_gemVer(b)-_gemVer(a))||(a.length-b.length));
-  if(list.length){ try{ localStorage.setItem('fiq2_gemmodels',JSON.stringify({k:_hashStr(key),ts:Date.now(),list})); }catch(e){} }
-  return list;
+  try{
+    const r=await _gemReq(key,'/models?pageSize=200');
+    if(!r.ok){ const er=await _gemErr(r); if(trace) trace.push('Listar modelos → HTTP '+r.status+' ('+er.raw+')'); return []; }
+    const d=await r.json();
+    const list=(d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>String(m.name).replace(/^models\//,''))
+      .filter(n=>/^gemini-[\d.]+-flash(-\d+)?$|^gemini-flash-latest$/.test(n)&&!/lite|image|tts|live|audio|thinking|exp/.test(n))
+      .sort((a,b)=>(_gemVer(b)-_gemVer(a))||(a.length-b.length));
+    if(trace) trace.push('Listar modelos → '+list.length+' modelos Flash');
+    if(list.length){ try{ localStorage.setItem('fiq2_gemmodels',JSON.stringify({k:_hashStr(key),ts:Date.now(),list})); }catch(e){} }
+    return list;
+  }catch(e){ if(trace) trace.push('Listar modelos → error de red ('+e.message+')'); return []; }
 }
-// Llama a Gemini probando modelos en orden; salta los que den 404 (retirados)
+// Llama a Gemini. Orden: AI Studio (todas las claves, también «AQ.») y, si es «AQ.» y falla por permisos, Vertex.
+// Salta modelos con 404. Guarda una traza legible de cada intento.
 async function _gemGenerate(key,body){
-  let list=[]; try{ list=await geminiModels(key); }catch(e){ if(e.status===400||e.status===401||e.status===403) throw e; }
-  const tried=new Set(); let last=null;
-  for(const mdl of list.concat(GEM_FALLBACK)){
-    if(tried.has(mdl)) continue; tried.add(mdl);
-    const r=await _gemReq(key,'/models/'+mdl+':generateContent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(r.status===404){ last=404; continue; }
-    if(r.status===429){ const t=await r.text().catch(()=>''); throw Object.assign(new Error(/limit:\s*0|billing|free_tier/i.test(t)?'tu plan gratis no incluye este modelo (límite 0)':'cuota de Gemini agotada por hoy (429)'),{status:429}); }
-    if(!r.ok) throw Object.assign(new Error('HTTP '+r.status),{status:r.status});
-    try{ localStorage.setItem('fiq2_gemmodel_ok',mdl); }catch(e){}
-    return {data:await r.json(),model:mdl};
+  const trace=[]; const bd=JSON.stringify(body);
+  const studio=await geminiModels(key,false,trace);
+  const provs=[{n:'AI Studio',models:studio.concat(GEM_FALLBACK),go:(m)=>_gemReq(key,'/models/'+m+':generateContent',{method:'POST',headers:{'Content-Type':'application/json'},body:bd})}];
+  if(_gemVertex(key)) provs.push({n:'Vertex',models:VTX_MODELS,go:(m)=>fetch(VTX_BASE+m+':generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:bd})});
+  let firstErr=null;
+  for(const P of provs){
+    const tried=new Set(); let n403=0;
+    for(const mdl of P.models){
+      if(tried.has(mdl)) continue; tried.add(mdl);
+      let r; try{ r=await P.go(mdl); }catch(e){ trace.push(P.n+' · '+mdl+' → error de red ('+e.message+')'); if(!firstErr) firstErr=Object.assign(new Error('No se pudo conectar con Google ('+e.message+'). Revisa tu internet.'),{status:0}); break; }
+      if(r.status===404){ trace.push(P.n+' · '+mdl+' → 404 (no existe)'); continue; }
+      if(r.status===429){ const er=await _gemErr(r); trace.push(P.n+' · '+mdl+' → 429'); er.message=(/limit:\s*0|billing|free_tier/i.test(er.raw)?'Tu plan no incluye este modelo (límite 0). ':'Cuota de Gemini agotada por hoy. ')+er.message.replace(/^.*?(\[Google)/,'$1'); er.trace=trace; throw er; }
+      if(r.status===403){ const er=await _gemErr(r); trace.push(P.n+' · '+mdl+' → 403 ('+er.raw+')'); if(!firstErr) firstErr=er; if(++n403>=4) break; continue; }   // puede ser solo ese modelo
+      if(!r.ok){ const er=await _gemErr(r); trace.push(P.n+' · '+mdl+' → HTTP '+r.status+' ('+er.raw+')'); if(!firstErr) firstErr=er; break; }
+      trace.push(P.n+' · '+mdl+' → OK');
+      try{ localStorage.setItem('fiq2_gemmodel_ok',mdl); }catch(e){}
+      return {data:await r.json(),model:mdl,provider:P.n,trace};
+    }
   }
-  throw Object.assign(new Error('Google no encontró ningún modelo Gemini disponible (404). Revisa que la clave sea de AI Studio.'),{status:404});
+  const err=firstErr||Object.assign(new Error('Google no encontró ningún modelo Gemini disponible con esta clave (404 en todos).'),{status:404});
+  err.trace=trace; throw err;
 }
 async function _geminiCall(key,prompt){
-  const body={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.4,responseMimeType:'application/json'}};
+  const body={contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.4,responseMimeType:'application/json'}};
   const {data:d}=await _gemGenerate(key,body);
   const c=d&&d.candidates&&d.candidates[0];
   const txt=c&&c.content&&c.content.parts&&c.content.parts[0]&&c.content.parts[0].text;
@@ -3386,7 +3420,7 @@ function renderSeguraHistorial(t){
   h+='<details class="more"><summary>Partido por partido</summary><div style="margin-top:6px">';
   all.slice(0,20).forEach(x=>{ const sp=shortPair(x.m.h,x.m.a);
     h+='<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px"><span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
-  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.32 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
+  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.35 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
   h+='</div>';
   return h;
 }
@@ -3684,7 +3718,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.32 · 10 oct 2026";
+const APP_VERSION="v5.35 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
