@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.43 =====================
+/* ===================== 🍃 ZEN v5.46 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.43 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.46 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.43</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.46</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -411,12 +411,13 @@ details.more[open]>summary::before{content:'－ ';}
     <div id="footiqoStatus" style="font-size:13px;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--green-soft);color:var(--green);line-height:1.5"></div>
     <button class="mbtn" style="width:100%;margin-top:10px" onclick="runBackfill()">📥 Aprender del pasado · API-Football</button>
     <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.4">El plan gratis casi nunca trae cuotas viejas: es normal que diga que no encontró. El resultado aparece arriba, bajo «Probar conexión».</div>
+    <button class="mbtn" style="width:100%;margin-top:10px" onclick="probarTemporadasPasadas()">🔎 ¿Hay cuotas de 2022–2024? (gasta 6 consultas)</button>
     <button class="mbtn" style="width:100%;margin-top:10px" onclick="testEspnProxies()">🔌 Probar conexión ESPN (diagnóstico)</button>
     <div id="espnDiag" style="font-size:12px;margin-top:10px;line-height:1.7;font-variant-numeric:tabular-nums"></div>
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border2)">
-      <div style="font-weight:700;font-size:15px">🤖 IA del Oráculo · Gemini (opcional)</div>
-      <div class="modal-desc" style="margin-top:4px">Gratis en <b>aistudio.google.com/app/apikey</b> (sin tarjeta). Solo propone hipótesis medibles; nunca decide el pronóstico. La clave se guarda solo en este dispositivo.</div>
-      <input id="aiKeyInput" class="modal-input" placeholder="Pega aquí tu clave de Gemini" autocomplete="off">
+      <div style="font-weight:700;font-size:15px">🤖 IA del Oráculo (opcional)</div>
+      <div class="modal-desc" style="margin-top:4px">Recomendada: <b>OpenRouter</b> (modelos abiertos gratis, sin tarjeta): crea tu clave «sk-or-…» en <b>openrouter.ai/keys</b>. También sirven Groq (console.groq.com) o Gemini (aistudio.google.com). Solo propone hipótesis medibles; nunca decide el pronóstico. La clave se guarda solo en este dispositivo.</div>
+      <input id="aiKeyInput" class="modal-input" placeholder="Pega aquí tu clave de IA" autocomplete="off">
       <div class="modal-btns"><button class="mbtn mbtn-primary" onclick="saveAiKeyUI()">Guardar clave IA</button></div>
       <div id="aiKeyMsg" style="font-size:13px;margin-top:8px;color:var(--muted)"></div>
     </div>
@@ -775,7 +776,7 @@ async function hypeLeer(t,m,favSide){
 // Lee automáticamente (máx. 3 por día) los partidos de los próximos 3 días donde la cuota ya supera al modelo
 let _hypeBusy=false;
 async function hypeAuto(t){
-  if(_hypeBusy||!getAiKey()) return; _hypeBusy=true;
+  if(_hypeBusy||!getAiKey()||_oaiProv(getAiKey())) return; _hypeBusy=true;   // los modelos abiertos no buscan en internet
   try{
     const today=new Date().toISOString().slice(0,10); let u={}; try{u=JSON.parse(localStorage.getItem('fiq2_hypeday')||'{}');}catch(e){}
     if(u.day!==today) u={day:today,n:0};
@@ -1731,19 +1732,19 @@ async function pegarClaves(){
   const box=document.getElementById('keysBox'), msg=document.getElementById('keysMsg'); if(!box||!msg) return;
   const toks=(box.value||'').split(/[\s,;]+/).map(x=>x.trim().replace(/^["']|["']$/g,'')).filter(Boolean);
   let gem=null, apf=null, otras=[];
-  toks.forEach(t=>{ if(/^(AQ\.|AIza)/.test(t)) gem=t; else if(/^[0-9a-f]{32}$/i.test(t)) apf=t; else otras.push(t); });
+  toks.forEach(t=>{ if(/^(AQ\.|AIza|gsk_|sk-or-|csk-)/.test(t)) gem=t; else if(/^[0-9a-f]{32}$/i.test(t)) apf=t; else otras.push(t); });
   if(!gem&&!apf){ msg.innerHTML='⚠️ No reconocí ninguna clave. La de <b>Gemini</b> empieza por «AQ.» o «AIza»; la de <b>API-Football</b> tiene 32 letras y números.'; msg.style.color='var(--orange)'; return; }
   const partes=[];
   if(apf){ document.getElementById('apiKeyInput').value=apf; partes.push('API-Football'); }
-  if(gem){ document.getElementById('aiKeyInput').value=gem; partes.push('Gemini'); }
+  if(gem){ document.getElementById('aiKeyInput').value=gem; const pid=_oaiProv(gem); partes.push(pid?OAI_PROVS[pid].n:'Gemini'); }
   msg.innerHTML='Detecté: <b>'+partes.join(' y ')+'</b>'+(otras.length?(' · ignoré '+otras.length+' texto(s) que no parecen claves'):'')+'. Probando… el resultado de cada una sale abajo.'; msg.style.color='var(--muted)';
   if(apf){ await testAPIFootball(); }
   if(gem){ await saveAiKeyUI(); }
   box.value='';   // no deja la clave a la vista en la caja
   msg.innerHTML='Guardé: <b>'+partes.join(' y ')+'</b>. Mira abajo si cada una pasó la prueba (✅ funciona · ❌ explica el motivo).'; msg.style.color='var(--muted)';
 }
-function _esClaveGoogle(k){ return /^(AQ\.|AIza)/.test(String(k||'').trim()); }
-const _MSG_GOOGLE_EN_APIFB='⚠️ Esa es una clave de <b>Google (Gemini)</b>, no de API-Football. <b>No la guardé</b> aquí (así no borra tu clave de API-Football).<br>Pégala en la sección de abajo: <b>«🤖 IA del Oráculo · Gemini»</b> → «Guardar clave IA». La de API-Football es otra: un código de 32 letras y números sin «AQ.».';
+function _esClaveGoogle(k){ return /^(AQ\.|AIza|gsk_|sk-or-|csk-)/.test(String(k||'').trim()); }
+const _MSG_GOOGLE_EN_APIFB='⚠️ Esa es una clave de <b>IA (Gemini, OpenRouter, Groq…)</b>, no de API-Football. <b>No la guardé</b> aquí (así no borra tu clave de API-Football).<br>Pégala en la sección de abajo: <b>«🤖 IA del Oráculo»</b> → «Guardar clave IA». La de API-Football es otra: un código de 32 letras y números sin «AQ.».';
 function saveApiKey(){ try{localStorage.removeItem('fiq2_apiplan');}catch(e){} const k=(document.getElementById('apiKeyInput').value||'').trim(); if(_esClaveGoogle(k)){ apiMsg(_MSG_GOOGLE_EN_APIFB,'warn'); return; } try{localStorage.setItem('fiq2_apifb',k);}catch(e){} apiMsg(k?'✅ Clave guardada solo en este dispositivo.':'Clave borrada.', k?'ok':'warn'); }
 async function saveAiKeyUI(){
   const k=(document.getElementById('aiKeyInput').value||'').trim();
@@ -1751,6 +1752,13 @@ async function saveAiKeyUI(){
   if(/^[0-9a-f]{32}$/i.test(k)){ el.innerHTML='⚠️ Eso parece una clave de <b>API-Football</b> (32 letras y números). Pégala arriba, en la sección de API-Football. Aquí va la clave de Google (aistudio.google.com).'; el.style.color='var(--orange)'; return; }
   saveAiKey(k);
   if(!k){ el.textContent='Clave IA borrada.'; el.style.color='var(--muted)'; return; }
+  { const pid=_oaiProv(k); if(pid){
+    const P=OAI_PROVS[pid]; el.textContent='Guardada. Verificando con '+P.n+'…'; el.style.color='var(--muted)';
+    const tr2=t=>'<details class="more" style="margin-top:6px"><summary>Detalle técnico</summary><div style="font-size:11.5px;color:var(--dim);line-height:1.5;margin-top:4px">'+t.map(x=>'· '+x).join('<br>')+'</div></details>';
+    try{ const r=await _oaiGenerate(k,pid,'Responde solo con la palabra: ok',{max:12,temperature:0});
+      el.innerHTML='✅ Funciona. <b>'+P.n+'</b> (modelo abierto) · <b>'+r.model+'</b>.<br><span style="color:var(--muted)">Sirve para las hipótesis del Oráculo. No lee noticias de internet (eso solo lo hace Gemini).</span>'+tr2(r.trace); el.style.color='var(--green)';
+    }catch(e){ el.innerHTML='❌ '+e.message+(e.trace?tr2(e.trace):''); el.style.color='var(--red)'; const d=el.querySelector('details'); if(d) d.open=true; }
+    el.scrollIntoView({behavior:'smooth',block:'center'}); return; } }
   el.textContent='Guardada. Verificando con Google…'; el.style.color='var(--muted)';
   const tr=t=>'<details class="more" style="margin-top:6px"><summary>Detalle técnico</summary><div style="font-size:11.5px;color:var(--dim);line-height:1.5;margin-top:4px">'+t.map(x=>'· '+x).join('<br>')+'</div></details>';
   try{
@@ -1796,10 +1804,13 @@ async function testEspnProxies(){
   ];
   let out='', win=null;
   for(const [name,u,ms,kind] of tests){
+    // Si ya funciona una vía directa, los intermediarios (proxies) no hacen falta: no se prueban ni se muestran en rojo
+    if(kind==='prox'&&win&&win.kind==='dir'){ if(!/respaldo/.test(out)) out+='<span style="color:var(--dim)">Los servicios de respaldo no hicieron falta, por eso no se probaron.</span><br>'; continue; }
     const t0=Date.now(); const r=await _diagFetch(u,ms); const dt=Date.now()-t0;
     const ok=(!r.err&&r.ok&&r.n!=null);
+    const nota=(name==='Directo RANGO'&&!ok)?' <span style="color:var(--dim)">(normal: ESPN no acepta rangos)</span>':'';
     if(r.err) out+='❌ '+name+' — '+r.err+' ('+dt+'ms)<br>';
-    else out+=(ok?'✅':'⚠️')+' '+name+' — HTTP '+r.status+(r.n!=null?(' · '+r.n+' part.'):' · sin JSON')+' ('+dt+'ms)<br>';
+    else out+=(ok?'✅':'⚠️')+' '+name+' — HTTP '+r.status+(r.n!=null?(' · '+r.n+' part.'):' · sin JSON')+' ('+dt+'ms)'+nota+'<br>';
     if(box) box.innerHTML=out;
     if(ok&&!win) win={name,kind,u};
   }
@@ -2298,7 +2309,61 @@ async function _gemGenerate(key,body){
   const err=firstErr||Object.assign(new Error('Google no encontró ningún modelo Gemini disponible con esta clave (404 en todos).'),{status:404});
   err.trace=trace; throw err;
 }
+// ===== Modelos ABIERTOS por API estilo OpenAI: OpenRouter (gratis, sin tarjeta), Groq, Cerebras =====
+// Los nombres de modelos gratis cambian seguido: se descubren con /models, no se fijan.
+const OAI_PROVS={
+  openrouter:{n:'OpenRouter',base:'https://openrouter.ai/api/v1',re:/^sk-or-/,url:'openrouter.ai/keys',free:/:free$/,
+    skip:/safety|guard|embed|code|-vl|omni|image|audio|lite|2\.6b|preview/i,pref:['gpt-oss','llama','gemma-4-31b','nemotron-3-super','gemma','minimax','nemotron','qwen']},
+  groq:{n:'Groq',base:'https://api.groq.com/openai/v1',re:/^gsk_/,url:'console.groq.com/keys',skip:/whisper|tts|guard|embed|safeguard|orpheus|playai/i,pref:['gpt-oss-120b','llama-3.3-70b','gpt-oss-20b','llama-4','qwen','llama-3.1-8b']},
+  cerebras:{n:'Cerebras',base:'https://api.cerebras.ai/v1',re:/^csk-/,url:'cloud.cerebras.ai',skip:/embed/i,pref:['gpt-oss-120b','llama-3.3-70b','qwen','llama']}
+};
+function _oaiProv(k){ k=String(k||'').trim(); for(const id in OAI_PROVS){ if(OAI_PROVS[id].re.test(k)) return id; } return null; }
+async function _oaiErr(r,P){
+  let msg='HTTP '+r.status, code='';
+  try{ const j=await r.json(); const e=(j&&j.error)||{}; msg=e.message||msg; code=e.code||e.type||''; if(e.metadata&&e.metadata.raw) msg+=' — '+String(e.metadata.raw).slice(0,120); }catch(_){}
+  let hint='';
+  if(r.status===401||/invalid.*key|no auth|missing auth|unauthor/i.test(msg+code)) hint=P.n+' no reconoce esta clave: créala de nuevo en '+P.url+' y pégala completa.';
+  else if(r.status===402) hint=P.n+' pide créditos para este modelo (prueba otro modelo gratis).';
+  else if(r.status===429) hint='Llegaste al límite gratis de '+P.n+' por ahora (espera un rato o hasta mañana).';
+  else if(r.status===403) hint=P.n+' bloqueó el acceso (revisa tu cuenta en '+P.url+').';
+  const err=new Error((hint?hint+' ':'')+'['+P.n+': '+msg+(code?' · '+code:'')+' · HTTP '+r.status+']'); err.status=r.status; err.raw=msg; return err;
+}
+async function oaiModels(key,pid){
+  const P=OAI_PROVS[pid], ck='fiq2_oaimodels_'+pid;
+  try{ const c=JSON.parse(localStorage.getItem(ck)||'null'); if(c&&c.k===_hashStr(key)&&Date.now()-c.ts<864e5&&c.list&&c.list.length) return c.list; }catch(e){}
+  const r=await fetch(P.base+'/models',{headers:{Authorization:'Bearer '+key}});
+  if(!r.ok) throw await _oaiErr(r,P);
+  const d=await r.json(); let ms=((d&&d.data)||[]);
+  if(P.free) ms=ms.filter(m=>P.free.test(m.id));
+  ms=ms.filter(m=>m.id&&!P.skip.test(m.id)&&!/whisper|tts/i.test(m.id));
+  const rank=id=>{ const i=P.pref.findIndex(p=>id.toLowerCase().indexOf(p)>=0); return i<0?99:i; };
+  const list=ms.map(m=>m.id).sort((a,b)=>rank(a)-rank(b));
+  if(list.length){ try{ localStorage.setItem(ck,JSON.stringify({k:_hashStr(key),ts:Date.now(),list})); }catch(e){} }
+  return list;
+}
+// Prueba modelos en orden (salta los que no existen, no tienen cupo o fallan): máx. 6 intentos
+async function _oaiGenerate(key,pid,prompt,opts){
+  const P=OAI_PROVS[pid]; opts=opts||{}; const trace=[]; let list=[];
+  try{ list=await oaiModels(key,pid); trace.push('Listar modelos → '+list.length); }catch(e){ if(e.status===401||e.status===403) throw e; trace.push('Listar modelos → '+e.message); }
+  if(!list.length) throw Object.assign(new Error('No encontré modelos gratis disponibles en '+P.n+' para esta clave.'),{trace});
+  let first=null, n=0;
+  for(const mdl of list){
+    if(++n>6) break;
+    for(const json of (opts.json?[true,false]:[false])){
+      const body={model:mdl,messages:[{role:'user',content:prompt}],temperature:opts.temperature!=null?opts.temperature:0.3,max_tokens:opts.max||1500}; if(json) body.response_format={type:'json_object'};
+      let r; try{ r=await fetch(P.base+'/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+      catch(e){ throw Object.assign(new Error('No se pudo conectar con '+P.n+' ('+e.message+'). Revisa tu internet.'),{trace}); }
+      if(r.ok){ let d=null; try{ d=await r.json(); }catch(e){} const txt=d&&d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content; if(txt&&String(txt).trim()){ trace.push(mdl+' → OK'); return {text:String(txt),model:mdl,provider:P.n,trace}; } trace.push(mdl+' → respuesta vacía'); break; }
+      const er=await _oaiErr(r,P); trace.push(mdl+' → HTTP '+r.status+' ('+String(er.raw).slice(0,60)+')');
+      if(r.status===401){ er.trace=trace; throw er; }
+      if(r.status===400&&json) continue;     // reintenta sin modo JSON
+      if(!first) first=er; break;             // 404/429/402…: probar el siguiente modelo
+    }
+  }
+  const err=first||new Error(P.n+' no devolvió respuesta con ningún modelo.'); err.trace=trace; throw err;
+}
 async function _geminiCall(key,prompt){
+  { const pid=_oaiProv(key); if(pid){ const r=await _oaiGenerate(key,pid,prompt,{json:true,temperature:0.4}); return r.text; } }
   const body={contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.4,responseMimeType:'application/json'}};
   const {data:d}=await _gemGenerate(key,body);
   const c=d&&d.candidates&&d.candidates[0];
@@ -2615,6 +2680,23 @@ async function backfillOdds(t, cap){
   for(const day of days){ filled+=await _applyDayOdds(cfg, day, idx); }
   saveState(t);
   return {days:days.length, filled, remaining:Math.max(0,need.length-days.length), errs:_apiErrs.n, lastErr:_apiErrs.last};
+}
+// Comprueba si el plan gratis guarda CUOTAS de temporadas pasadas (2022-2024) de la Liga BetPlay.
+// Solo mira, no guarda nada: 2 consultas por temporada (partidos y cuotas).
+async function probarTemporadasPasadas(){
+  if(!getApiKey()){ apiMsg('Primero pega tu clave de API-Football arriba.','warn'); return; }
+  const lg=(TORNEOS.betplay&&TORNEOS.betplay.apiLeague)||239;
+  apiMsg('🔎 Revisando 2024, 2023 y 2022…','muted');
+  const filas=[]; let hayCuotas=false, err=null;
+  for(const s of [2024,2023,2022]){
+    let nf='?', no='?';
+    try{ const fx=await apiFB('/fixtures?league='+lg+'&season='+s); nf=((fx&&fx.response)||[]).length; }catch(e){ err=e.message; nf='error'; }
+    try{ const od=await apiFB('/odds?league='+lg+'&season='+s+'&page=1'); const n=((od&&od.response)||[]).length, tot=(od&&od.paging&&od.paging.total)||1; no=n?(n+(tot>1?(' (+'+(tot-1)+' páginas)'):'')):0; if(n) hayCuotas=true; }catch(e){ err=e.message; no='error'; }
+    filas.push('<b>'+s+'</b>: '+nf+' partidos · cuotas: '+no);
+  }
+  apiMsg(filas.join('<br>')+'<br><br>'+(hayCuotas
+    ?'✅ <b>Sí hay cuotas de temporadas pasadas.</b> Se pueden usar para validar Anomalía con muchos más partidos.'
+    :(err?('❌ Error de API-Football: «'+err+'».'):'ℹ️ <b>No hay cuotas guardadas</b> de esas temporadas en el plan gratis: solo resultados. No sirve para validar las apuestas.')),hayCuotas?'ok':'warn');
 }
 async function runBackfill(){
   if(!getApiKey()){ apiMsg('Primero pega tu clave y toca “Probar conexión”.','warn'); return; }
@@ -3516,7 +3598,7 @@ function renderSeguraHistorial(t){
   h+='<details class="more"><summary>Partido por partido</summary><div style="margin-top:6px">';
   all.slice(0,20).forEach(x=>{ const sp=shortPair(x.m.h,x.m.a);
     h+='<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px"><span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
-  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.43 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
+  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.46 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
   h+='</div>';
   return h;
 }
@@ -3828,7 +3910,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.43 · 10 oct 2026";
+const APP_VERSION="v5.46 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 function checkForUpdate(){ showToast('Estás en la versión '+APP_VERSION+'. Para actualizar, recarga con la copia nueva que te den.'); }
 
