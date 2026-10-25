@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.47 =====================
+/* ===================== 🍃 ZEN v5.48 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -370,13 +370,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.47 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.48 · 10 oct 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.47</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.48</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -1176,13 +1176,13 @@ function betDecision(t,m,p){
     const edge=pp-mp; if(edge>=0.06&&pp>=0.34&&(!best||edge>best.edge)) best={c,edge,pp,mp,lbl,odd:(m.oddsBest&&m.oddsBest[c])||+(1/Math.max(0.02,mp)).toFixed(2)}; });
   if(tr&&tr.alert&&(!best||tr.favSide===best.c)){
     const cv=contrarianValue(t,m,tr,ig);
-    if(cv.clase==='A') return {yes:true,contra:true,tr,cv,c:cv.c,edge:cv.ev,pp:cv.p,lbl:cv.label,odd:cv.odd,risky:cv.p<0.35,why:cv.label+' · cuota '+cv.odd.toFixed(2)+' · valor +'+Math.round(cv.ev*100)+'%'};
+    if(cv.clase==='A'&&cv.p>=0.34&&cv.ev>=0.06) return {yes:true,contra:true,tr,cv,c:cv.c,edge:cv.ev,pp:cv.p,lbl:cv.label,odd:cv.odd,risky:cv.p<0.35,why:cv.label+' · cuota '+cv.odd.toFixed(2)+' · valor +'+Math.round(cv.ev*100)+'%'};
     if(cv.clase==='B') return {yes:false,watch:true,trap:true,tr,cv,why:'Trampa: '+cv.label+' podría pagar, aún dudoso'};
     return {yes:false,trap:true,tr,cv,why:'Posible trampa · el otro lado tampoco paga'};
   }
   // Sin trampa pero con sospecha (≥2 señales): también se evalúa el lado infravalorado
   if(!best&&ig&&ig.sospecha&&tr&&tr.pInd){ const cv=contrarianValue(t,m,tr,ig);
-    if(cv.clase==='A') return {yes:true,contra:true,tr,cv,ig,c:cv.c,edge:cv.ev,pp:cv.p,lbl:cv.label,odd:cv.odd,risky:cv.p<0.35,why:cv.label+' · cuota '+cv.odd.toFixed(2)+' · valor +'+Math.round(cv.ev*100)+'%'};
+    if(cv.clase==='A'&&cv.p>=0.34&&cv.ev>=0.06) return {yes:true,contra:true,tr,cv,ig,c:cv.c,edge:cv.ev,pp:cv.p,lbl:cv.label,odd:cv.odd,risky:cv.p<0.35,why:cv.label+' · cuota '+cv.odd.toFixed(2)+' · valor +'+Math.round(cv.ev*100)+'%'};
     if(cv.clase==='B') return {yes:false,watch:true,ig,cv,why:'Señales raras: '+cv.label+' podría pagar, aún dudoso'}; }
   if(best&&ig&&ig.dirInformada&&ig.dirInformada!==best.c) return {yes:false,watch:true,ig,why:best.lbl+' tiene valor, pero el dinero informado va hacia otro lado'};
   if(best) return Object.assign({yes:true,risky:best.pp<0.45,ig,why:best.lbl+' · cuota '+best.odd.toFixed(2)},best);
@@ -3598,7 +3598,7 @@ function renderSeguraHistorial(t){
   h+='<details class="more"><summary>Partido por partido</summary><div style="margin-top:6px">';
   all.slice(0,20).forEach(x=>{ const sp=shortPair(x.m.h,x.m.a);
     h+='<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px"><span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
-  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.47 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
+  h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas anteriores a la v5.48 se reconstruyeron quitando el resultado (sin mirar el futuro). Desde ahora cada una se congela antes del partido.</div></div></details>';
   h+='</div>';
   return h;
 }
@@ -3911,7 +3911,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.47 · 10 oct 2026";
+const APP_VERSION="v5.48 · 10 oct 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 // ===== Actualización real (iOS guarda copias viejas de apps de la pantalla de inicio) =====
 // Pide la página publicada SIN caché, compara versiones y, si la publicada es MÁS NUEVA, la carga con un parámetro
