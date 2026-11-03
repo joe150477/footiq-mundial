@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.52 =====================
+/* ===================== 🍃 ZEN v5.53 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -362,6 +362,8 @@ details.more[open]>summary::before{content:'－ ';}
 .ba-verdict,.ba-verdict.ba-ok,.ba-verdict.ba-no{background:transparent!important;border:0!important;box-shadow:none!important;font-weight:600!important;}
 .ba-verdict.ba-ok{color:var(--green)!important;} .ba-verdict.ba-no{color:var(--red)!important;}
 .rscore{font-weight:600!important;}
+.anotada{background:var(--green-soft)!important;box-shadow:inset 3px 0 0 var(--green);border-radius:10px}
+.anot-row.anotada{padding-left:8px!important}
 </style>
 </head>
 <body>
@@ -370,13 +372,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.52 · 3 nov 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.53 · 3 nov 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.52</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.53</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -3630,12 +3632,16 @@ function renderSeguraHistorial(t){
   if(all.length){
     h+='<details class="more"><summary>Partido por partido</summary><div style="margin-top:6px">';
     all.slice(0,20).forEach(x=>{ const sp=shortPair(x.m.h,x.m.a);
-      h+='<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px"><span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+(x.r.prob?(' <span style="color:var(--dim)">· decía '+Math.round(x.r.prob*100)+'%</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
+      h+='<div class="anot-row'+(_anotGet(t)[x.m.id]?' anotada':'')+'" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px">'+anotBox(t,x.m.id)+'<span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+(x.r.prob?(' <span style="color:var(--dim)">· decía '+Math.round(x.r.prob*100)+'%</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
     h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas pasadas se reconstruyen sin ver nada desde ese día en adelante. Desde ahora cada Segura se congela antes del partido.</div></div></details>';
   }
   h+='</div>';
   return h;
 }
+// ✔️ «Ya la anoté»: marca personal por partido (solo en este dispositivo)
+function _anotGet(t){ try{ return JSON.parse(localStorage.getItem('fiq2_anotadas_'+t)||'{}'); }catch(e){ return {}; } }
+function anotToggle(t,id,on,el){ const box=el&&el.closest('.anot-row,.card'); if(box) box.classList.toggle('anotada',!!on); const o=_anotGet(t); if(on) o[id]=Date.now(); else delete o[id]; try{ localStorage.setItem('fiq2_anotadas_'+t,JSON.stringify(o)); }catch(e){} if(typeof showToast==='function') showToast(on?'✔️ Anotada':'Marca quitada'); }
+function anotBox(t,id,txt){ const on=!!_anotGet(t)[id]; return '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer"><input type="checkbox" '+(on?'checked':'')+' onchange="anotToggle(\''+t+'\',\''+id+'\',this.checked,this)" style="width:20px;height:20px;accent-color:var(--green)">'+(txt||'')+'</label>'; }
 function renderSafe(){
   const pg=document.getElementById('page-safe'); if(!pg) return;
   const t=ACTIVE;
@@ -3650,10 +3656,11 @@ function renderSafe(){
   if(anA.length){
     anHtml='<div class="stitle">Según Anomalía · lógica de la casa</div><div style="font-size:12px;color:var(--dim);margin:-4px 2px 10px">Experimental: aún sin historial que la respalde. Apuesta poco.</div>';
     anA.slice(0,4).forEach(z=>{ const cv=z.cv, m=z.m, sp=shortPair(m.h,m.a), f=z.tr.favShort, c=cv.casa;
-      anHtml+='<div class="card"><div style="font-size:13px;color:var(--muted);text-transform:capitalize">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
+      anHtml+='<div class="card'+(_anotGet(t)[m.id]?' anotada':'')+'"><div style="font-size:13px;color:var(--muted);text-transform:capitalize">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
       anHtml+='<div style="font-size:17px;font-weight:600;margin-top:6px">'+m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+m.a+'</div>';
       anHtml+=(cv.clase==='A'?'<div class="bet bet-yes"><span class="bw">APOSTAR ↺</span><span class="bd">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">valor +'+Math.round(cv.ev*100)+'% · acierta ≈'+Math.round(cv.p*100)+'%</span></span></div>'
         :'<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">VIGILAR</span><span class="bd" style="color:var(--text)">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">convenía a la casa, pero el valor es dudoso</span></span></div>');
+      anHtml+='<div style="margin-top:10px">'+anotBox(t,m.id,'Ya la anoté')+'</div>';
       anHtml+='<div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5">A la casa le conviene que no gane '+f+': si gana, paga ≈ '+c.out[c.fav].pay.toFixed(2)+'× lo apostado; si empata, ≈ '+c.out.D.pay.toFixed(2)+'×.</div>';
       anHtml+='<details class="more"><summary>Por qué</summary><div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px"><div>· '+f+' está muy apostado (≈'+Math.round(c.sobreFav*100)+'% más dinero del que pide su precio)</div><div>· El empate casi no concentra dinero: es el pozo pequeño</div><div>· Cuota del favorito '+Math.round(z.tr.crowd*100)+'% · real estimado ≈'+Math.round(z.tr.indep*100)+'%</div><div style="color:var(--dim);margin-top:4px">El dinero real por resultado no es público: es una estimación. Nada garantiza el resultado.</div></div></details></div>';
       const dk=_shDay(m.date); if(cv.clase==='A'&&!seenDay[dk]){ seenDay[dk]=1; try{ seguraRegistrar(t,{m,label:'↺ '+cv.label,market:'contra',code:cv.c,prob:cv.p,cuota:cv.odd,favSide:z.tr.favSide},'trampa','vivo'); }catch(e){} }
@@ -3667,10 +3674,11 @@ function renderSafe(){
   const firm=x.tier==='muy';
   const tierTxt=x.tier==='muy'?'Segura (≥80%)':x.tier==='firme'?'Firme · no llega al 80%':'Poco firme';
   h+=anHtml+'<div class="stitle">La más firme</div>';
-  h+='<div class="card">';
+  h+='<div class="card'+(_anotGet(t)[x.m.id]?' anotada':'')+'">';
   h+='<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+' · '+_fmtHrCol(x.m.date)+'</span><span style="color:'+(firm?'var(--green)':'var(--dim)')+'">'+tierTxt+'</span></div>';
   h+='<div style="font-size:17px;font-weight:600;margin-top:8px">'+x.m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+x.m.a+'</div>';
   h+='<div class="bet '+(firm?'bet-yes':'bet-no')+'"><span class="bw">'+(firm?'APOSTAR':'SIN SEGURA')+'</span><span class="bd">'+x.label+'<br><span style="color:var(--muted)">acierta ≈'+conf+'%'+(x.cuota?(' · cuota '+x.cuota.toFixed(2)):'')+'</span></span></div>';
+  h+='<div style="margin-top:10px">'+anotBox(t,x.m.id,'Ya la anoté')+'</div>';
   if(x.isGold) h+='<div style="font-size:13px;color:var(--gold);margin-top:10px">🥇 Además bien pagada: retorno esperado '+(x.ev>0?'+':'')+Math.round(x.ev*100)+'%</div>';
   h+='<details class="more"><summary>Por qué</summary>';
   x.confirmations.forEach(c=>{ h+='<div style="font-size:13.5px;color:var(--muted);margin:5px 0">· '+c+'</div>'; });
@@ -3947,7 +3955,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.52 · 3 nov 2026";
+const APP_VERSION="v5.53 · 3 nov 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 // ===== Actualización real (iOS guarda copias viejas de apps de la pantalla de inicio) =====
 // Pide la página publicada SIN caché, compara versiones y, si la publicada es MÁS NUEVA, la carga con un parámetro
