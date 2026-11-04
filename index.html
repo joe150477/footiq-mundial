@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.53 =====================
+/* ===================== 🍃 ZEN v5.54 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -372,13 +372,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.53 · 3 nov 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.54 · 4 nov 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.53</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.54</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -3686,11 +3686,19 @@ function renderSafe(){
   h+='</div>';
   if(r.gold && r.gold!==x && !x.isGold){ const g=r.gold;
     h+='<div class="card"><div style="font-size:13px;color:var(--gold)">🥇 Oportunidad de oro</div><div style="font-size:15.5px;font-weight:600;margin-top:4px">'+g.label+' <span style="color:var(--dim);font-weight:400">· '+g.sp.hs+' vs '+g.sp.as+'</span></div><div style="font-size:13px;color:var(--muted);margin-top:2px">acierta ≈'+Math.round(g.conf*100)+'% · cuota '+(g.cuota?g.cuota.toFixed(2):'?')+' · retorno '+(g.ev>0?'+':'')+Math.round(g.ev*100)+'%</div></div>'; }
-  const seenM={}; seenM[x.m.id]=1; if(r.gold&&r.gold!==x)seenM[r.gold.m.id]=1;
-  const others=r.all.filter(c=>{ if(c===x||c.conf<0.68||seenM[c.m.id])return false; seenM[c.m.id]=1; return true; }).slice(0,3);
-  if(others.length){ h+='<details class="more" style="margin:0 4px 14px"><summary>Otras firmes ('+others.length+')</summary>';
-    others.forEach(o=>{ h+='<div style="font-size:14px;padding:8px 0;border-top:1px solid var(--border)">'+o.label+' <span style="color:var(--dim)">· '+o.sp.hs+' vs '+o.sp.as+' · '+Math.round(o.conf*100)+'%</span></div>'; });
-    h+='</details>'; }
+  // 📅 Todos los partidos próximos: la mejor jugada de cada uno, por día. Verde = Segura (≥80%).
+  const bestBy={}; r.all.forEach(c=>{ if(!bestBy[c.m.id]||c.conf>bestBy[c.m.id].conf) bestBy[c.m.id]=c; });
+  const lst=Object.values(bestBy).sort((a,b)=>(a.m.date||'').localeCompare(b.m.date||'')||b.conf-a.conf);
+  if(lst.length){
+    h+='<div class="stitle">Partidos próximos ('+lst.length+')</div><div class="card" style="padding-top:4px;padding-bottom:4px">';
+    let dia='';
+    lst.forEach(o=>{ const dk=_shDay(o.m.date), cf=Math.round(o.conf*100), seg=o.conf>=SEGURA_MIN, on=!!_anotGet(t)[o.m.id];
+      if(dk!==dia){ dia=dk; h+='<div style="font-size:12.5px;color:var(--dim);text-transform:capitalize;margin:10px 0 2px">'+_fmtDayCol(o.m.date)+'</div>'; }
+      h+='<div class="anot-row'+(on?' anotada':'')+'" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px">'+anotBox(t,o.m.id)
+        +'<span style="flex:1"><b style="font-weight:600">'+o.sp.hs+' vs '+o.sp.as+'</b> <span style="color:var(--dim)">· '+_fmtHrCol(o.m.date)+'</span><br><span style="color:var(--muted)">'+o.label+(o.cuota?(' @'+o.cuota.toFixed(2)):'')+'</span></span>'
+        +'<span style="font-size:13px;font-weight:600;color:'+(seg?'var(--green)':'var(--dim)')+'">'+cf+'%'+(seg?' ✓':'')+'</span></div>'; });
+    h+='<div style="font-size:12px;color:var(--dim);padding:8px 0 4px">Verde = Segura (≥'+Math.round(SEGURA_MIN*100)+'%). Las demás son solo para que veas el partido: no llegan al nivel Segura.</div></div>';
+  }
   pg.innerHTML=h+trHtml+trLearn+foot;
 }
 // ==================== 🚨 OPORTUNIDAD DE ORO ====================
@@ -3955,7 +3963,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.53 · 3 nov 2026";
+const APP_VERSION="v5.54 · 4 nov 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 // ===== Actualización real (iOS guarda copias viejas de apps de la pantalla de inicio) =====
 // Pide la página publicada SIN caché, compara versiones y, si la publicada es MÁS NUEVA, la carga con un parámetro
