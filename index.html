@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.54 =====================
+/* ===================== 🍃 ZEN v5.55 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -372,13 +372,13 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.54 · 4 nov 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.55 · 4 nov 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.54</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.55</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
@@ -3546,7 +3546,8 @@ function _shSave(t,db){ try{ localStorage.setItem('fiq2_segura_'+t,JSON.stringif
 function _shDay(iso){ return _colDay(iso); }
 function seguraRegistrar(t,c,kind,src){
   if(!c||!c.m||!c.m.date) return; const db=_shLoad(t); db.days=db.days||{};
-  const day=(kind==='vigilar'?('m'+c.m.id):_shDay(c.m.date))+'|'+kind;   // las vigiladas: una por partido if(db.days[day]&&db.days[day].src==='vivo') return;   // congelada
+  const day=(kind==='vigilar'?('m'+c.m.id):_shDay(c.m.date))+'|'+kind;   // las vigiladas: una por partido
+  if(db.days[day]&&db.days[day].src==='vivo'&&db.days[day].id!==c.m.id&&_asDate(db.days[day].date)<=new Date()) return;   // ya jugada y congelada: no se pisa
   if(src==='vivo'&&_asDate(c.m.date)<=new Date()) return;
   db.days[day]={id:c.m.id,date:c.m.date,h:c.m.h,a:c.m.a,label:c.label,market:c.market,favSide:c.favSide||null,code:c.code||null,prob:+(+c.prob).toFixed(3),cuota:c.cuota||null,kind,src};
   _shSave(t,db);
@@ -3562,7 +3563,7 @@ function _shHit(r,m){
 // Reconstruye la Segura de los días pasados (una vez por partido; queda guardada)
 function seguraReconstruir(t,dias){
   const st=loadState(t); const db=_shLoad(t); db.days=db.days||{}; db.done=db.done||{};
-  if(db.ver!==5){ db.ver=5; db.done={}; for(const k in db.days){ if(db.days[k].src==='reconstruida') delete db.days[k]; } }   // v3: sin ver el futuro y con umbral 80%
+  if(db.ver!==6){ db.ver=6; db.done={}; for(const k in db.days){ if(db.days[k].src==='reconstruida') delete db.days[k]; } }   // v3: sin ver el futuro y con umbral 80%
   const lim=new Date(); lim.setDate(lim.getDate()-(dias||35));
   const played=st.matches.filter(m=>m.played&&!m.seed&&m.sh!=null&&m.date&&_asDate(m.date)>=lim&&!db.done[m.id]);
   if(!played.length) return 0;
@@ -3572,12 +3573,12 @@ function seguraReconstruir(t,dias){
     const ms=byDay[day]; const ini=ms.map(m=>m.date).sort()[0];
     // Se OCULTA todo lo que ocurre desde el primer partido de ese día (resultados posteriores y los demás partidos del día)
     const oculto=[]; for(const m of st.matches){ if(m.played&&m.date&&m.date>=ini){ oculto.push([m,m.sh,m.sa,m.played]); m.played=false; m.sh=null; m.sa=null; } }
-    invalidateWF(t); let best=null, bestT=null, bestD=null; const vig=[];
+    invalidateWF(t); let best=null, bestT=null, bestD=null, bestF=null; const vig=[];
     try{
       const gm=_goalsModel(t);
       for(const m of ms){
         try{ const p=predictMatch(t,m); let tr=null; try{ tr=trampaConfianza(t,m,p); }catch(e){}
-          _safeCands(t,m,p,gm,tr).forEach(c=>{ if(c.conf>=SEGURA_MIN&&(!best||c.conf>best.conf)) best=c; });
+          _safeCands(t,m,p,gm,tr).forEach(c=>{ if(c.conf>=SEGURA_MIN&&(!best||c.conf>best.conf)) best=c; if(!bestF||c.conf>bestF.conf) bestF=c; });
           { const ap=anomPick(t,m,p,tr); if(ap){ const pk={m,label:'↺ '+ap.cv.label,market:'contra',code:ap.cv.c,prob:ap.cv.p,cuota:ap.cv.odd,ev:ap.cv.ev};
               if(ap.cv.clase==='A'&&(!bestT||pk.ev>bestT.ev)) bestT=pk; else if(ap.cv.clase==='B') vig.push(pk); } }
         }catch(e){}
@@ -3585,6 +3586,7 @@ function seguraReconstruir(t,dias){
     } finally { oculto.forEach(([m,a,b,c])=>{ m.sh=a; m.sa=b; m.played=c; }); invalidateWF(t); }
     ms.forEach(m=>{ db.done[m.id]=1; });
     if(best&&!db.days[day+'|segura']) db.days[day+'|segura']={id:best.m.id,date:best.m.date,h:best.m.h,a:best.m.a,label:best.label,market:best.market,favSide:best.favSide,prob:+best.prob.toFixed(3),cuota:best.cuota||null,kind:'segura',src:'reconstruida'};
+    if(bestF&&bestF.conf<SEGURA_MIN&&!db.days[day+'|firme']) db.days[day+'|firme']={id:bestF.m.id,date:bestF.m.date,h:bestF.m.h,a:bestF.m.a,label:bestF.label,market:bestF.market,favSide:bestF.favSide,prob:+bestF.prob.toFixed(3),cuota:bestF.cuota||null,kind:'firme',src:'reconstruida'};
     if(bestT&&!db.days[day+'|trampa']) db.days[day+'|trampa']={id:bestT.m.id,date:bestT.m.date,h:bestT.m.h,a:bestT.m.a,label:bestT.label,market:'contra',code:bestT.code,prob:+bestT.prob.toFixed(3),cuota:bestT.cuota,kind:'trampa',src:'reconstruida'};
     vig.forEach(v=>{ const k='m'+v.m.id+'|vigilar'; if(!db.days[k]) db.days[k]={id:v.m.id,date:v.m.date,h:v.m.h,a:v.m.a,label:v.label,market:'contra',code:v.code,prob:+v.prob.toFixed(3),cuota:v.cuota,kind:'vigilar',src:'reconstruida'}; });
     n++;
@@ -3601,9 +3603,28 @@ function seguraHistorial(t){
   const cumpleSeg=r=>(+r.prob||0)>=SEGURA_MIN;
   const cumpleAn=r=>(+r.prob||0)>=0.34&&((+r.prob)*(+r.cuota||0)-1)>=0.06;
   rows.forEach(x=>{ if(x.r.kind==='segura'&&!cumpleSeg(x.r)) x.r=Object.assign({},x.r,{kind:'descartada'}); if(x.r.kind==='trampa'&&!cumpleAn(x.r)) x.r=Object.assign({},x.r,{kind:'descartada'}); });
-  const S=rows.filter(x=>x.r.kind==='segura'), T=rows.filter(x=>x.r.kind==='trampa'), D=rows.filter(x=>x.r.kind==='descartada'||x.r.kind==='vigilar');
+  const F=rows.filter(x=>x.r.kind==='firme'), S=rows.filter(x=>x.r.kind==='segura'), T=rows.filter(x=>x.r.kind==='trampa'), D=rows.filter(x=>x.r.kind==='descartada'||x.r.kind==='vigilar');
   const pl=T.reduce((s,x)=>s+(x.ok?((x.r.cuota||1)-1):-1),0), plD=D.reduce((s,x)=>s+(x.ok?((x.r.cuota||1)-1):-1),0);
-  return {S,T,D,okS:S.filter(x=>x.ok).length,okT:T.filter(x=>x.ok).length,okD:D.filter(x=>x.ok).length,plT:pl,plD};
+  return {S,F,T,D,okF:F.filter(x=>x.ok).length,okS:S.filter(x=>x.ok).length,okT:T.filter(x=>x.ok).length,okD:D.filter(x=>x.ok).length,plT:pl,plD};
+}
+// 📋 REGISTRO HONESTO: todo lo que la app mostró, con el marcador real. Se cuentan los fallos.
+function _resTxt(m,t){ const sp=shortPair(m.h,m.a); const w=m.sh>m.sa?('ganó '+sp.hs):m.sh<m.sa?('ganó '+sp.as):'empate'; return sp.hs+' '+m.sh+'–'+m.sa+' '+sp.as+' ('+w+')'; }
+function renderRegistroHonesto(t,H){
+  const tipos=[['Segura (≥80%)',H.S],['La más firme (<80%, no llegó a Segura)',H.F||[]],['Anomalía ↺ (apostar)',H.T],['Vigilar / descartadas (no recomendadas)',H.D||[]]];
+  const all=[]; tipos.forEach(([n,a])=>a.forEach(x=>all.push({n,x})));
+  if(!all.length) return '';
+  all.sort((a,b)=>(b.x.r.date||'').localeCompare(a.x.r.date||''));
+  const ok=all.filter(z=>z.x.ok).length, tot=all.length, pc=Math.round(ok/tot*100);
+  let h='<div class="card"><div style="font-size:13px;color:var(--muted)">Registro honesto · todo lo que dijo la app vs lo que pasó</div>';
+  h+='<div style="font-size:24px;font-weight:600;margin:4px 0">Acertó '+ok+' de '+tot+' <span style="color:'+(pc>=70?'var(--green)':pc>=55?'var(--gold)':'var(--red)')+'">· '+pc+'%</span></div>';
+  h+='<div style="font-size:12.5px;color:var(--dim);line-height:1.5">Cuenta todas las jugadas que mostró, no solo las buenas. «No pierde» acierta si gana o empata.</div>';
+  tipos.forEach(([n,a])=>{ if(!a.length) return; const o=a.filter(x=>x.ok).length; const c=Math.round(o/a.length*100);
+    h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:7px 0;border-top:1px solid var(--border);margin-top:6px"><span>'+n+'</span><span style="font-weight:600;color:'+(c>=70?'var(--green)':c>=55?'var(--gold)':'var(--red)')+'">'+o+' de '+a.length+' · '+c+'%</span></div>'; });
+  const fails=all.filter(z=>!z.x.ok);
+  const row=z=>{ const x=z.x, r=x.r; return '<div style="padding:9px 0;border-top:1px solid var(--border);font-size:13.5px;line-height:1.5"><span>'+(x.ok?'✅':'❌')+'</span> <b style="font-weight:600">'+r.label+'</b>'+(r.prob?' <span style="color:var(--dim)">· decía '+Math.round(r.prob*100)+'%</span>':'')+'<br><span style="color:var(--muted)">Salió: '+_resTxt(x.m)+(x.ok?' → acertó':' → <b style="color:var(--red)">se equivocó</b>')+'</span><br><span style="color:var(--dim);font-size:12px;text-transform:capitalize">'+_fmtDayCol(x.m.date)+' · '+z.n+'</span></div>'; };
+  h+='<details class="more" open><summary>Dónde se equivocó ('+fails.length+')</summary><div style="margin-top:4px">'+(fails.length?fails.slice(0,30).map(row).join(''):'<div style="font-size:13px;color:var(--dim)">Sin fallos registrados.</div>')+'</div></details>';
+  h+='<details class="more"><summary>Todas, con marcador ('+tot+')</summary><div style="margin-top:4px">'+all.slice(0,60).map(row).join('')+'</div></details>';
+  return h+'</div>';
 }
 function renderSeguraHistorial(t){
   let H,B; try{ seguraReconstruir(t,35); H=seguraHistorial(t); B=_safeStats(t); }catch(e){ return ''; }
@@ -3636,6 +3657,7 @@ function renderSeguraHistorial(t){
     h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas pasadas se reconstruyen sin ver nada desde ese día en adelante. Desde ahora cada Segura se congela antes del partido.</div></div></details>';
   }
   h+='</div>';
+  try{ h+=renderRegistroHonesto(t,H); }catch(e){}
   return h;
 }
 // ✔️ «Ya la anoté»: marca personal por partido (solo en este dispositivo)
@@ -3671,6 +3693,7 @@ function renderSafe(){
   if(!r.best){ h+=anHtml+'<div class="stitle">La más firme</div><div class="card"><div style="font-size:22px;font-weight:600">Hoy no hay segura</div><div style="font-size:13.5px;color:var(--muted);margin-top:4px">Ninguna jugada pasa los filtros. Mejor no forzar.</div></div>'+trHtml+trLearn; pg.innerHTML=h+foot; return; }
   const x=r.best; const conf=Math.round(x.conf*100);
   if(x.tier==='muy'){ try{ seguraRegistrar(t,x,'segura','vivo'); }catch(e){} }
+  else { try{ seguraRegistrar(t,x,'firme','vivo'); }catch(e){} }
   const firm=x.tier==='muy';
   const tierTxt=x.tier==='muy'?'Segura (≥80%)':x.tier==='firme'?'Firme · no llega al 80%':'Poco firme';
   h+=anHtml+'<div class="stitle">La más firme</div>';
@@ -3963,7 +3986,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.54 · 4 nov 2026";
+const APP_VERSION="v5.55 · 4 nov 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 // ===== Actualización real (iOS guarda copias viejas de apps de la pantalla de inicio) =====
 // Pide la página publicada SIN caché, compara versiones y, si la publicada es MÁS NUEVA, la carga con un parámetro
