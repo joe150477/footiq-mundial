@@ -14,10 +14,10 @@
   --bg:#0b0f16; --bg2:#121824; --card:#161d29; --card2:#1b2331;
   --border:#232d3d; --border2:#2c3849;
   --text:#eaeff7; --muted:#7c8aa0; --dim:#5b6779;
-  --accent:#5aa9f0; --accent-soft:rgba(90,169,240,.12);
-  --gold:#e3b24d; --gold-soft:rgba(227,178,77,.12);
-  --green:#3ecf8e; --green-soft:rgba(62,207,142,.13);
-  --red:#f0656f; --red-soft:rgba(240,101,111,.12);
+  --accent:#5aa9f0; --accent-soft:rgba(156,184,168,.12);
+  --gold:#e3b24d; --gold-soft:rgba(156,184,168,.12);
+  --green:#3ecf8e; --green-soft:rgba(151,196,162,.13);
+  --red:#f0656f; --red-soft:rgba(211,154,148,.12);
   --orange:#f0934e; --yellow:#e6c34d;
   --shadow:0 6px 20px rgba(0,0,0,.28);
   --r:16px; --r-sm:10px;
@@ -43,7 +43,7 @@ body{
 .ov-title{font-size:24px;font-weight:800;letter-spacing:-.02em;}
 .ov-sub{font-size:16px;color:var(--muted);}
 .ov-prog{width:220px;height:4px;background:var(--border);border-radius:99px;overflow:hidden;}
-.ov-fill{height:100%;background:linear-gradient(90deg,var(--accent),#8ec7ff);width:0%;transition:width .35s ease;border-radius:99px;}
+.ov-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent));width:0%;transition:width .35s ease;border-radius:99px;}
 .ov-step{font-size:14px;color:var(--dim);}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
@@ -51,7 +51,7 @@ body{
 
 /* ===== TOPBAR ===== */
 .topbar{display:flex;padding:14px 18px;align-items:center;gap:10px;position:sticky;top:0;z-index:50;
-  background:rgba(11,15,22,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);}
+  background:rgba(11,15,22,.82);border-bottom:1px solid var(--border);}
 .logo{font-size:22px;font-weight:800;letter-spacing:-.03em;display:flex;align-items:baseline;gap:7px;}
 .logo em{color:var(--accent);font-style:normal;}
 .spacer{flex:1;}
@@ -78,7 +78,7 @@ body{
 .tpill{padding:8px 15px;border-radius:99px;border:1px solid var(--border2);font-size:14px;font-weight:600;
   cursor:pointer;white-space:nowrap;background:var(--card);color:var(--muted);transition:.2s;}
 .tpill:hover{border-color:var(--accent);}
-.tpill.active{background:var(--accent);color:#04121f;border-color:var(--accent);font-weight:700;box-shadow:0 3px 12px rgba(90,169,240,.3);}
+.tpill.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:700;box-shadow:0 3px 12px rgba(156,184,168,.3);}
 .tpill.fin{opacity:.6;}
 
 /* ===== PAGES ===== */
@@ -100,7 +100,7 @@ body{
 .champ-flag{font-size:52px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4));}
 .champ-name{font-size:27px;font-weight:800;letter-spacing:-.02em;margin-top:4px;}
 .champ-pct{font-size:44px;font-weight:900;color:var(--gold);letter-spacing:-.03em;margin-top:2px;
-  text-shadow:0 3px 18px rgba(227,178,77,.28);font-variant-numeric:tabular-nums;}
+  text-shadow:0 3px 18px rgba(156,184,168,.28);font-variant-numeric:tabular-nums;}
 
 /* ===== MATCH CARD ===== */
 .mcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--shadow);}
@@ -109,7 +109,7 @@ body{
 .match-meta{font-size:13px;color:var(--muted);margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right;line-height:1.35;}
 .day-sep{display:flex;align-items:center;gap:10px;margin:22px 2px 12px;}
 .day-sep::before,.day-sep::after{content:"";height:1px;background:var(--border2);flex:1;}
-.day-sep span{font-size:14px;font-weight:800;color:var(--accent);white-space:nowrap;text-transform:capitalize;}
+.day-sep span{font-size:14px;font-weight:800;color:var(--accent);white-space:nowrap;text-transform:none;}
 .mcard{border-left:3px solid var(--accent);}
 
 /* probabilidades */
@@ -117,20 +117,20 @@ body{
 .prob{flex:1;text-align:center;background:var(--bg2);border:1px solid transparent;border-radius:var(--r-sm);padding:12px 4px;transition:.2s;}
 .pv{font-size:26px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
 .pl{font-size:12px;color:var(--muted);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
-.prob.prob-top{background:var(--accent-soft);border-color:rgba(90,169,240,.4);}
+.prob.prob-top{background:var(--accent-soft);border-color:rgba(156,184,168,.4);}
 .prob.prob-top .pv{color:var(--accent);}
 
 /* resultado final */
-.result-real{background:var(--green-soft);border:1px solid rgba(62,207,142,.35);border-radius:var(--r-sm);padding:12px;margin:6px 0 4px;text-align:center;}
+.result-real{background:var(--green-soft);border:1px solid rgba(151,196,162,.35);border-radius:var(--r-sm);padding:12px;margin:6px 0 4px;text-align:center;}
 .result-real .rscore{font-size:30px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;}
 .result-real .rlabel{font-size:14px;color:var(--muted);margin-top:2px;font-weight:600;}
 
 /* veredicto / dictamen */
 .verdict{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:12px 14px;border-radius:var(--r-sm);font-size:16px;font-weight:600;}
 .verdict b{font-weight:800;}
-.verdict.v-pre{background:var(--gold-soft);border:1px solid rgba(227,178,77,.35);color:var(--gold);}
-.verdict.v-ok{background:var(--green-soft);border:1px solid rgba(62,207,142,.35);color:var(--green);}
-.verdict.v-no{background:var(--red-soft);border:1px solid rgba(240,101,111,.3);color:var(--red);}
+.verdict.v-pre{background:var(--gold-soft);border:1px solid rgba(156,184,168,.35);color:var(--gold);}
+.verdict.v-ok{background:var(--green-soft);border:1px solid rgba(151,196,162,.35);color:var(--green);}
+.verdict.v-no{background:var(--red-soft);border:1px solid rgba(211,154,148,.3);color:var(--red);}
 .verdict .v-sign{font-size:19px;}
 .verdict .v-code{font-size:13px;font-weight:800;background:rgba(255,255,255,.09);padding:3px 9px;border-radius:99px;color:var(--text);}
 
@@ -157,21 +157,21 @@ body{
 .mtab .pk{font-weight:800;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap;}
 
 /* mejor propuesta */
-.bestbet{margin-top:12px;background:var(--gold-soft);border:1px solid rgba(227,178,77,.3);border-radius:var(--r-sm);padding:12px 14px;}
+.bestbet{margin-top:12px;background:var(--gold-soft);border:1px solid rgba(156,184,168,.3);border-radius:var(--r-sm);padding:12px 14px;}
 .bestbet .bb-h{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
 .bestbet .bb-m{font-size:19px;font-weight:800;color:var(--gold);margin-top:3px;letter-spacing:-.01em;}
 
 /* calibrando */
-.calib{background:var(--gold-soft);border:1px solid rgba(227,178,77,.25);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;color:var(--gold);margin-top:10px;line-height:1.5;}
+.calib{background:var(--gold-soft);border:1px solid rgba(156,184,168,.25);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;color:var(--gold);margin-top:10px;line-height:1.5;}
 
 .mkt-panel{margin-top:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;}
 .mkt-h{font-size:14px;font-weight:700;margin-bottom:8px;}
 .mkt-row{display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:4px 0;color:var(--muted);}
 .mkt-row .mkt-v{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums;}
-.mkt-value{margin-top:8px;padding:9px 11px;background:var(--green-soft);border:1px solid rgba(62,207,142,.3);border-radius:8px;font-size:14px;color:var(--green);}
+.mkt-value{margin-top:8px;padding:9px 11px;background:var(--green-soft);border:1px solid rgba(151,196,162,.3);border-radius:8px;font-size:14px;color:var(--green);}
 .mkt-value b{font-weight:800;}
 .mkt-note{font-size:12px;color:var(--muted);margin-top:3px;font-weight:400;}
-.modal-back{position:fixed;inset:0;background:rgba(4,7,12,.72);backdrop-filter:blur(4px);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px;}
+.modal-back{position:fixed;inset:0;background:rgba(4,7,12,.72);z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px;}
 .modal-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--r);padding:20px;max-width:460px;width:100%;box-shadow:var(--shadow);max-height:90vh;overflow-y:auto;}
 .modal-title{font-size:19px;font-weight:800;margin-bottom:10px;}
 .modal-desc{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:14px;}
@@ -180,7 +180,7 @@ body{
 .modal-input:focus{border-color:var(--accent);}
 .modal-btns{display:flex;gap:8px;}
 .mbtn{flex:1;padding:11px;border-radius:var(--r-sm);border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:15px;font-weight:700;cursor:pointer;}
-.mbtn-primary{background:var(--accent);color:#04121f;border-color:var(--accent);}
+.mbtn-primary{background:var(--accent);color:var(--bg);border-color:var(--accent);}
 .modal-msg{font-size:14px;margin-top:12px;min-height:20px;line-height:1.5;}
 .modal-note{font-size:12px;color:var(--dim);margin-top:14px;line-height:1.5;border-top:1px solid var(--border);padding-top:12px;}
 .inj-tag{display:inline-block;background:var(--red-soft);color:var(--red);font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;margin-left:6px;}
@@ -192,10 +192,10 @@ body{
 .ba-verdict{align-self:center;font-size:14px;font-weight:800;padding:6px 12px;border-radius:99px;white-space:nowrap;}
 .ba-ok{background:var(--green-soft);color:var(--green);}
 .ba-no{background:var(--red-soft);color:var(--red);}
-.gold-card{background:linear-gradient(135deg,rgba(227,178,77,.16),rgba(240,205,106,.08));border:1.5px solid rgba(227,178,77,.55);border-radius:var(--r);padding:16px;margin-bottom:16px;box-shadow:0 6px 24px rgba(227,178,77,.18);}
+.gold-card{background:linear-gradient(135deg,rgba(156,184,168,.16),rgba(240,205,106,.08));border:1.5px solid rgba(156,184,168,.55);border-radius:var(--r);padding:16px;margin-bottom:16px;box-shadow:0 6px 24px rgba(156,184,168,.18);}
 .gold-h{font-size:19px;font-weight:900;color:var(--gold);}
 .gold-sub{font-size:13px;color:var(--muted);margin:4px 0 12px;line-height:1.5;}
-.gold-op{background:rgba(227,178,77,.1);border:1px solid rgba(227,178,77,.3);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;color:var(--text);}
+.gold-op{background:rgba(156,184,168,.1);border:1px solid rgba(156,184,168,.3);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;color:var(--text);}
 .fin-badge{display:inline-block;background:var(--border2);color:var(--muted);font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;}
 .value-tag{background:var(--green-soft);color:var(--green);font-size:12px;font-weight:800;padding:3px 8px;border-radius:99px;margin-left:6px;}
 
@@ -222,21 +222,21 @@ body{
 
 /* ===== REDISEÑO PARTIDOS PRO (v5.5) ===== */
 .day-sep{position:sticky;top:0;z-index:25;margin:18px -16px 14px;padding:12px 16px 11px;
-  background:rgba(13,18,27,.94);backdrop-filter:blur(12px) saturate(1.2);
+  background:rgba(13,18,27,.94);
   border:none;border-bottom:1px solid var(--border2);border-radius:0;
   display:flex;align-items:center;gap:10px;}
 .day-sep::before,.day-sep::after{content:none;}
 .day-sep .dtitle{font-size:15px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:baseline;gap:7px;}
-.day-sep .dw{color:var(--accent);text-transform:capitalize;}
-.day-sep .dd{color:var(--text);text-transform:capitalize;}
-.day-sep .dtoday{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#04121f;background:var(--accent);padding:2px 8px;border-radius:99px;}
-.day-sep .dtoday.man{color:var(--gold);background:transparent;border:1px solid rgba(227,178,77,.5);}
+.day-sep .dw{color:var(--accent);text-transform:none;}
+.day-sep .dd{color:var(--text);text-transform:none;}
+.day-sep .dtoday{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--bg);background:var(--accent);padding:2px 8px;border-radius:99px;}
+.day-sep .dtoday.man{color:var(--gold);background:transparent;border:1px solid rgba(156,184,168,.5);}
 .day-sep .dcount{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:99px;padding:3px 11px;white-space:nowrap;}
 .mcard{background:linear-gradient(180deg,var(--card) 0%,#121826 100%);border:1px solid var(--border2);border-left:3px solid var(--accent);border-radius:16px;padding:15px 16px 16px;margin-bottom:16px;box-shadow:0 8px 22px rgba(0,0,0,.34);}
 .mhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px;}
-.mtime{display:inline-flex;align-items:baseline;gap:5px;background:var(--accent-soft);border:1px solid rgba(90,169,240,.32);color:#bcdcff;font-weight:800;font-size:18px;padding:5px 13px;border-radius:99px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap;}
+.mtime{display:inline-flex;align-items:baseline;gap:5px;background:var(--accent-soft);border:1px solid rgba(156,184,168,.32);color:var(--accent);font-weight:800;font-size:18px;padding:5px 13px;border-radius:99px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap;}
 .mtime small{font-size:11px;font-weight:700;opacity:.75;}
-.mtime.fin{background:var(--green-soft);border-color:rgba(62,207,142,.35);color:#a6f0cf;font-size:13px;letter-spacing:.05em;}
+.mtime.fin{background:var(--green-soft);border-color:rgba(151,196,162,.35);color:var(--green);font-size:13px;letter-spacing:.05em;}
 .mstat{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);text-align:right;}
 .mstat.fin{color:var(--green);}
 .mteams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-bottom:13px;}
@@ -250,14 +250,14 @@ body{
 .prob{flex:1;text-align:center;border-radius:12px;padding:13px 4px;border:1.5px solid transparent;transition:.2s;}
 .prob .pv{font-size:25px;font-weight:800;}
 .prob .pl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:3px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.prob-h{background:rgba(90,169,240,.09);}   .prob-h .pv{color:#8ec7ff;}
-.prob-d{background:rgba(227,178,77,.09);}   .prob-d .pv{color:var(--gold);}
-.prob-a{background:rgba(240,147,78,.10);}   .prob-a .pv{color:var(--orange);}
-.prob.prob-top.prob-h{background:rgba(90,169,240,.22);border-color:var(--accent);box-shadow:0 3px 12px rgba(90,169,240,.22);}
-.prob.prob-top.prob-d{background:rgba(227,178,77,.22);border-color:var(--gold);box-shadow:0 3px 12px rgba(227,178,77,.22);}
-.prob.prob-top.prob-a{background:rgba(240,147,78,.22);border-color:var(--orange);box-shadow:0 3px 12px rgba(240,147,78,.22);}
+.prob-h{background:rgba(156,184,168,.09);}   .prob-h .pv{color:var(--accent);}
+.prob-d{background:rgba(156,184,168,.09);}   .prob-d .pv{color:var(--gold);}
+.prob-a{background:rgba(154,156,159,.10);}   .prob-a .pv{color:var(--orange);}
+.prob.prob-top.prob-h{background:rgba(156,184,168,.22);border-color:var(--accent);box-shadow:0 3px 12px rgba(156,184,168,.22);}
+.prob.prob-top.prob-d{background:rgba(156,184,168,.22);border-color:var(--gold);box-shadow:0 3px 12px rgba(156,184,168,.22);}
+.prob.prob-top.prob-a{background:rgba(154,156,159,.22);border-color:var(--orange);box-shadow:0 3px 12px rgba(154,156,159,.22);}
 .prob.prob-top .pl{color:var(--text);}
-.verdict.v-pre{background:linear-gradient(90deg,rgba(227,178,77,.16),rgba(227,178,77,.04));border:1px solid rgba(227,178,77,.4);}
+.verdict.v-pre{background:linear-gradient(90deg,rgba(156,184,168,.16),rgba(156,184,168,.04));border:1px solid rgba(156,184,168,.4);}
 .motor-res{padding:9px 4px;}
 .motor-res:not(:last-child){border-bottom:1px solid var(--border);}
 .mkt-panel{background:linear-gradient(180deg,var(--bg2),#0e131d);}
@@ -271,12 +271,12 @@ body{
 .ctxrows{padding:0 12px 9px}
 .ctxrow{padding:6px 0;border-top:1px solid var(--border);color:#c7d0dd;line-height:1.45}
 .ctxrow b{color:var(--text)}
-.injnote{margin:8px 0 2px;padding:7px 10px;border-radius:9px;background:rgba(240,90,60,.10);border:1px solid rgba(240,90,60,.30);color:#ffd0c4;font-size:13px;font-weight:600;line-height:1.35;}
+.injnote{margin:8px 0 2px;padding:7px 10px;border-radius:9px;background:rgba(211,154,148,.10);border:1px solid rgba(211,154,148,.30);color:var(--red);font-size:13px;font-weight:600;line-height:1.35;}
 .injnote b{color:#ffb3a3;}
 .mcard-post{border-left:3px solid var(--dim);opacity:.9;background:linear-gradient(180deg,#141a24,#0f141d);}
 .post-note{font-size:13px;color:var(--muted);margin-top:8px;padding:9px 11px;background:rgba(107,122,144,.1);border-radius:10px;line-height:1.5;}
 .post-note b{color:var(--orange);}
-.result-real{background:linear-gradient(180deg,rgba(62,207,142,.14),rgba(62,207,142,.04));border:1px solid rgba(62,207,142,.4);border-radius:12px;padding:14px;margin:8px 0 2px;}
+.result-real{background:linear-gradient(180deg,rgba(151,196,162,.14),rgba(151,196,162,.04));border:1px solid rgba(151,196,162,.4);border-radius:12px;padding:14px;margin:8px 0 2px;}
 .result-real .rscore{font-size:34px;font-weight:900;letter-spacing:2px;}
 .result-real .rlabel{font-size:14px;margin-top:3px;font-weight:600;}
 .ba{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 12px;margin-top:12px;gap:6px;}
@@ -290,7 +290,7 @@ body{
 .motor-line{gap:7px;margin-top:8px;}
 .mchip{font-size:13px;font-weight:800;padding:6px 11px;border-radius:99px;}
 
-/* ===================== 🍃 ZEN v5.57 =====================
+/* ===================== 🍃 ZEN v5.58 =====================
    Paleta tinta + salvia, sin degradados ni sombras, más aire, menos ruido. */
 :root{
   --bg:#16181b; --bg2:#1c1f23; --card:#1d2024; --card2:#212429;
@@ -364,6 +364,33 @@ details.more[open]>summary::before{content:'－ ';}
 .rscore{font-weight:600!important;}
 .anotada{background:var(--green-soft)!important;box-shadow:inset 3px 0 0 var(--green);border-radius:10px}
 .anot-row.anotada{padding-left:8px!important}
+
+/* ===================== 🌿 CALMA v5.58 =====================
+   Un solo acento (salvia), sin dorado/azul/naranja, sin sombras ni degradados, un solo peso fuerte (600). */
+:root{ --gold:var(--accent); --gold-soft:var(--accent-soft); --orange:var(--muted); --yellow:var(--muted); --r:14px; --r-sm:10px; }
+*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
+body,#overlay{background:var(--bg)!important;}
+.ov-fill{background:var(--accent)!important;}
+.gold-card,.bestbet,.calib,.gold-op,.mkt-panel,.mcard-post,.result-real,.verdict.v-pre{background:var(--card)!important;box-shadow:none!important;}
+.topbar{background:var(--bg)!important;}
+.logo,.tm,.pv,.champ-name,.champ-pct,.day-sep span,.tab,.tpill,.bw{font-weight:600!important;}
+.champ-pct{color:var(--text)!important;text-shadow:none!important;font-size:34px!important;}
+.card,.mcard,.champ-wrap{border-radius:var(--r)!important;}
+.page.active{animation-duration:.15s!important;}
+details.more>summary{padding:10px 0!important;}
+/* cabecera: lo esencial */
+.col-time,.sdot{display:none!important;}
+.sync-status{font-size:12px;color:var(--dim);}
+/* selector de torneos */
+.torneo-bar{display:block!important;overflow:visible!important;padding:10px 16px 0!important;}
+.tsel{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 16px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--card);color:var(--text);font-size:15px;cursor:pointer;}
+.tsel span{color:var(--dim);}
+.tsheet{display:none;margin-top:8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);padding:4px 0 8px;max-height:62vh;overflow:auto;}
+.tsheet.open{display:block;}
+.tgrp{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);padding:14px 16px 4px;}
+.trow2{display:flex;justify-content:space-between;align-items:center;min-height:46px;padding:0 16px;font-size:15px;color:var(--text);cursor:pointer;}
+.trow2.active{color:var(--accent);}
+.trow2 small{color:var(--dim);font-size:12px;}
 </style>
 </head>
 <body>
@@ -372,17 +399,17 @@ details.more[open]>summary::before{content:'－ ';}
   <div class="ov-ball">⚽</div>
   <div class="ov-title">FootIQ · Multi-Torneo</div>
   <div class="ov-sub" id="ovSub">Cargando motores de predicción</div>
-  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.57 · 22 nov 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
+  <div style="font-size:15px;color:var(--gold);font-weight:700;margin-top:2px">🗓️ Versión v5.58 · 23 nov 2026 · 🔒 Segura + ⚠️ Detector de trampas</div>
   <div class="ov-prog"><div class="ov-fill" id="progFill"></div></div>
   <div class="ov-step" id="stepMsg">Iniciando...</div>
 </div>
 
 <div class="topbar">
-  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.57</span></div>
+  <div class="logo">Foot<em>IQ</em> <span id="verStamp" onclick="checkForUpdate(true)" style="font-size:13px;opacity:.7;font-weight:600;color:var(--gold);cursor:pointer" title="Tocar para buscar actualización">v5.58</span></div>
   <div class="spacer"></div>
   <span class="col-time" id="colTime">—</span>
   <span class="sync-status" id="syncStatus"></span>
-  <div class="sync-btn" id="syncBtn" onclick="syncActive()" title="Sincronizar resultados y cuotas">🔄</div>
+  <div class="sync-btn" id="syncBtn" onclick="syncActive(true)" title="Sincronizar resultados y cuotas">🔄</div>
   <div class="sync-btn" id="cfgBtn" onclick="openSettings()" title="Datos avanzados (API-Football)">⚙️</div>
   <div class="sdot" id="statusDot"></div>
 </div>
@@ -568,7 +595,8 @@ function loadState(t){
   S[t]={teams:{},matches:[]};
   return S[t];
 }
-function saveState(t){ try{ localStorage.setItem('fiq2_'+t, JSON.stringify(S[t])); }catch(e){} }
+let DATA_REV=0;   // sube cada vez que cambian los datos: invalida las cachés de Segura
+function saveState(t){ DATA_REV++; try{ localStorage.setItem('fiq2_'+t, JSON.stringify(S[t])); }catch(e){} }
 
 // ==================== MOTORES (4) ====================
 // Todos se evalúan WALK-FORWARD: cada partido se predice solo con datos
@@ -1117,12 +1145,12 @@ function trampaRegistrar(t,m,tr){
 function renderTrampaCard(tr,m){
   const ig=integridadSenales(m,tr,ACTIVE); const cv=contrarianValue(ACTIVE,m,tr,ig);
   let h='<div class="card">';
-  h+='<div style="font-size:13px;color:var(--muted);text-transform:capitalize">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
+  h+='<div style="font-size:13px;color:var(--muted);text-transform:none">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
   h+='<div style="font-size:17px;font-weight:600;margin-top:6px">'+m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+m.a+'</div>';
   h+='<div style="font-size:13.5px;color:var(--muted);margin-top:6px">'+tr.favShort+' parece seguro: '+(tr.src==='cuota'?'cuota':'su fama/forma sugiere')+' '+Math.round(tr.crowd*100)+'% · real ≈'+Math.round(tr.indep*100)+'%</div>';
   if(cv.clase==='A') h+='<div class="bet bet-yes"><span class="bw">APOSTAR ↺</span><span class="bd">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">valor +'+Math.round(cv.ev*100)+'% · acierta ≈'+Math.round(cv.p*100)+'%</span></span></div>';
-  else if(cv.clase==='B') h+='<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">VIGILAR</span><span class="bd" style="color:var(--text)">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">valor dudoso: no alcanza con margen de error</span></span></div>';
-  else if(cv.clase==='E'){ const cm=cuotaMinima(tr); h+='<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">VIGILAR</span><span class="bd" style="color:var(--text)">'+(cm?((cm.c==='D'?'Empate':'Empate o '+(tr.favSide==='H'?shortPair(m.h,m.a).as:shortPair(m.h,m.a).hs))+' si paga ≥ '+cm.min.toFixed(2)):'Esperando cuotas')+'<br><span style="color:var(--muted)">aún no hay cuotas publicadas</span></span></div>'; }
+  else if(cv.clase==='B') h+='<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">ESPERAR</span><span class="bd" style="color:var(--text)">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">valor dudoso: no alcanza con margen de error</span></span></div>';
+  else if(cv.clase==='E'){ const cm=cuotaMinima(tr); h+='<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">ESPERAR</span><span class="bd" style="color:var(--text)">'+(cm?((cm.c==='D'?'Empate':'Empate o '+(tr.favSide==='H'?shortPair(m.h,m.a).as:shortPair(m.h,m.a).hs))+' si paga ≥ '+cm.min.toFixed(2)):'Esperando cuotas')+'<br><span style="color:var(--muted)">aún no hay cuotas publicadas</span></span></div>'; }
   else h+='<div class="bet bet-trap"><span class="bw">NO APOSTAR</span><span class="bd">Ni al favorito ni en contra<br><span style="color:var(--muted)">el otro lado tampoco paga</span></span></div>';
   h+='<div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5">'+TRAMPA_MSG+'</div>';
   h+='<details class="more"><summary>Por qué</summary><div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px">';
@@ -1258,7 +1286,7 @@ function betDecision(t,m,p){
   return {yes:false,why:'Sin valor: la cuota paga justo'};
 }
 function betPill(d){
-  if(d.watch) return '<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">VIGILAR</span><span class="bd" style="color:var(--text)">'+d.why+'</span></div>';
+  if(d.watch) return '<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">ESPERAR</span><span class="bd" style="color:var(--text)">'+d.why+'</span></div>';
   if(d.yes) return '<div class="bet bet-yes"><span class="bw">'+(d.contra?'APOSTAR ↺':'APOSTAR')+'</span><span class="bd">'+d.why+(d.risky?'<br><span style="color:var(--orange)">riesgo alto</span>':'')+'</span></div>';
   if(d.trap) return '<div class="bet bet-trap"><span class="bw">NO APOSTAR</span><span class="bd">'+d.why+'</span></div>';
   return '<div class="bet bet-no"><span class="bw">NO APOSTAR</span><span class="bd">'+d.why+'</span></div>';
@@ -1494,7 +1522,7 @@ function _calcWeights(hits,tot,scored,brier){
 
 let WF={}; // cache por torneo
 function getWF(t){ if(!WF[t]) WF[t]=walkForward(t); return WF[t]; }
-function invalidateWF(t){ delete WF[t]; }
+function invalidateWF(t){ delete WF[t]; DATA_REV++; }
 
 // ==================== PREDICCIÓN DE PARTIDOS FUTUROS ====================
 function _glkInflate(P,sevEff){ if(!P||!sevEff) return P; return {mu:P.mu, phi:P.phi*(1+sevEff*3), sig:P.sig}; }
@@ -1711,9 +1739,13 @@ async function syncTorneo(t){
   const base=`https://site.api.espn.com/apis/site/v2/sports/soccer/${cfg.espn}/scoreboard`;
   // 1) ESENCIAL: ventana hoy-4 .. hoy+18, DÍA POR DÍA (fecha única = ESPN directo).
   const now=new Date(); let got=0; const res={nuevos:0,actualizados:0};
-  for(let off=-4; off<=18; off++){
-    const d=new Date(now); d.setDate(d.getDate()+off);
-    try{ const data=await _fetchDay(base,_fmtD(d)); const r=parseEvents(t,data.events||[]); res.nuevos+=r.nuevos; res.actualizados+=r.actualizados; got++; }catch(e){}
+  let fails=0;
+  for(let o0=-4; o0<=18; o0+=4){
+    const offs=[0,1,2,3].map(k=>o0+k).filter(o=>o<=18);
+    const rs=await Promise.allSettled(offs.map(o=>{ const d=new Date(now); d.setDate(d.getDate()+o); return _fetchDay(base,_fmtD(d)); }));
+    let okN=0;
+    rs.forEach(r=>{ if(r.status==='fulfilled'){ try{ const x=parseEvents(t,r.value.events||[]); res.nuevos+=x.nuevos; res.actualizados+=x.actualizados; got++; okN++; }catch(e){} } });
+    if(!okN){ if(++fails>=2) break; } else fails=0;   // sin red: no insiste 23 veces
   }
   if(got===0) throw new Error('ESPN no respondió');   // solo si TODOS los días fallan (sin red real)
   invalidateWF(t);
@@ -1749,7 +1781,9 @@ async function seasonBackfill(t,cfg,base){
   saveState(t);
 }
 
-async function syncActive(){
+async function syncActive(force){
+  const lk='fiq2_lastsync_'+ACTIVE;
+  if(force!==true){ try{ if(Date.now()-(+localStorage.getItem(lk)||0)<600000) return; }catch(e){} }
   const btn=document.getElementById('syncBtn');
   btn.classList.add('syncing');
   document.getElementById('syncStatus').textContent='Buscando...';
@@ -1763,6 +1797,7 @@ async function syncActive(){
     }
     try{ await fetchWeather(ACTIVE); }catch(e){}   // 🌡️ clima (Open-Meteo, sin clave, siempre)
     invalidateWF(ACTIVE);
+    try{ localStorage.setItem(lk,String(Date.now())); }catch(e){}
     const now=new Date();
     document.getElementById('syncStatus').textContent='✓ '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
     const st=loadState(ACTIVE);
@@ -1770,8 +1805,7 @@ async function syncActive(){
     const jugados=st.matches.filter(m=>m.played&&!m.seed).length;
     let extra='';
     if(getApiKey()){ extra=` · 🏦 cuotas ${conCuota}/${jugados}`; if(bf&&bf.remaining>0) extra+=` (faltan ${bf.remaining} días — sincroniza otra vez)`; }
-    else { extra=' · 🔑 conecta API-Football para cuotas (sube el acierto)'; }
-    showToast(`✅ ${TORNEOS[ACTIVE].corto}: ${jugados} jugados${extra}`);
+    showToast(`✅ Actualizado · ${jugados} partidos${extra}`);
     refreshAll();
     setTimeout(trampaAvisar,4500);   // 🔔 aviso de trampas tras sincronizar
     setTimeout(()=>hypeAuto(ACTIVE),6000);   // 📣 termómetro de redes (si hay clave Gemini)
@@ -2801,15 +2835,20 @@ async function runBackfill(){
 }
 
 // ==================== NAVEGACIÓN ====================
+const TGRUPOS=[['Colombia',['betplay']],['Europa',['laliga','premier','seriea','championship','primeira']],['Copas',['ucl','uel','uecl','libertadores','nations']],['Sudamérica',['brasileirao','argentina']],['Mundiales',['wc2026','eliminatorias','copaamerica','wc2030']]];
+function _recent(){ try{ return JSON.parse(localStorage.getItem('fiq2_recent')||'[]'); }catch(e){ return []; } }
+function toggleTSheet(){ const el=document.getElementById('tsheet'); if(el) el.classList.toggle('open'); }
 function renderTorneoBar(){
-  const order=['betplay','laliga','premier','seriea','ucl','uel','uecl','libertadores','nations','championship','primeira','brasileirao','argentina','wc2026','eliminatorias','copaamerica','wc2030'];
-  document.getElementById('torneoBar').innerHTML=order.map(t=>{
-    const c=TORNEOS[t];
-    const cls='tpill'+(t===ACTIVE?' active':'')+(c.estado==='finalizado'?' fin':'');
-    return `<div class="${cls}" onclick="setTorneo('${t}')">${c.corto}</div>`;
-  }).join('');
+  const c=TORNEOS[ACTIVE];
+  const row=t=>{ const x=TORNEOS[t]; return '<div class="trow2'+(t===ACTIVE?' active':'')+'" onclick="setTorneo(\''+t+'\')"><span>'+x.corto+'</span>'+(x.estado==='activo'?'':'<small>'+(x.estado==='finalizado'?'terminó':'próximamente')+'</small>')+'</div>'; };
+  const rec=_recent().filter(t=>TORNEOS[t]&&t!==ACTIVE).slice(0,3);
+  let h='<div class="tsel" onclick="toggleTSheet()"><b style="font-weight:600">'+c.corto+'</b><span>▾</span></div><div class="tsheet" id="tsheet">';
+  if(rec.length) h+='<div class="tgrp">Recientes</div>'+rec.map(row).join('');
+  TGRUPOS.forEach(([n,l])=>{ h+='<div class="tgrp">'+n+'</div>'+l.map(row).join(''); });
+  document.getElementById('torneoBar').innerHTML=h+'</div>';
 }
 function setTorneo(t){
+  if(t!==ACTIVE){ try{ localStorage.setItem('fiq2_recent',JSON.stringify([ACTIVE,..._recent()].filter((x,k,arr)=>arr.indexOf(x)===k).slice(0,4))); }catch(e){} }
   ACTIVE=t;
   try{ localStorage.setItem('fiq2_active',t); }catch(e){}
   renderTorneoBar();
@@ -2966,7 +3005,7 @@ function renderChamp(){
 // ==================== FECHAS EN HORA DE COLOMBIA ====================
 function _asDate(iso){ if(!iso) return new Date(NaN); let x=String(iso); if(!/[zZ]|[+-]\d\d:?\d\d$/.test(x)) x=x+'Z'; return new Date(x); }
 function _colDay(iso){ const d=_asDate(iso); return isNaN(d)?'' : d.toLocaleDateString('en-CA',{timeZone:'America/Bogota'}); }
-function _fmtDayCol(iso){ const d=_asDate(iso); return isNaN(d)?'' : d.toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short',timeZone:'America/Bogota'}); }
+function _fmtDayCol(iso){ const d=_asDate(iso); if(isNaN(d)) return ''; const x=d.toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short',timeZone:'America/Bogota'}); return x.charAt(0).toUpperCase()+x.slice(1); }
 function _fmtHrCol(iso){ const d=_asDate(iso); return isNaN(d)?'' : d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}); }
 function renderHoy(){
   const pg=document.getElementById('page-hoy');
@@ -3599,7 +3638,9 @@ function _ligaAval(t){
   const sm=(hit+SEGURA_MIN*6)/(n+6);   // con pocos datos pesa el 80% prometido; con muchos, lo real
   return (wf._aval={n,hit,dijo:n?sd/n:SEGURA_MIN,s:sm,ok:sm>=SEGURA_MIN,pocos:n<10});
 }
-function safestOfDay(t){
+let _sodC={};
+function safestOfDay(t){ const k=t+'|'+DATA_REV+'|'+new Date().toDateString(), c=_sodC[t]; if(c&&c.k===k&&Date.now()-c.t<60000) return c.v; const v=_safestOfDay0(t); _sodC[t]={k,v,t:Date.now()}; return v; }
+function _safestOfDay0(t){
   const cfg=TORNEOS[t];
   if(!cfg||cfg.estado!=='activo') return {ready:false, reason:'Este torneo no está en juego en este momento. Cambia al torneo activo arriba.'};
   const wf=getWF(t);
@@ -3717,16 +3758,19 @@ function renderRegistroHonesto(t,H){
   tipos.forEach(([n,a])=>{ if(!a.length) return; const o=a.filter(x=>x.ok).length; const c=Math.round(o/a.length*100);
     h+='<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:7px 0;border-top:1px solid var(--border);margin-top:6px"><span>'+n+'</span><span style="font-weight:600;color:'+(c>=70?'var(--green)':c>=55?'var(--gold)':'var(--red)')+'">'+o+' de '+a.length+' · '+c+'%</span></div>'; });
   const fails=all.filter(z=>!z.x.ok);
-  const row=z=>{ const x=z.x, r=x.r; return '<div style="padding:9px 0;border-top:1px solid var(--border);font-size:13.5px;line-height:1.5"><span>'+(x.ok?'✅':'❌')+'</span> <b style="font-weight:600">'+r.label+'</b>'+(r.prob?' <span style="color:var(--dim)">· decía '+Math.round(r.prob*100)+'%</span>':'')+'<br><span style="color:var(--muted)">Salió: '+_resTxt(x.m)+(x.ok?' → acertó':' → <b style="color:var(--red)">se equivocó</b>')+'</span><br><span style="color:var(--dim);font-size:12px;text-transform:capitalize">'+_fmtDayCol(x.m.date)+' · '+z.n+'</span></div>'; };
+  const row=z=>{ const x=z.x, r=x.r; return '<div style="padding:9px 0;border-top:1px solid var(--border);font-size:13.5px;line-height:1.5"><span>'+(x.ok?'✅':'❌')+'</span> <b style="font-weight:600">'+r.label+'</b>'+(r.prob?' <span style="color:var(--dim)">· decía '+Math.round(r.prob*100)+'%</span>':'')+'<br><span style="color:var(--muted)">Salió: '+_resTxt(x.m)+(x.ok?' → acertó':' → <b style="color:var(--red)">se equivocó</b>')+'</span><br><span style="color:var(--dim);font-size:12px;text-transform:none">'+_fmtDayCol(x.m.date)+' · '+z.n+'</span></div>'; };
   h+='<details class="more" open><summary>Dónde se equivocó ('+fails.length+')</summary><div style="margin-top:4px">'+(fails.length?fails.slice(0,30).map(row).join(''):'<div style="font-size:13px;color:var(--dim)">Sin fallos registrados.</div>')+'</div></details>';
   h+='<details class="more"><summary>Todas, con marcador ('+tot+')</summary><div style="margin-top:4px">'+all.slice(0,60).map(row).join('')+'</div></details>';
   return h+'</div>';
 }
-function renderSeguraHistorial(t){
+let _shC={};
+function renderSeguraHistorial(t){ const k=t+'|'+DATA_REV+'|'+(localStorage.getItem('fiq2_anotadas_'+t)||''), c=_shC[t]; if(c&&c.k===k&&Date.now()-c.t<60000){ window._segSum=c.sum; return c.v; } const v=_renderSeguraHistorial0(t); _shC[t]={k,v,sum:window._segSum,t:Date.now()}; return v; }
+function _renderSeguraHistorial0(t){
   let H,B; try{ seguraReconstruir(t,35); H=seguraHistorial(t); B=_safeStats(t); }catch(e){ return ''; }
   const S=H.S.slice().sort((a,b)=>(b.r.date||'').localeCompare(a.r.date||''));   // más reciente primero
   let h='<div class="card">';
   h+='<div style="font-size:13px;color:var(--muted)">Historial de la Segura (confianza ≥80%)</div>';
+  window._segSum=H.S.length?('últimas '+Math.min(10,H.S.length)+': '+H.S.slice().sort((a,b)=>(b.r.date||'').localeCompare(a.r.date||'')).slice(0,10).filter(x=>x.ok).length+' de '+Math.min(10,H.S.length)):'aún sin jugadas Segura';
   if(S.length){
     const n=S.length, ok=H.okS, pc=Math.round(ok/n*100);
     const u=S.slice(0,10), uo=u.filter(x=>x.ok).length, upc=Math.round(uo/u.length*100);
@@ -3749,7 +3793,7 @@ function renderSeguraHistorial(t){
   if(all.length){
     h+='<details class="more"><summary>Partido por partido</summary><div style="margin-top:6px">';
     all.slice(0,20).forEach(x=>{ const sp=shortPair(x.m.h,x.m.a);
-      h+='<div class="anot-row'+(_anotGet(t)[x.m.id]?' anotada':'')+'" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px">'+anotBox(t,x.m.id)+'<span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+(x.r.prob?(' <span style="color:var(--dim)">· decía '+Math.round(x.r.prob*100)+'%</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
+      h+='<div class="anot-row'+(_anotGet(t)[x.m.id]?' anotada':'')+'" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px">'+anotBox(t,x.m.id)+'<span>'+(x.ok?'✅':'❌')+'</span><span style="flex:1"><b style="font-weight:600">'+x.r.label+'</b>'+(x.r.cuota?(' <span style="color:var(--dim)">@'+(+x.r.cuota).toFixed(2)+'</span>'):'')+(x.r.prob?(' <span style="color:var(--dim)">· decía '+Math.round(x.r.prob*100)+'%</span>'):'')+'<br><span style="color:var(--muted)">'+sp.hs+' '+x.m.sh+'–'+x.m.sa+' '+sp.as+' · <span style="text-transform:none">'+_fmtDayCol(x.m.date)+'</span></span></span><span style="font-size:12px;color:'+(x.ok?'var(--green)':'var(--red)')+'">'+(x.ok?'acertó':'erró')+'</span></div>'; });
     h+='<div style="font-size:11.5px;color:var(--dim);margin-top:6px">Las jugadas pasadas se reconstruyen sin ver nada desde ese día en adelante. Desde ahora cada Segura se congela antes del partido.</div></div></details>';
   }
   h+='</div>';
@@ -3759,40 +3803,42 @@ function renderSeguraHistorial(t){
 // ✔️ «Ya la anoté»: marca personal por partido (solo en este dispositivo)
 function _anotGet(t){ try{ return JSON.parse(localStorage.getItem('fiq2_anotadas_'+t)||'{}'); }catch(e){ return {}; } }
 function anotToggle(t,id,on,el){ const box=el&&el.closest('.anot-row,.card'); if(box) box.classList.toggle('anotada',!!on); const o=_anotGet(t); if(on) o[id]=Date.now(); else delete o[id]; try{ localStorage.setItem('fiq2_anotadas_'+t,JSON.stringify(o)); }catch(e){} if(typeof showToast==='function') showToast(on?'✔️ Anotada':'Marca quitada'); }
-function anotBox(t,id,txt){ const on=!!_anotGet(t)[id]; return '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer"><input type="checkbox" '+(on?'checked':'')+' onchange="anotToggle(\''+t+'\',\''+id+'\',this.checked,this)" style="width:20px;height:20px;accent-color:var(--green)">'+(txt||'')+'</label>'; }
+function anotBox(t,id,txt){ const on=!!_anotGet(t)[id]; return '<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;padding:8px 10px 8px 0"><input type="checkbox" '+(on?'checked':'')+' onchange="anotToggle(\''+t+'\',\''+id+'\',this.checked,this)" style="width:20px;height:20px;accent-color:var(--green)">'+(txt||'')+'</label>'; }
 function avalLine(av){
   if(!av) return '';
   const pc=av.n?Math.round(av.hit/av.n*100):0;
-  if(av.ok) return '<div style="font-size:12.5px;color:var(--dim);margin-top:10px;line-height:1.5">🛡️ Aval de esta liga: '+(av.pocos?('pocos datos aún ('+av.hit+' de '+av.n+'); se confía en el 80% prometido.'):('cuando dijo ≥80% acertó '+av.hit+' de '+av.n+' ('+pc+'%). Se cumple.'))+'</div>';
-  return '<div style="font-size:13px;color:var(--red);margin-top:10px;line-height:1.5">⚠️ Sin aval en esta liga: cuando dijo ≥80% acertó solo '+av.hit+' de '+av.n+' ('+pc+'%). Por eso <b>no</b> la llamo «Segura» ni recomiendo apostarla.</div>';
+  if(av.ok) return '<div style="font-size:13px;color:var(--dim);margin-top:10px">✓ Esta liga cumple'+(av.pocos?' (pocos datos aún)':': acertó '+av.hit+' de '+av.n+' ('+pc+'%) cuando dijo 80% o más')+'</div>';
+  return '<div style="font-size:13.5px;color:var(--red);margin-top:10px;line-height:1.5">⚠ Esta liga no cumple: acertó '+av.hit+' de '+av.n+' ('+pc+'%) cuando dijo 80% o más. No la apuestes como Segura.</div>';
 }
 function renderSafe(){
   const pg=document.getElementById('page-safe'); if(!pg) return;
   const t=ACTIVE;
   const hist=renderSeguraHistorial(t);
+  const det=(tt,body,big)=>body?'<details class="more" style="margin-top:16px"><summary'+(big?' style="font-size:15px;color:var(--text)"':'')+'>'+tt+'</summary>'+body+'</details>':'';
+  const histH=det('Historial · '+(window._segSum||'ver'),hist,true);
   const r=safestOfDay(t);
   let h='';   // orden: La más firme → próximos → Anomalía → trampas → historial
   const foot='<div class="zline">Ninguna apuesta es 100% segura · juega solo lo que puedas perder</div>';
-  if(!r.ready){ h+='<div class="card" style="color:var(--muted);font-size:14.5px">'+(r.reason||'Sin datos')+'</div>'; pg.innerHTML=h+hist+foot; return; }
+  if(!r.ready){ h+='<div class="card" style="color:var(--muted);font-size:14.5px">'+(r.reason||'Sin datos')+'</div>'; pg.innerHTML=h+histH+foot; return; }
   let anHtml=''; const seenDay={};
   (r.anomPicks||[]).forEach(z=>{ const cv=z.cv; if(cv.clase==='B'){ try{ seguraRegistrar(t,{m:z.m,label:'↺ '+cv.label,market:'contra',code:cv.c,prob:cv.p,cuota:cv.odd,favSide:z.tr.favSide},'vigilar','vivo'); }catch(e){} } });   // se guardan, no se muestran
   const anA=(r.anomPicks||[]).filter(z=>z.cv.clase==='A');
   if(anA.length){
-    anHtml='<div class="stitle">Según Anomalía · lógica de la casa</div><div style="font-size:12px;color:var(--dim);margin:-4px 2px 10px">Experimental: aún sin historial que la respalde. Apuesta poco.</div>';
+    anHtml='<div class="stitle">Contra el favorito · experimental</div><div style="font-size:12px;color:var(--dim);margin:-4px 2px 10px">Experimental: aún sin historial que la respalde. Apuesta poco.</div>';
     anA.slice(0,4).forEach(z=>{ const cv=z.cv, m=z.m, sp=shortPair(m.h,m.a), f=z.tr.favShort, c=cv.casa;
-      anHtml+='<div class="card'+(_anotGet(t)[m.id]?' anotada':'')+'"><div style="font-size:13px;color:var(--muted);text-transform:capitalize">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
+      anHtml+='<div class="card'+(_anotGet(t)[m.id]?' anotada':'')+'"><div style="font-size:13px;color:var(--muted);text-transform:none">'+_fmtDayCol(m.date)+' · '+_fmtHrCol(m.date)+'</div>';
       anHtml+='<div style="font-size:17px;font-weight:600;margin-top:6px">'+m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+m.a+'</div>';
       anHtml+=(cv.clase==='A'?'<div class="bet bet-yes"><span class="bw">APOSTAR ↺</span><span class="bd">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">valor +'+Math.round(cv.ev*100)+'% · acierta ≈'+Math.round(cv.p*100)+'%</span></span></div>'
-        :'<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">VIGILAR</span><span class="bd" style="color:var(--text)">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">convenía a la casa, pero el valor es dudoso</span></span></div>');
+        :'<div class="bet" style="background:var(--gold-soft);color:var(--gold)"><span class="bw">ESPERAR</span><span class="bd" style="color:var(--text)">'+cv.label+' · cuota '+cv.odd.toFixed(2)+'<br><span style="color:var(--muted)">convenía a la casa, pero el valor es dudoso</span></span></div>');
       anHtml+='<div style="margin-top:10px">'+anotBox(t,m.id,'Ya la anoté')+'</div>';
       anHtml+='<div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5">A la casa le conviene que no gane '+f+': si gana, paga ≈ '+c.out[c.fav].pay.toFixed(2)+'× lo apostado; si empata, ≈ '+c.out.D.pay.toFixed(2)+'×.</div>';
       anHtml+='<details class="more"><summary>Por qué</summary><div style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px"><div>· '+f+' está muy apostado (≈'+Math.round(c.sobreFav*100)+'% más dinero del que pide su precio)</div><div>· El empate casi no concentra dinero: es el pozo pequeño</div><div>· Cuota del favorito '+Math.round(z.tr.crowd*100)+'% · real estimado ≈'+Math.round(z.tr.indep*100)+'%</div><div style="color:var(--dim);margin-top:4px">El dinero real por resultado no es público: es una estimación. Nada garantiza el resultado.</div></div></details></div>';
       const dk=_shDay(m.date); if(cv.clase==='A'&&!seenDay[dk]){ seenDay[dk]=1; try{ seguraRegistrar(t,{m,label:'↺ '+cv.label,market:'contra',code:cv.c,prob:cv.p,cuota:cv.odd,favSide:z.tr.favSide},'trampa','vivo'); }catch(e){} }
     });
   }
-  const trHtml=(r.trampas&&r.trampas.length)?('<div class="stitle">Falsas apuestas seguras</div>'+r.trampas.filter(z=>!(r.anomPicks||[]).some(a=>a.m.id===z.m.id)).map(z=>renderTrampaCard(z.tr,z.m)).join('')):'';
+  const trHtml=(r.trampas&&r.trampas.length)?('<div class="stitle">Favoritos engañosos</div>'+r.trampas.filter(z=>!(r.anomPicks||[]).some(a=>a.m.id===z.m.id)).map(z=>renderTrampaCard(z.tr,z.m)).join('')):'';
   const trLearn=renderTrampaAprendizaje(t);
-  if(!r.best){ h+='<div class="stitle">La más firme</div><div class="card"><div style="font-size:22px;font-weight:600">Hoy no hay segura</div><div style="font-size:13.5px;color:var(--muted);margin-top:4px">Ninguna jugada pasa los filtros. Mejor no forzar.</div></div>'+anHtml+trHtml+trLearn; pg.innerHTML=h+hist+foot; return; }
+  if(!r.best){ h+='<div class="stitle">La más firme</div><div class="card"><div style="font-size:22px;font-weight:600">Hoy no hay segura</div><div style="font-size:13.5px;color:var(--muted);margin-top:4px">Ninguna jugada pasa los filtros. Mejor no forzar.</div></div>'; h+=det('Más detalle',anHtml+trHtml+trLearn); pg.innerHTML=h+histH+foot; return; }
   const x=r.best; const conf=Math.round(x.conf*100);
   if(x.tier==='muy'){ try{ seguraRegistrar(t,x,'segura','vivo'); }catch(e){} }
   else { try{ seguraRegistrar(t,x,'firme','vivo'); }catch(e){} }
@@ -3800,9 +3846,9 @@ function renderSafe(){
   const tierTxt=x.tier==='muy'?'Segura (≥80%)':x.tier==='sinaval'?'Sin aval en esta liga':x.tier==='firme'?'Firme · no llega al 80%':'Poco firme';
   h+='<div class="stitle">La más firme</div>';
   h+='<div class="card'+(_anotGet(t)[x.m.id]?' anotada':'')+'">';
-  h+='<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span style="text-transform:capitalize">'+_fmtDayCol(x.m.date)+' · '+_fmtHrCol(x.m.date)+'</span><span style="color:'+(firm?'var(--green)':'var(--dim)')+'">'+tierTxt+'</span></div>';
+  h+='<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span style="text-transform:none">'+_fmtDayCol(x.m.date)+' · '+_fmtHrCol(x.m.date)+'</span>'+(firm?'<span style="color:var(--green)">Segura</span>':'')+'</div>';
   h+='<div style="font-size:17px;font-weight:600;margin-top:8px">'+x.m.h+' <span style="color:var(--dim);font-weight:400">vs</span> '+x.m.a+'</div>';
-  h+='<div class="bet '+(firm?'bet-yes':'bet-no')+'"><span class="bw">'+(firm?'APOSTAR':'SIN SEGURA')+'</span><span class="bd">'+x.label+'<br><span style="color:var(--muted)">acierta ≈'+conf+'%'+(x.cuota?(' · cuota '+x.cuota.toFixed(2)):'')+'</span></span></div>';
+  h+='<div class="bet '+(firm?'bet-yes':'bet-no')+'"><span class="bw">'+(firm?'APOSTAR':'NO APOSTAR')+'</span><span class="bd">'+x.label+'<br><span style="color:var(--muted)">acierta ≈'+conf+'%'+(x.cuota?(' · cuota '+x.cuota.toFixed(2)):'')+'</span></span></div>';
   h+=avalLine(r.aval);
   h+='<div style="margin-top:10px">'+anotBox(t,x.m.id,'Ya la anoté')+'</div>';
   if(x.isGold&&r.aval.ok) h+='<div style="font-size:13px;color:var(--gold);margin-top:10px">🥇 Además bien pagada: retorno esperado '+(x.ev>0?'+':'')+Math.round(x.ev*100)+'%</div>';
@@ -3819,13 +3865,13 @@ function renderSafe(){
     h+='<div class="stitle">Partidos próximos ('+lst.length+')</div><div class="card" style="padding-top:4px;padding-bottom:4px">';
     let dia='';
     lst.forEach(o=>{ const dk=_shDay(o.m.date), cf=Math.round(o.conf*100), seg=o.conf>=SEGURA_MIN&&r.aval.ok, on=!!_anotGet(t)[o.m.id];
-      if(dk!==dia){ dia=dk; h+='<div style="font-size:12.5px;color:var(--dim);text-transform:capitalize;margin:10px 0 2px">'+_fmtDayCol(o.m.date)+'</div>'; }
+      if(dk!==dia){ dia=dk; h+='<div style="font-size:12.5px;color:var(--dim);text-transform:none;margin:10px 0 2px">'+_fmtDayCol(o.m.date)+'</div>'; }
       h+='<div class="anot-row'+(on?' anotada':'')+'" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13.5px">'+anotBox(t,o.m.id)
         +'<span style="flex:1"><b style="font-weight:600">'+o.sp.hs+' vs '+o.sp.as+'</b> <span style="color:var(--dim)">· '+_fmtHrCol(o.m.date)+'</span><br><span style="color:var(--muted)">'+o.label+(o.cuota?(' @'+o.cuota.toFixed(2)):'')+'</span></span>'
         +'<span style="font-size:13px;font-weight:600;color:'+(seg?'var(--green)':'var(--dim)')+'">'+cf+'%'+(seg?' ✓':'')+'</span></div>'; });
     h+='<div style="font-size:12px;color:var(--dim);padding:8px 0 4px">'+(r.aval.ok?'Verde = Segura (≥'+Math.round(SEGURA_MIN*100)+'%). Las demás son solo para que veas el partido: no llegan al nivel Segura.':'En esta liga ninguna se marca como Segura porque el 80% no se ha cumplido (ver arriba). Son solo para que veas el partido.')+'</div></div>';
   }
-  pg.innerHTML=h+anHtml+trHtml+trLearn+hist+foot;
+  pg.innerHTML=h+det('Más detalle (contra el favorito y trampas)',anHtml+trHtml+trLearn)+histH+foot;
 }
 // ==================== 🚨 OPORTUNIDAD DE ORO ====================
 // Alerta SOLO si: (a) Anomalía consolidada (≥20 evaluados y le gana a la casa en Brier),
@@ -4059,7 +4105,7 @@ function updateColTime(){
   const el=document.getElementById('colTime');
   if(el) el.textContent=`🕐 ${String(col.getHours()).padStart(2,'0')}:${String(col.getMinutes()).padStart(2,'0')} COL`;
 }
-setInterval(updateColTime,1000);
+setInterval(updateColTime,30000);
 function setProgress(p,msg){
   document.getElementById('progFill').style.width=Math.min(100,p)+'%';
   document.getElementById('stepMsg').innerText=msg;
@@ -4073,14 +4119,14 @@ async function boot(){
     loadState(ACTIVE);
     try{ applyHistoricOdds('betplay'); applyHistoricXG('betplay'); }catch(e){}
     setProgress(70,'Calibrando motores (walk-forward)…');
-    getWF('betplay'); getWF('laliga');
+    getWF(ACTIVE);
     setProgress(100,'¡Listo!');
     document.getElementById('statusDot').className='sdot ok';
     document.getElementById('overlay').classList.add('gone');
     refreshAll();
     setTimeout(trampaAvisar,1500);   // 🔔 aviso al abrir
     setTimeout(()=>checkForUpdate(false),3500);   // ⬆️ ¿hay versión publicada más nueva?
-    setTimeout(()=>syncActive(),800);
+    setTimeout(()=>syncActive(),2500);   // sin competir con el primer dibujo; se salta si se sincronizó hace <10 min
   }catch(e){
     document.getElementById('stepMsg').innerText='❌ Error: '+e.message;
     document.getElementById('overlay').classList.add('gone');
@@ -4089,7 +4135,7 @@ async function boot(){
   }
 }
 // ==================== AUTO-ACTUALIZACIÓN (iPhone: sin reinstalar) ====================
-const APP_VERSION="v5.57 · 22 nov 2026";
+const APP_VERSION="v5.58 · 23 nov 2026";
 // Al tocar el sello: solo informa la versión (sin globo, sin recargas en bucle)
 // ===== Actualización real (iOS guarda copias viejas de apps de la pantalla de inicio) =====
 // Pide la página publicada SIN caché, compara versiones y, si la publicada es MÁS NUEVA, la carga con un parámetro
